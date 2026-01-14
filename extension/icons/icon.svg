@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e94560"/>
+      <stop offset="100%" style="stop-color:#ff6b6b"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
+  
+  <!-- Lock body -->
+  <rect x="34" y="54" width="60" height="50" rx="8" fill="url(#accent)"/>
+  
+  <!-- Lock shackle -->
+  <path d="M 46 54 L 46 40 C 46 28 54 20 64 20 C 74 20 82 28 82 40 L 82 54" 
+        fill="none" stroke="url(#accent)" stroke-width="10" stroke-linecap="round"/>
+  
+  <!-- Keyhole -->
+  <circle cx="64" cy="74" r="8" fill="#1a1a2e"/>
+  <rect x="60" y="74" width="8" height="16" rx="2" fill="#1a1a2e"/>
+</svg>

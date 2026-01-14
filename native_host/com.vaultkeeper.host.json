@@ -1,0 +1,9 @@
+{
+  "name": "com.vaultkeeper.host",
+  "description": "VaultKeeper Native Messaging Host",
+  "path": "/media/hd-compartilhado/projects/VaultKeeper-v2/app/native/host.py",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://YOUR_EXTENSION_ID/"
+  ]
+}
