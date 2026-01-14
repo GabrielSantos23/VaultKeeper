@@ -3,13 +3,18 @@ VaultKeeper - Settings Dialog
 Modern settings interface matching the application design.
 """
 
+from pathlib import Path
 from PySide6.QtWidgets import (
     QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QFrame, QStackedWidget, QComboBox, 
-    QScrollArea, QCheckBox, QAbstractItemView, QListView
+    QScrollArea, QCheckBox, QAbstractItemView, QListView,
+    QMessageBox
 )
-from PySide6.QtCore import Qt, Signal, QSize, QRect
-from PySide6.QtGui import QIcon, QPainter, QColor, QPaintEvent, QBrush
+from PySide6.QtCore import Qt, Signal, QSize, QRect, QUrl
+from PySide6.QtGui import QIcon, QPainter, QColor, QPaintEvent, QBrush, QDesktopServices
+
+from app import __version__
+from app.core.updater import UpdateManager
 
 from .theme import get_theme
 from .ui_utils import load_svg_icon, get_icon_path
@@ -122,6 +127,15 @@ class SettingsDialog(QDialog):
         # Frameless window matching modern app style if desired, 
         # but standard dialog with title bar is safer for now.
         # Image shows a modal floating in center.
+        
+        self.update_manager = UpdateManager()
+        self.update_manager.update_available.connect(self._on_update_available)
+        self.update_manager.no_update.connect(self._on_no_update)
+        self.update_manager.check_failed.connect(self._on_update_error)
+        self.update_manager.download_progress.connect(self._on_download_progress)
+        self.update_manager.download_complete.connect(self._on_download_complete)
+        self.update_manager.download_error.connect(self._on_update_error)
+        self.update_manager.install_complete.connect(self._on_install_complete)
         
         self.setup_ui()
         
@@ -348,6 +362,9 @@ class SettingsDialog(QDialog):
         
         self._setup_general_settings(layout)
         
+        layout.addWidget(self._create_separator())
+        self._setup_update_section(layout)
+        
         layout.addStretch()
         
         return page
@@ -481,3 +498,102 @@ class SettingsDialog(QDialog):
         layout.addWidget(label)
         layout.addStretch()
         return page
+
+    def _setup_update_section(self, layout):
+        theme = get_theme()
+        
+        # Container
+        container = QWidget()
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+        
+        # Text
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+        
+        title = QLabel(f"Version {__version__}")
+        title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
+        text_layout.addWidget(title)
+        
+        subtitle = QLabel("Check for the latest updates on GitHub.")
+        subtitle.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+        text_layout.addWidget(subtitle)
+        
+        row.addLayout(text_layout)
+        
+        # Button
+        self.btn_update = QPushButton("Check for Updates")
+        self.btn_update.setCursor(Qt.PointingHandCursor)
+        self.btn_update.setFixedWidth(140)
+        self.btn_update.setFixedHeight(32)
+        self.btn_update.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.colors.sidebar_accent}; 
+                border: 1px solid {theme.colors.border};
+                color: {theme.colors.foreground};
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.border};
+            }}
+            QPushButton:disabled {{
+                opacity: 0.5;
+            }}
+        """)
+        self.btn_update.clicked.connect(self._check_update)
+        row.addWidget(self.btn_update)
+        
+        layout.addWidget(container)
+
+    def _check_update(self):
+        self.btn_update.setText("Checking...")
+        self.btn_update.setEnabled(False)
+        self.update_manager.check_for_updates()
+        
+    def _on_update_available(self, version, url):
+        self.btn_update.setText("Update Now")
+        self.btn_update.setEnabled(True)
+        self.latest_download_url = url
+        
+        reply = QMessageBox.question(
+            self, 
+            "Update Available", 
+            f"A new version ({version}) is available!\nDo you want to download and install it now?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.btn_update.setText("Starting...")
+            self.btn_update.setEnabled(False)
+            self.update_manager.download_update(url)
+            
+    def _on_no_update(self):
+        self.btn_update.setText("Check for Updates")
+        self.btn_update.setEnabled(True)
+        QMessageBox.information(self, "Up to Date", "You are using the latest version.")
+        
+    def _on_update_error(self, error):
+        self.btn_update.setText("Check for Updates")
+        self.btn_update.setEnabled(True)
+        QMessageBox.warning(self, "Update Failed", f"Error:\n{error}")
+
+    def _on_download_progress(self, percent):
+        self.btn_update.setText(f"Downloading {percent}%")
+        
+    def _on_download_complete(self, file_path):
+        self.btn_update.setText("Installing...")
+        # Determine project root (app level or repo level?)
+        # Current file: app/ui/settings_dialog.py
+        # app module: app/
+        # Root: app/..
+        root = str(Path(__file__).resolve().parent.parent.parent)
+        self.update_manager.install_update(file_path, root)
+        
+    def _on_install_complete(self):
+        self.btn_update.setText("Updated!")
+        QMessageBox.information(
+            self, 
+            "Update Complete", 
+            "The application has been updated successfully.\nPlease restart the application to apply changes."
+        )

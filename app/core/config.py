@@ -5,6 +5,8 @@ Uses QSettings for persistence.
 
 from PySide6.QtCore import QSettings, QObject, Signal
 
+GITHUB_REPO = "GabrielSantos23/VaultKeeper"
+
 class ConfigManager(QObject):
     """
     Manages application settings and configuration.
