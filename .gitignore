@@ -1,0 +1,60 @@
+# VaultKeeper .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.eggs/
+*.manifest
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output
+build/
+dist/
+*.pkg
+
+# PyInstaller (keep .spec file but ignore build artifacts)
+# vaultkeeper.spec is kept for reference
+
+# Database (user data)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Large files that should be in GitHub Releases
+*.tar.gz
+*.zip
+*.exe
+*.dmg
+*.AppImage
