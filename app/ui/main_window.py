@@ -161,13 +161,22 @@ def get_credential_color(text: str) -> str:
 class SidebarButton(QPushButton):
     """A modern button styled for the sidebar with SVG icon."""
     
-    def __init__(self, icon_name: str, text: str, parent=None):
+    def __init__(self, icon_name: str, text: str, font_size: int = 14, padding_left: int = 12, is_selectable: bool = True, parent=None):
         super().__init__(parent)
         self.icon_name = icon_name
         self.label_text = text
+        self.font_size = font_size
+        self.padding_left = padding_left
+        self.is_selectable = is_selectable
         self.setText(f"  {text}")
-        self.setCheckable(True)
-        self.setCursor(Qt.PointingHandCursor)
+        
+        if is_selectable:
+            self.setCheckable(True)
+            self.setCursor(Qt.PointingHandCursor)
+        else:
+            self.setCheckable(False)
+            self.setCursor(Qt.ArrowCursor)
+            
         self.setMinimumHeight(40)
         self.update_style()
     
@@ -182,24 +191,33 @@ class SidebarButton(QPushButton):
         self.setIcon(QIcon(load_svg_icon(self.icon_name, 18, icon_color)))
         self.setIconSize(QSize(18, 18))
         
+        hover_style = ""
+        checked_style = ""
+        
+        if self.is_selectable:
+            hover_style = f"""
+            QPushButton:hover {{
+                background-color: {theme.colors.sidebar_accent};
+            }}"""
+            checked_style = f"""
+            QPushButton:checked {{
+                background-color: {theme.colors.sidebar_primary};
+                color: {theme.colors.sidebar_primary_foreground};
+            }}"""
+        
         self.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 color: {theme.colors.sidebar_foreground};
                 border: none;
                 border-radius: 8px;
-                padding: 10px 12px;
+                padding: 10px {self.padding_left}px;
                 text-align: left;
-                font-size: 14px;
+                font-size: {self.font_size}px;
                 font-weight: 500;
             }}
-            QPushButton:hover {{
-                background-color: {theme.colors.sidebar_accent};
-            }}
-            QPushButton:checked {{
-                background-color: {theme.colors.sidebar_primary};
-                color: {theme.colors.sidebar_primary_foreground};
-            }}
+            {hover_style}
+            {checked_style}
         """)
     
     def setChecked(self, checked: bool):
@@ -1374,6 +1392,106 @@ class CredentialDialog(QDialog):
         }
 
 
+
+class FolderDialog(QDialog):
+    """Custom dialog for creating/renaming folders."""
+    
+    def __init__(self, parent=None, title="Create Folder", current_name=""):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setFixedSize(400, 200)
+        self.folder_name = None
+        
+        theme = get_theme()
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {theme.colors.background};
+            }}
+            QLabel {{
+                color: {theme.colors.foreground};
+            }}
+            QLineEdit {{
+                background-color: {theme.colors.input_background};
+                color: {theme.colors.foreground};
+                border: 1px solid {theme.colors.input_border};
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 14px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {theme.colors.primary};
+            }}
+            QPushButton {{
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 500;
+            }}
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setSpacing(16)
+        layout.setContentsMargins(24, 24, 24, 24)
+        
+        # Title
+        lbl_title = QLabel(title)
+        lbl_title.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {theme.colors.foreground};")
+        layout.addWidget(lbl_title)
+        
+        # Input
+        self.input = QLineEdit(current_name)
+        self.input.setPlaceholderText("Enter folder name")
+        self.input.setFocus()
+        layout.addWidget(self.input)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setCursor(Qt.PointingHandCursor)
+        cancel_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {theme.colors.muted_foreground};
+                border: 1px solid {theme.colors.border};
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.secondary};
+            }}
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        
+        save_btn = QPushButton("Save")
+        save_btn.setCursor(Qt.PointingHandCursor)
+        self._setup_save_btn_style(save_btn, theme)
+        save_btn.clicked.connect(self.accept_folder)
+        
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(save_btn)
+        layout.addLayout(btn_layout)
+        
+    def _setup_save_btn_style(self, btn, theme):
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.colors.primary};
+                color: {theme.colors.primary_foreground};
+                border: none;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """)
+
+    def accept_folder(self):
+        name = self.input.text().strip()
+        if name:
+            self.folder_name = name
+            self.accept()
+        else:
+            self.input.setFocus()
+
+
 class Sidebar(QFrame):
     """Left sidebar with categories."""
     
@@ -1515,10 +1633,33 @@ class Sidebar(QFrame):
         self.folders_layout.setSpacing(2)
         self.layout.addWidget(self.folders_container)
         
-        # Default folders (static for now)
-        self.btn_personal = SidebarButton("person", "Personal")
-        self.btn_personal.clicked.connect(lambda: self.set_category("personal"))
+        # Default vaults
+        # Personal - acting as a header
+        self.btn_personal = SidebarButton("person", "Personal", font_size=16, is_selectable=False)
         self.folders_layout.addWidget(self.btn_personal)
+        
+        # Container specifically for personal folders (sub-items)
+        self.personal_folders_container = QWidget()
+        self.personal_folders_container.setStyleSheet("background-color: transparent;")
+        self.personal_folders_layout = QVBoxLayout(self.personal_folders_container)
+        self.personal_folders_layout.setContentsMargins(0, 0, 0, 0)
+        self.personal_folders_layout.setSpacing(2)
+        self.folders_layout.addWidget(self.personal_folders_container)
+        
+        # Team Vault - acting as a header
+        self.btn_team = SidebarButton("team", "Team Vault", font_size=16, is_selectable=False)
+        self.folders_layout.addWidget(self.btn_team)
+        
+        # Professional - acting as a header
+        self.btn_professional = SidebarButton("work", "Professional", font_size=16, is_selectable=False)
+        self.folders_layout.addWidget(self.btn_professional)
+        
+        self.static_buttons = [
+            self.btn_all, self.btn_favorites
+        ]
+        
+        # Initial empty state for personal folders
+        self.personal_folders_container.setVisible(False)
         
         self.layout.addStretch()
         
@@ -1527,6 +1668,8 @@ class Sidebar(QFrame):
         bottom_layout.setContentsMargins(4, 8, 4, 4)
         bottom_layout.setSpacing(4)
         
+        theme = get_theme()
+
         # Google Drive sync button
         self.drive_btn = QPushButton()
         self.drive_btn.setIcon(QIcon(load_svg_icon("google_drive", 18, theme.colors.sidebar_foreground)))
@@ -1576,11 +1719,6 @@ class Sidebar(QFrame):
         bottom_layout.addWidget(self.settings_btn)
         
         self.layout.addLayout(bottom_layout)
-        
-        self.static_buttons = [
-            self.btn_all, self.btn_favorites,
-            self.btn_personal
-        ]
     
     def set_folders(self, folders: List[Folder]):
         """Update the list of folders in the sidebar."""
@@ -1593,9 +1731,13 @@ class Sidebar(QFrame):
         
         theme = get_theme()
         
+        # Show container only if there are folders
+        self.personal_folders_container.setVisible(bool(folders))
+        
         # Add buttons for each folder
         for folder in folders:
-            btn = SidebarButton("folder", folder.name)
+            # Indented sub-items (padding_left=32)
+            btn = SidebarButton("folder", folder.name, font_size=13, padding_left=32)
             btn.clicked.connect(lambda checked, f=folder: self.on_folder_clicked(f))
             
             # Enable context menu for folder buttons
@@ -1604,7 +1746,7 @@ class Sidebar(QFrame):
                 lambda pos, b=btn, f=folder: self._show_folder_context_menu(b, f, pos)
             )
             
-            self.folders_layout.addWidget(btn)
+            self.personal_folders_layout.addWidget(btn)
             self.folder_buttons.append(btn)
     
     def _show_folder_context_menu(self, button, folder: Folder, pos):
@@ -1661,7 +1803,6 @@ class Sidebar(QFrame):
         btn_map = {
             "all": self.btn_all,
             "favorites": self.btn_favorites,
-            "personal": self.btn_personal,
         }
         if category in btn_map:
             btn_map[category].setChecked(True)
@@ -1963,45 +2104,39 @@ class VaultWidget(QWidget):
     
     def add_folder(self):
         """Show dialog to create a new folder."""
-        name, ok = QInputDialog.getText(
-            self,
-            "Create Folder",
-            "Enter folder name:",
-            QLineEdit.Normal,
-            ""
-        )
-        if ok and name.strip():
-            try:
-                self.vault.create_folder(name.strip())
-                # Force immediate reload of folders
-                self.load_folders()
-                self.show_status(f"Folder '{name}' created")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to create folder: {e}")
+        dialog = FolderDialog(self, "Create Folder")
+        if dialog.exec():
+            name = dialog.folder_name
+            if name:
+                try:
+                    self.vault.create_folder(name)
+                    # Force immediate reload of folders
+                    self.load_folders()
+                    # Show the sidebar button container
+                    self.sidebar.personal_folders_container.setVisible(True)
+                    self.show_status(f"Folder '{name}' created")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to create folder: {e}")
     
     def on_folder_edit(self, folder: Folder):
         """Handle folder edit request."""
-        name, ok = QInputDialog.getText(
-            self,
-            "Rename Folder",
-            "Enter new folder name:",
-            QLineEdit.Normal,
-            folder.name
-        )
-        if ok and name.strip():
-            try:
-                if self.vault.update_folder(folder.id, name.strip()):
-                    self.load_folders()
-                    self.show_status(f"Folder renamed to '{name}'")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to rename folder: {e}")
-
+        dialog = FolderDialog(self, "Rename Folder", folder.name)
+        if dialog.exec():
+            name = dialog.folder_name
+            if name and name != folder.name:
+                try:
+                    if self.vault.update_folder(folder.id, name):
+                        self.load_folders()
+                        self.show_status(f"Folder renamed to '{name}'")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to rename folder: {e}")
+    
     def on_folder_delete(self, folder: Folder):
         """Handle folder delete request."""
         reply = QMessageBox.question(
             self,
             "Delete Folder",
-            f"Are you sure you want to delete folder '{folder.name}'?\nCredentials in this folder will NOT be deleted.",
+            f"Are you sure you want to delete folder '{folder.name}'?\nCredentials inside will not be deleted but will be moved to 'All Items'.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
@@ -2010,10 +2145,10 @@ class VaultWidget(QWidget):
             try:
                 if self.vault.delete_folder(folder.id):
                     self.load_folders()
-                    # If we were viewing this folder, switch to 'all'
-                    if self.current_category == f"folder_{folder.id}":
-                        self.sidebar.set_category("all")
                     self.show_status(f"Folder '{folder.name}' deleted")
+                    # If this folder was selected, go back to all items
+                    if self.current_category == f"folder_{folder.id}":
+                        self.set_category("all")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to delete folder: {e}")
 
