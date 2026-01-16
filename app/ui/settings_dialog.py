@@ -246,8 +246,6 @@ class SettingsDialog(QDialog):
         for i, btn in enumerate(self.nav_group):
             btn.setChecked(i == index)
             btn.update_style()
-            
-        return page
 
     def _setup_general_settings(self, layout):
         config = get_config()

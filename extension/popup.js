@@ -1,17 +1,9 @@
-/**
- * VaultKeeper - Popup Script
- * 1Password-style split view UI
- */
-
-// Browser API compatibility
 const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
-// State
 let currentCredentials = [];
 let selectedCredential = null;
-let actualPasswords = {}; // Store actual passwords for display
+let actualPasswords = {};
 
-// DOM Elements
 const loadingView = document.getElementById('loading-view');
 const lockedView = document.getElementById('locked-view');
 const unlockedView = document.getElementById('unlocked-view');
@@ -29,7 +21,6 @@ const searchInput = document.getElementById('search-input');
 const credentialsList = document.getElementById('credentials-list');
 const credentialCount = document.getElementById('credential-count');
 
-// Detail elements
 const emptyState = document.getElementById('empty-state');
 const detailContent = document.getElementById('detail-content');
 const detailFavicon = document.getElementById('detail-favicon');
@@ -40,7 +31,6 @@ const detailUrl = document.getElementById('detail-url');
 const fillBtn = document.getElementById('fill-btn');
 const togglePasswordBtn = document.getElementById('toggle-password');
 
-// Modal elements
 const credentialForm = document.getElementById('credential-form');
 const modalTitle = document.getElementById('modal-title');
 const modalClose = document.getElementById('modal-close');
@@ -51,10 +41,8 @@ const credDomain = document.getElementById('cred-domain');
 const credUsername = document.getElementById('cred-username');
 const credPassword = document.getElementById('cred-password');
 const credNotes = document.getElementById('cred-notes');
+const strengthBadge = document.querySelector('.strength-badge');
 
-/**
- * Show a specific view
- */
 function showView(viewId) {
     [loadingView, lockedView, unlockedView, disconnectedView].forEach(v => {
         v.classList.add('hidden');
@@ -62,9 +50,7 @@ function showView(viewId) {
     document.getElementById(viewId).classList.remove('hidden');
 }
 
-/**
- * Send message to background script
- */
+
 function sendMessage(message) {
     return new Promise((resolve, reject) => {
         browserAPI.runtime.sendMessage(message, (response) => {
@@ -77,9 +63,7 @@ function sendMessage(message) {
     });
 }
 
-/**
- * Check vault status
- */
+
 async function checkStatus() {
     try {
         const response = await sendMessage({ action: 'status' });
@@ -97,14 +81,11 @@ async function checkStatus() {
         }
         
     } catch (error) {
-        console.error('Status check failed:', error);
         showView('disconnected-view');
     }
 }
 
-/**
- * Unlock the vault
- */
+
 async function unlock() {
     const password = masterPasswordInput.value;
     
@@ -136,9 +117,7 @@ async function unlock() {
     }
 }
 
-/**
- * Lock the vault
- */
+
 async function lock() {
     try {
         await sendMessage({ action: 'lock' });
@@ -146,13 +125,9 @@ async function lock() {
         currentCredentials = [];
         showView('locked-view');
     } catch (error) {
-        console.error('Lock failed:', error);
     }
 }
 
-/**
- * Load credentials
- */
 async function loadCredentials() {
     try {
         const response = await sendMessage({ action: 'get_all_credentials' });
@@ -160,32 +135,26 @@ async function loadCredentials() {
         if (response.success) {
             currentCredentials = response.credentials || [];
             
-            // Store actual passwords
             actualPasswords = {};
             currentCredentials.forEach(cred => {
                 actualPasswords[cred.id] = cred.password;
             });
             
-            // Sort alphabetically
             currentCredentials.sort((a, b) => a.domain.localeCompare(b.domain));
             
             renderCredentials();
             updateCredentialCount();
             
-            // Select first item if any
             if (currentCredentials.length > 0 && !selectedCredential) {
                 selectCredential(currentCredentials[0]);
             }
         }
         
     } catch (error) {
-        console.error('Failed to load credentials:', error);
     }
 }
 
-/**
- * Render credentials list
- */
+
 function renderCredentials(filter = '') {
     credentialsList.innerHTML = '';
     
@@ -197,7 +166,13 @@ function renderCredentials(filter = '') {
     if (filtered.length === 0) {
         credentialsList.innerHTML = `
             <div class="empty-list">
-                <div class="empty-list-icon">📭</div>
+                <div class="empty-list-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M21 8v13H3V8"/>
+                        <path d="M1 3h22v5H1z"/>
+                        <path d="M10 12h4"/>
+                    </svg>
+                </div>
                 <p>${filter ? 'No results' : 'No credentials yet'}</p>
             </div>
         `;
@@ -210,9 +185,7 @@ function renderCredentials(filter = '') {
     });
 }
 
-/**
- * Create credential item element
- */
+
 function createCredentialItem(cred) {
     const item = document.createElement('div');
     item.className = 'credential-item';
@@ -222,43 +195,48 @@ function createCredentialItem(cred) {
         item.classList.add('selected');
     }
     
-    // Get favicon
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${cred.domain}&sz=32`;
     
-    item.innerHTML = `
-        <div class="credential-favicon">
-            <img src="${faviconUrl}" onerror="this.parentElement.innerHTML='🌐'">
-        </div>
-        <div class="credential-info">
-            <div class="credential-domain">${escapeHtml(getDomainDisplay(cred.domain))}</div>
-            <div class="credential-username">${escapeHtml(cred.username)}</div>
-        </div>
+    // Create favicon with proper fallback
+    const faviconDiv = document.createElement('div');
+    faviconDiv.className = 'credential-favicon';
+    const faviconImg = document.createElement('img');
+    faviconImg.src = faviconUrl;
+    faviconImg.onerror = function() {
+        this.style.display = 'none';
+        const fallback = document.createElement('div');
+        fallback.className = 'fallback-icon';
+        fallback.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+        this.parentElement.appendChild(fallback);
+    };
+    faviconDiv.appendChild(faviconImg);
+    
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'credential-info';
+    infoDiv.innerHTML = `
+        <div class="credential-domain">${escapeHtml(getDomainDisplay(cred.domain))}</div>
+        <div class="credential-username">${escapeHtml(cred.username)}</div>
     `;
+    
+    item.appendChild(faviconDiv);
+    item.appendChild(infoDiv);
     
     item.addEventListener('click', () => selectCredential(cred));
     
     return item;
 }
 
-/**
- * Get display name from domain
- */
+
 function getDomainDisplay(domain) {
-    // Remove protocol and www
     let display = domain.replace(/^(https?:\/\/)?(www\.)?/, '');
-    // Remove path
     display = display.split('/')[0];
-    // Capitalize first letter
     return display.charAt(0).toUpperCase() + display.slice(1);
 }
 
-/**
- * Select a credential and show details
- */
+
 function selectCredential(cred) {
     selectedCredential = cred;
     
-    // Update list selection
     document.querySelectorAll('.credential-item').forEach(item => {
         item.classList.remove('selected');
         if (item.dataset.id == cred.id) {
@@ -266,21 +244,34 @@ function selectCredential(cred) {
         }
     });
     
-    // Show detail panel
     emptyState.classList.add('hidden');
     detailContent.classList.remove('hidden');
     
-    // Get favicon
+    // Create favicon with proper fallback
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${cred.domain}&sz=64`;
-    detailFavicon.innerHTML = `<img src="${faviconUrl}" onerror="this.parentElement.innerHTML='🌐'" style="width:32px;height:32px">`;
+    detailFavicon.innerHTML = '';
+    const faviconImg = document.createElement('img');
+    faviconImg.className = 'detail-favicon-img';
+    faviconImg.src = faviconUrl;
+    faviconImg.onerror = function() {
+        this.style.display = 'none';
+        const fallback = document.createElement('div');
+        fallback.className = 'fallback-icon';
+        fallback.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+        this.parentElement.appendChild(fallback);
+    };
+    detailFavicon.appendChild(faviconImg);
     
     detailTitle.textContent = getDomainDisplay(cred.domain);
     detailUsername.textContent = cred.username;
     detailPassword.textContent = '••••••••••';
+    
+    // Update strength badge
+    const password = actualPasswords[cred.id] || '';
+    updateStrengthBadge(password);
     detailPassword.classList.add('password-masked');
     detailPassword.dataset.visible = 'false';
     
-    // Set URL
     let url = cred.domain;
     if (!url.startsWith('http')) {
         url = 'https://' + url;
@@ -289,9 +280,7 @@ function selectCredential(cred) {
     detailUrl.href = url;
 }
 
-/**
- * Toggle password visibility in detail view
- */
+
 function toggleDetailPassword() {
     if (!selectedCredential) return;
     
@@ -308,9 +297,7 @@ function toggleDetailPassword() {
     }
 }
 
-/**
- * Fill credential in page
- */
+
 async function fillCredential() {
     if (!selectedCredential) return;
     
@@ -326,13 +313,10 @@ async function fillCredential() {
         window.close();
         
     } catch (error) {
-        console.error('Fill failed:', error);
     }
 }
 
-/**
- * Copy to clipboard
- */
+
 async function copyToClipboard(type) {
     if (!selectedCredential) return;
     
@@ -352,7 +336,6 @@ async function copyToClipboard(type) {
     try {
         await navigator.clipboard.writeText(text);
         
-        // Show feedback
         const btn = document.querySelector(`[data-copy="${type}"]`);
         if (btn) {
             const originalHTML = btn.innerHTML;
@@ -360,7 +343,6 @@ async function copyToClipboard(type) {
             setTimeout(() => btn.innerHTML = originalHTML, 1500);
         }
         
-        // Clear clipboard after 30 seconds for password
         if (type === 'password') {
             setTimeout(async () => {
                 try {
@@ -373,25 +355,20 @@ async function copyToClipboard(type) {
         }
         
     } catch (error) {
-        console.error('Copy failed:', error);
     }
 }
 
-/**
- * Update credential count
- */
+
 function updateCredentialCount() {
     credentialCount.textContent = currentCredentials.length;
 }
 
-/**
- * Open add modal
- */
+
 function openAddModal() {
     modalTitle.textContent = 'New Item';
     credentialForm.reset();
+    updateStrengthBadge('');
     
-    // Pre-fill domain from current tab
     browserAPI.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]) {
             try {
@@ -404,17 +381,14 @@ function openAddModal() {
     modal.classList.remove('hidden');
 }
 
-/**
- * Close modal
- */
+
 function closeModal() {
     modal.classList.add('hidden');
     credentialForm.reset();
+    delete credentialForm.dataset.editId;
 }
 
-/**
- * Save credential
- */
+
 async function saveCredential(e) {
     e.preventDefault();
     
@@ -443,14 +417,31 @@ async function saveCredential(e) {
         }
         
     } catch (error) {
-        console.error('Save failed:', error);
         alert('Error saving credential');
     }
 }
 
-/**
- * Generate password
- */
+
+function updateStrengthBadge(password) {
+    if (!password) {
+        strengthBadge.textContent = 'Empty';
+        strengthBadge.className = 'strength-badge';
+        strengthBadge.style.backgroundColor = '#d1d5db'; // gray-300
+        strengthBadge.style.color = '#374151'; // gray-700
+        return;
+    }
+
+    const analysis = analyzePassword(password);
+    
+    strengthBadge.textContent = analysis.label;
+    strengthBadge.className = 'strength-badge'; // reset classes
+    strengthBadge.style.backgroundColor = analysis.color;
+    strengthBadge.style.color = '#fff'; // White text for colored badges
+    
+    // Add specific class based on label for potential CSS styling
+    strengthBadge.classList.add(analysis.label.toLowerCase());
+}
+
 function generatePassword() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     let password = '';
@@ -459,40 +450,32 @@ function generatePassword() {
     }
     credPassword.value = password;
     credPassword.type = 'text';
+    
+    updateStrengthBadge(password);
 }
 
-/**
- * Toggle modal password visibility
- */
+
 function toggleModalPassword() {
     credPassword.type = credPassword.type === 'password' ? 'text' : 'password';
 }
 
-/**
- * Show error message
- */
+
 function showError(message) {
     errorMessage.textContent = message;
     errorMessage.classList.remove('hidden');
 }
 
-/**
- * Hide error message
- */
 function hideError() {
     errorMessage.classList.add('hidden');
 }
 
-/**
- * Escape HTML
- */
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Event Listeners
 unlockBtn.addEventListener('click', unlock);
 masterPasswordInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') unlock();
@@ -509,7 +492,6 @@ searchInput.addEventListener('input', (e) => {
 fillBtn.addEventListener('click', fillCredential);
 togglePasswordBtn.addEventListener('click', toggleDetailPassword);
 
-// Copy buttons
 document.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', () => copyToClipboard(btn.dataset.copy));
 });
@@ -520,8 +502,236 @@ credentialForm.addEventListener('submit', saveCredential);
 generateBtn.addEventListener('click', generatePassword);
 toggleBtn.addEventListener('click', toggleModalPassword);
 
-// Close modal on backdrop click
 modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
 
-// Initialize
+// Menu button (3 dots) functionality
+const menuBtn = document.getElementById('menu-btn');
+let activeDropdown = null;
+
+function createDropdownMenu() {
+    // Remove existing dropdown if any
+    const existing = document.querySelector('.vk-dropdown-menu');
+    if (existing) existing.remove();
+    
+    const dropdown = document.createElement('div');
+    dropdown.className = 'vk-dropdown-menu';
+    dropdown.innerHTML = `
+        <button class="vk-dropdown-item" data-action="edit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Edit
+        </button>
+        <button class="vk-dropdown-item" data-action="favorite">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            Toggle Favorite
+        </button>
+        <div class="vk-dropdown-divider"></div>
+        <button class="vk-dropdown-item danger" data-action="delete">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Delete
+        </button>
+    `;
+    
+    return dropdown;
+}
+
+function showDropdownMenu(e) {
+    e.stopPropagation();
+    
+    if (!selectedCredential) return;
+    
+    // Close existing dropdown
+    closeDropdownMenu();
+    
+    const dropdown = createDropdownMenu();
+    document.body.appendChild(dropdown);
+    activeDropdown = dropdown;
+    
+    // Position dropdown
+    const btnRect = menuBtn.getBoundingClientRect();
+    dropdown.style.position = 'fixed';
+    dropdown.style.top = `${btnRect.bottom + 4}px`;
+    dropdown.style.right = `${window.innerWidth - btnRect.right}px`;
+    
+    // Add click handlers
+    dropdown.querySelectorAll('.vk-dropdown-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleMenuAction(item.dataset.action);
+            closeDropdownMenu();
+        });
+    });
+    
+    // Close on click outside
+    setTimeout(() => {
+        document.addEventListener('click', closeDropdownMenu, { once: true });
+    }, 0);
+}
+
+function closeDropdownMenu() {
+    if (activeDropdown) {
+        activeDropdown.remove();
+        activeDropdown = null;
+    }
+}
+
+async function handleMenuAction(action) {
+    if (!selectedCredential) return;
+    
+    switch (action) {
+        case 'edit':
+            openEditModal(selectedCredential);
+            break;
+        case 'favorite':
+            await toggleFavorite(selectedCredential.id);
+            break;
+        case 'delete':
+            await deleteCredential(selectedCredential.id);
+            break;
+    }
+}
+
+function openEditModal(cred) {
+    modalTitle.textContent = 'Edit Item';
+    credDomain.value = cred.domain;
+    credUsername.value = cred.username;
+    credPassword.value = actualPasswords[cred.id] || '';
+    credNotes.value = cred.notes || '';
+    
+    updateStrengthBadge(credPassword.value);
+    
+    // Store the editing credential ID
+    credentialForm.dataset.editId = cred.id;
+    
+    modal.classList.remove('hidden');
+}
+
+async function toggleFavorite(id) {
+    try {
+        const response = await sendMessage({ action: 'toggle_favorite', id });
+        if (response.success) {
+            // Find the credential to check new state
+            const cred = credentials.find(c => c.id === id);
+            const newState = cred ? !cred.is_favorite : true;
+            
+            // Show feedback notification
+            showPopupNotification(newState ? 'Added to favorites' : 'Removed from favorites', 'success');
+            
+            await loadCredentials();
+        }
+    } catch (error) {
+        showPopupNotification('Failed to update favorite', 'error');
+    }
+}
+
+// Show notification in popup
+function showPopupNotification(message, type = 'success') {
+    // Remove existing notification
+    const existing = document.querySelector('.popup-notification');
+    if (existing) existing.remove();
+    
+    const notification = document.createElement('div');
+    notification.className = `popup-notification ${type}`;
+    notification.innerHTML = `
+        <span class="popup-notification-icon">
+            ${type === 'success' 
+                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>'
+                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>'
+            }
+        </span>
+        <span>${message}</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 2 seconds
+    setTimeout(() => {
+        notification.classList.add('fade-out');
+        setTimeout(() => notification.remove(), 300);
+    }, 2000);
+}
+
+async function deleteCredential(id) {
+    if (!confirm('Are you sure you want to delete this credential?')) return;
+    
+    try {
+        const response = await sendMessage({ action: 'delete_credentials', id });
+        if (response.success) {
+            showPopupNotification('Credential deleted', 'success');
+            selectedCredential = null;
+            emptyState.classList.remove('hidden');
+            detailContent.classList.add('hidden');
+            await loadCredentials();
+        }
+    } catch (error) {
+        showPopupNotification('Failed to delete credential', 'error');
+    }
+}
+
+// Update saveCredential to handle edit mode
+const originalSaveCredential = saveCredential;
+async function saveCredentialWithEdit(e) {
+    e.preventDefault();
+    
+    const editId = credentialForm.dataset.editId;
+    
+    const data = {
+        domain: credDomain.value.trim(),
+        username: credUsername.value.trim(),
+        password: credPassword.value,
+        notes: credNotes.value.trim() || null
+    };
+    
+    if (!data.domain || !data.username || !data.password) {
+        return;
+    }
+    
+    try {
+        let response;
+        if (editId) {
+            // Update existing
+            response = await sendMessage({
+                action: 'update_credentials',
+                id: parseInt(editId),
+                ...data
+            });
+        } else {
+            // Create new
+            response = await sendMessage({
+                action: 'save_credentials',
+                ...data
+            });
+        }
+        
+        if (response.success) {
+            closeModal();
+            delete credentialForm.dataset.editId;
+            await loadCredentials();
+        } else {
+            alert(response.error || 'Save failed');
+        }
+        
+    } catch (error) {
+        alert('Error saving credential');
+    }
+}
+
+// Override the form submit handler
+credentialForm.removeEventListener('submit', saveCredential);
+credentialForm.addEventListener('submit', saveCredentialWithEdit);
+
+credPassword.addEventListener('input', (e) => {
+    updateStrengthBadge(e.target.value);
+});
+
+// Add menu button listener
+menuBtn.addEventListener('click', showDropdownMenu);
+
 document.addEventListener('DOMContentLoaded', checkStatus);

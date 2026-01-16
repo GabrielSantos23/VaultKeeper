@@ -1,18 +1,17 @@
-/**
- * VaultKeeper - Content Script
- * Detects login forms, handles autofill, and prompts to save credentials
- */
 
-// Browser API compatibility
 const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
-// State
 let detectedFields = null;
 let currentDomain = window.location.hostname;
 let pendingCredentials = null;
 let savePromptShown = false;
+let promptTimeoutId = null;
+let existingCredentialId = null; 
 
-// Selectors for form detection
+const MULTISTEP_STORAGE_KEY = 'vaultkeeper_multistep_';
+
+const PENDING_CREDENTIALS_KEY = 'vaultkeeper_pending_credentials';
+
 const USERNAME_SELECTORS = [
     'input[autocomplete="username"]',
     'input[autocomplete="email"]',
@@ -34,17 +33,146 @@ const PASSWORD_SELECTORS = [
     'input[autocomplete="new-password"]'
 ];
 
+
+// === MULTI-STEP LOGIN SUPPORT ===
+
 /**
- * Detect login form fields on the page
+ * Get the base domain for storage key (handles subdomains)
+ */
+function getBaseDomain() {
+    const parts = currentDomain.split('.');
+    if (parts.length > 2) {
+        // Handle cases like accounts.firefox.com -> firefox.com
+        return parts.slice(-2).join('.');
+    }
+    return currentDomain;
+}
+
+/**
+ * Store username for multi-step login
+ */
+function storeMultiStepUsername(username) {
+    if (!username) return;
+    const key = MULTISTEP_STORAGE_KEY + getBaseDomain();
+    const data = {
+        username: username,
+        timestamp: Date.now(),
+        originalDomain: currentDomain
+    };
+    sessionStorage.setItem(key, JSON.stringify(data));
+}
+
+/**
+ * Retrieve username from previous step (valid for 5 minutes)
+ */
+function getMultiStepUsername() {
+    const key = MULTISTEP_STORAGE_KEY + getBaseDomain();
+    try {
+        const stored = sessionStorage.getItem(key);
+        if (!stored) return null;
+        
+        const data = JSON.parse(stored);
+        const age = Date.now() - data.timestamp;
+        
+        // Valid for 5 minutes
+        if (age > 5 * 60 * 1000) {
+            sessionStorage.removeItem(key);
+            return null;
+        }
+        
+        return data.username;
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * Clear stored multi-step username
+ */
+function clearMultiStepUsername() {
+    const key = MULTISTEP_STORAGE_KEY + getBaseDomain();
+    sessionStorage.removeItem(key);
+}
+
+/**
+ * Store pending credentials for persistence across navigations
+ */
+function storePendingCredentials(credentials, isUpdate = false, credentialId = null) {
+    const data = {
+        credentials: credentials,
+        isUpdate: isUpdate,
+        credentialId: credentialId,
+        timestamp: Date.now()
+    };
+    sessionStorage.setItem(PENDING_CREDENTIALS_KEY, JSON.stringify(data));
+}
+
+/**
+ * Retrieve pending credentials (valid for 30 seconds)
+ */
+function getPendingCredentials() {
+    try {
+        const stored = sessionStorage.getItem(PENDING_CREDENTIALS_KEY);
+        if (!stored) return null;
+        
+        const data = JSON.parse(stored);
+        const age = Date.now() - data.timestamp;
+        
+        // Valid for 30 seconds
+        if (age > 30 * 1000) {
+            clearPendingCredentials();
+            return null;
+        }
+        
+        return data;
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * Clear stored pending credentials
+ */
+function clearPendingCredentials() {
+    sessionStorage.removeItem(PENDING_CREDENTIALS_KEY);
+}
+
+/**
+ * Check if a credential with the same username already exists for this domain
+ */
+async function checkExistingCredential(domain, username) {
+    return new Promise((resolve) => {
+        browserAPI.runtime.sendMessage({
+            action: 'get_credentials',
+            domain: domain
+        }, (response) => {
+            if (response && response.success && response.credentials) {
+                // Find a credential with the same username
+                const existing = response.credentials.find(
+                    cred => cred.username.toLowerCase() === username.toLowerCase()
+                );
+                resolve(existing || null);
+            } else {
+                resolve(null);
+            }
+        });
+    });
+}
+
+
+/**
+ * Detect login fields - supports both full forms and multi-step login
+ * Returns fields even if only username OR only password is found
  */
 function detectLoginFields() {
     const fields = {
         username: null,
         password: null,
-        form: null
+        form: null,
+        isMultiStep: false
     };
     
-    // Find visible password field
+    // First, try to find a password field
     for (const selector of PASSWORD_SELECTORS) {
         const passwordFields = document.querySelectorAll(selector);
         for (const field of passwordFields) {
@@ -57,11 +185,7 @@ function detectLoginFields() {
         if (fields.password) break;
     }
     
-    if (!fields.password) {
-        return null;
-    }
-    
-    // Find username field
+    // Search for username field
     const searchContainer = fields.form || document;
     
     for (const selector of USERNAME_SELECTORS) {
@@ -70,13 +194,14 @@ function detectLoginFields() {
             if (!isVisible(candidate)) continue;
             if (candidate === fields.password) continue;
             
-            // Prefer fields before password in DOM
-            if (fields.password.compareDocumentPosition(candidate) & Node.DOCUMENT_POSITION_PRECEDING) {
-                fields.username = candidate;
-                break;
+            // If we have a password field, prefer username that comes before it
+            if (fields.password) {
+                if (fields.password.compareDocumentPosition(candidate) & Node.DOCUMENT_POSITION_PRECEDING) {
+                    fields.username = candidate;
+                    break;
+                }
             }
             
-            // Fallback to any visible text/email field
             if (!fields.username) {
                 fields.username = candidate;
             }
@@ -84,12 +209,25 @@ function detectLoginFields() {
         if (fields.username) break;
     }
     
-    return fields;
+    // Determine if this is a multi-step login scenario
+    if (fields.password && !fields.username) {
+        // Password field visible but no username - likely step 2 of multi-step login
+        fields.isMultiStep = true;
+    } else if (fields.username && !fields.password) {
+        // Only username visible - likely step 1 of multi-step login
+        fields.isMultiStep = true;
+        fields.form = fields.username.closest('form');
+    }
+    
+    // Return fields if we have at least one field
+    if (fields.username || fields.password) {
+        return fields;
+    }
+    
+    return null;
 }
 
-/**
- * Check if element is visible
- */
+
 function isVisible(element) {
     if (!element) return false;
     const rect = element.getBoundingClientRect();
@@ -103,58 +241,73 @@ function isVisible(element) {
     );
 }
 
-/**
- * Fill login form with credentials
- */
+
 function fillCredentials(username, password) {
     if (!detectedFields) {
         detectedFields = detectLoginFields();
     }
     
-    if (!detectedFields || !detectedFields.password) {
-        console.log('VaultKeeper: No login form detected');
+    if (!detectedFields || (!detectedFields.username && !detectedFields.password)) {
         return false;
     }
     
-    if (detectedFields.username && username) {
-        setFieldValue(detectedFields.username, username);
+    let filled = false;
+    
+    // Multi-step login: only username field visible
+    if (detectedFields.username && !detectedFields.password) {
+        if (username) {
+            setFieldValue(detectedFields.username, username);
+            // Store username for the password step
+            storeMultiStepUsername(username);
+            filled = true;
+        }
+    }
+    // Multi-step login: only password field visible
+    else if (detectedFields.password && !detectedFields.username) {
+        if (password) {
+            setFieldValue(detectedFields.password, password);
+            filled = true;
+        }
+    }
+    // Traditional login: both fields visible
+    else {
+        if (detectedFields.username && username) {
+            setFieldValue(detectedFields.username, username);
+            filled = true;
+        }
+        
+        if (detectedFields.password && password) {
+            setFieldValue(detectedFields.password, password);
+            filled = true;
+        }
+        
+        if (filled) {
+        }
     }
     
-    if (detectedFields.password && password) {
-        setFieldValue(detectedFields.password, password);
-    }
-    
-    console.log('VaultKeeper: Credentials filled');
-    return true;
+    return filled;
 }
 
-/**
- * Set field value with proper event dispatching
- */
+
 function setFieldValue(field, value) {
     field.focus();
     field.value = value;
     
-    // Dispatch events for React/Angular/Vue
     field.dispatchEvent(new Event('input', { bubbles: true }));
     field.dispatchEvent(new Event('change', { bubbles: true }));
     field.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
     field.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
     
-    // For React 16+
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
     nativeInputValueSetter.call(field, value);
     field.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-/**
- * Capture credentials before form submission
- */
+
 function captureCredentials(form) {
     const passwordField = form.querySelector('input[type="password"]');
-    if (!passwordField || !passwordField.value) return null;
     
-    // Find username field
+    // Try to find username in the current form
     let username = '';
     for (const selector of USERNAME_SELECTORS) {
         const field = form.querySelector(selector);
@@ -164,22 +317,107 @@ function captureCredentials(form) {
         }
     }
     
-    if (!username) return null;
+    // CASE 1: Standard login - both username and password in the form
+    if (passwordField && passwordField.value && username) {
+        clearMultiStepUsername(); // Clear any stored username
+        return {
+            domain: currentDomain,
+            username: username,
+            password: passwordField.value
+        };
+    }
     
-    return {
-        domain: currentDomain,
-        username: username,
-        password: passwordField.value
-    };
+    // CASE 2: Multi-step login - password step (no username in form)
+    if (passwordField && passwordField.value && !username) {
+        // Try to get username from previous step
+        const storedUsername = getMultiStepUsername();
+        if (storedUsername) {
+            clearMultiStepUsername(); // Clear after use
+            return {
+                domain: currentDomain,
+                username: storedUsername,
+                password: passwordField.value
+            };
+        }
+    }
+    
+    // CASE 3: Multi-step login - username step (store for later)
+    if (!passwordField && username) {
+        storeMultiStepUsername(username);
+        return null; // Don't prompt yet, wait for password
+    }
+    
+    return null;
 }
 
 /**
- * Create save prompt UI
+ * Capture username from any visible input field (for multi-step detection)
  */
-function createSavePrompt() {
-    // Remove existing prompt
+function captureVisibleUsername() {
+    for (const selector of USERNAME_SELECTORS) {
+        const fields = document.querySelectorAll(selector);
+        for (const field of fields) {
+            if (isVisible(field) && field.value && field.type !== 'password') {
+                return field.value;
+            }
+        }
+    }
+    return null;
+}
+
+
+function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
     const existing = document.getElementById('vaultkeeper-save-prompt');
     if (existing) existing.remove();
+    
+    const lockSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+    
+    const title = showUnlockForm ? 'Unlock VaultKeeper' : (isUpdateMode ? 'Update password?' : 'Save this password?');
+    const buttonText = isUpdateMode ? 'Update Password' : 'Save Password';
+    const showNeverButton = !isUpdateMode && !showUnlockForm;
+    
+    // Build the unlock form HTML if needed
+    const unlockFormHtml = showUnlockForm ? `
+        <div class="vk-unlock-section" id="vk-unlock-section">
+            <p class="vk-unlock-message">Enter your master password to save credentials</p>
+            <div class="vk-input-group">
+                <input type="password" id="vk-master-password" class="vk-input" placeholder="Master Password" autofocus>
+            </div>
+            <p id="vk-unlock-error" class="vk-error hidden"></p>
+        </div>
+    ` : '';
+    
+    // Build credential preview (hidden when showing unlock form)
+    const credentialPreviewHtml = !showUnlockForm ? `
+        <div class="vk-credential-preview">
+            <div class="vk-cred-row">
+                <span class="vk-cred-label">Website</span>
+                <span class="vk-cred-value" id="vk-domain">${currentDomain}</span>
+            </div>
+            <div class="vk-cred-row">
+                <span class="vk-cred-label">Username</span>
+                <span class="vk-cred-value" id="vk-username">-</span>
+            </div>
+            <div class="vk-cred-row">
+                <span class="vk-cred-label">Password</span>
+                <span class="vk-cred-value">••••••••</span>
+            </div>
+        </div>
+    ` : '';
+    
+    // Build action buttons
+    let actionsHtml = '';
+    if (showUnlockForm) {
+        actionsHtml = `
+            <button class="vk-btn vk-btn-secondary" id="vk-cancel">Cancel</button>
+            <button class="vk-btn vk-btn-primary" id="vk-unlock">Unlock & Save</button>
+        `;
+    } else {
+        actionsHtml = `
+            ${showNeverButton ? '<button class="vk-btn vk-btn-secondary" id="vk-never">Never for this site</button>' : '<button class="vk-btn vk-btn-secondary" id="vk-cancel">Cancel</button>'}
+            <button class="vk-btn vk-btn-primary" id="vk-save">${buttonText}</button>
+        `;
+    }
     
     const prompt = document.createElement('div');
     prompt.id = 'vaultkeeper-save-prompt';
@@ -187,233 +425,108 @@ function createSavePrompt() {
         <div class="vk-prompt-overlay"></div>
         <div class="vk-prompt-container">
             <div class="vk-prompt-header">
-                <span class="vk-prompt-icon">🔐</span>
+                <span class="vk-prompt-icon">${lockSvg}</span>
                 <span class="vk-prompt-title">VaultKeeper</span>
                 <button class="vk-close-btn" id="vk-close">&times;</button>
             </div>
             <div class="vk-prompt-body">
-                <p class="vk-prompt-message">Save this password?</p>
-                <div class="vk-credential-preview">
-                    <div class="vk-cred-row">
-                        <span class="vk-cred-label">Website</span>
-                        <span class="vk-cred-value" id="vk-domain">${currentDomain}</span>
-                    </div>
-                    <div class="vk-cred-row">
-                        <span class="vk-cred-label">Username</span>
-                        <span class="vk-cred-value" id="vk-username">-</span>
-                    </div>
-                    <div class="vk-cred-row">
-                        <span class="vk-cred-label">Password</span>
-                        <span class="vk-cred-value">••••••••</span>
-                    </div>
-                </div>
+                <p class="vk-prompt-message">${title}</p>
+                ${unlockFormHtml}
+                ${credentialPreviewHtml}
             </div>
             <div class="vk-prompt-actions">
-                <button class="vk-btn vk-btn-secondary" id="vk-never">Never for this site</button>
-                <button class="vk-btn vk-btn-primary" id="vk-save">Save Password</button>
+                ${actionsHtml}
             </div>
         </div>
     `;
     
-    // Add styles
-    const style = document.createElement('style');
-    style.textContent = `
-        #vaultkeeper-save-prompt {
-            position: fixed;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            left: 0;
-            z-index: 2147483647;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        
-        .vk-prompt-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(2px);
-        }
-        
-        .vk-prompt-container {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 360px;
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            animation: vk-slide-in 0.3s ease;
-            overflow: hidden;
-        }
-        
-        @keyframes vk-slide-in {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .vk-prompt-header {
-            display: flex;
-            align-items: center;
-            padding: 16px 20px;
-            background: linear-gradient(135deg, #0066ff 0%, #0052cc 100%);
-            color: white;
-        }
-        
-        .vk-prompt-icon {
-            font-size: 20px;
-            margin-right: 10px;
-        }
-        
-        .vk-prompt-title {
-            flex: 1;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .vk-close-btn {
-            background: transparent;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            opacity: 0.8;
-            line-height: 1;
-        }
-        
-        .vk-close-btn:hover {
-            opacity: 1;
-        }
-        
-        .vk-prompt-body {
-            padding: 20px;
-        }
-        
-        .vk-prompt-message {
-            font-size: 15px;
-            font-weight: 500;
-            margin: 0 0 16px 0;
-            color: #1a1a1a;
-        }
-        
-        .vk-credential-preview {
-            background: #f5f6f7;
-            border-radius: 8px;
-            padding: 12px 16px;
-        }
-        
-        .vk-cred-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-        }
-        
-        .vk-cred-row:not(:last-child) {
-            border-bottom: 1px solid #e0e0e0;
-        }
-        
-        .vk-cred-label {
-            font-size: 12px;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .vk-cred-value {
-            font-size: 13px;
-            color: #1a1a1a;
-            font-weight: 500;
-            max-width: 200px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .vk-prompt-actions {
-            display: flex;
-            gap: 10px;
-            padding: 0 20px 20px;
-        }
-        
-        .vk-btn {
-            flex: 1;
-            padding: 12px 16px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .vk-btn-primary {
-            background: #0066ff;
-            color: white;
-        }
-        
-        .vk-btn-primary:hover {
-            background: #0052cc;
-        }
-        
-        .vk-btn-secondary {
-            background: #e8eaed;
-            color: #333;
-        }
-        
-        .vk-btn-secondary:hover {
-            background: #d0d4d8;
-        }
-    `;
-    
-    document.head.appendChild(style);
     document.body.appendChild(prompt);
     
     return prompt;
 }
 
-/**
- * Show save prompt
- */
-function showSavePrompt(credentials) {
+
+async function showSavePrompt(credentials) {
     if (savePromptShown) return;
+    
+    // Check if a credential with the same username already exists for this domain
+    const existingCred = await checkExistingCredential(credentials.domain, credentials.username);
+    
+    let isUpdateMode = false;
+    
+    if (existingCred) {
+        // Check if password is different
+        if (existingCred.password === credentials.password) {
+            // Same password, no need to prompt
+            return;
+        }
+        // Different password, prompt to update
+        isUpdateMode = true;
+        existingCredentialId = existingCred.id;
+    }
+    
     savePromptShown = true;
     pendingCredentials = credentials;
     
-    const prompt = createSavePrompt();
+    // Store for persistence across navigations
+    storePendingCredentials(credentials, isUpdateMode, existingCredentialId);
     
-    // Update with captured credentials
+    displaySavePrompt(credentials, isUpdateMode);
+}
+
+
+function displaySavePrompt(credentials, isUpdateMode = false) {
+    const prompt = createSavePrompt(isUpdateMode);
+    
     document.getElementById('vk-domain').textContent = credentials.domain;
     document.getElementById('vk-username').textContent = credentials.username;
     
-    // Event handlers
+    // Set up 30-second auto-dismiss timeout
+    if (promptTimeoutId) {
+        clearTimeout(promptTimeoutId);
+    }
+    promptTimeoutId = setTimeout(() => {
+        hidePrompt();
+    }, 30000);
+    
     document.getElementById('vk-save').addEventListener('click', () => {
-        saveCredentials(credentials);
+        if (isUpdateMode && existingCredentialId) {
+            updateCredentials(credentials, existingCredentialId);
+        } else {
+            saveCredentials(credentials);
+        }
         hidePrompt();
     });
     
-    document.getElementById('vk-never').addEventListener('click', () => {
-        // Store in local storage to never ask again for this domain
-        const neverSave = JSON.parse(localStorage.getItem('vaultkeeper_never_save') || '[]');
-        neverSave.push(currentDomain);
-        localStorage.setItem('vaultkeeper_never_save', JSON.stringify(neverSave));
-        hidePrompt();
-    });
+    const neverBtn = document.getElementById('vk-never');
+    if (neverBtn) {
+        neverBtn.addEventListener('click', () => {
+            const neverSave = JSON.parse(localStorage.getItem('vaultkeeper_never_save') || '[]');
+            neverSave.push(currentDomain);
+            localStorage.setItem('vaultkeeper_never_save', JSON.stringify(neverSave));
+            hidePrompt();
+        });
+    }
+    
+    const cancelBtn = document.getElementById('vk-cancel');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hidePrompt);
+    }
     
     document.getElementById('vk-close').addEventListener('click', hidePrompt);
     
-    prompt.querySelector('.vk-prompt-overlay').addEventListener('click', hidePrompt);
+    // Note: Overlay click no longer closes the prompt
+    // This prevents accidental dismissal during page navigation
 }
 
-/**
- * Hide save prompt
- */
+
 function hidePrompt() {
+    // Clear the timeout
+    if (promptTimeoutId) {
+        clearTimeout(promptTimeoutId);
+        promptTimeoutId = null;
+    }
+    
     const prompt = document.getElementById('vaultkeeper-save-prompt');
     if (prompt) {
         prompt.style.animation = 'vk-fade-out 0.2s ease forwards';
@@ -421,11 +534,13 @@ function hidePrompt() {
     }
     savePromptShown = false;
     pendingCredentials = null;
+    existingCredentialId = null;
+    
+    // Clear stored pending credentials
+    clearPendingCredentials();
 }
 
-/**
- * Save credentials via background script
- */
+
 async function saveCredentials(credentials) {
     try {
         const response = await browserAPI.runtime.sendMessage({
@@ -437,96 +552,188 @@ async function saveCredentials(credentials) {
         
         if (response && response.success) {
             showNotification('Password saved!', 'success');
+        } else if (response && (response.locked || response.error?.includes('locked') || response.error?.includes('Vault'))) {
+            // Vault is locked - show unlock form
+            showUnlockPrompt(credentials, false);
         } else {
             showNotification('Failed to save password', 'error');
         }
     } catch (error) {
-        console.error('VaultKeeper: Save error', error);
-        showNotification('Connection error', 'error');
+        // Check if it's a locked vault error
+        if (error.message?.includes('locked') || error.message?.includes('Vault')) {
+            showUnlockPrompt(credentials, false);
+        } else {
+            showNotification('Connection error', 'error');
+        }
     }
 }
 
+
+async function updateCredentials(credentials, id) {
+    try {
+        const response = await browserAPI.runtime.sendMessage({
+            action: 'update_credentials',
+            id: id,
+            domain: credentials.domain,
+            username: credentials.username,
+            password: credentials.password
+        });
+        
+        if (response && response.success) {
+            showNotification('Password updated!', 'success');
+        } else if (response && (response.locked || response.error?.includes('locked') || response.error?.includes('Vault'))) {
+            // Vault is locked - show unlock form
+            showUnlockPrompt(credentials, true, id);
+        } else {
+            showNotification('Failed to update password', 'error');
+        }
+    } catch (error) {
+        // Check if it's a locked vault error
+        if (error.message?.includes('locked') || error.message?.includes('Vault')) {
+            showUnlockPrompt(credentials, true, id);
+        } else {
+            showNotification('Connection error', 'error');
+        }
+    }
+}
+
+
 /**
- * Show a small notification
+ * Show unlock prompt when vault is locked during save/update attempt
  */
+function showUnlockPrompt(credentials, isUpdateMode = false, credentialId = null) {
+    // Store pending credentials for after unlock
+    pendingCredentials = credentials;
+    existingCredentialId = credentialId;
+    
+    const prompt = createSavePrompt(isUpdateMode, true);
+    
+    // Set up event listeners for unlock form
+    const unlockBtn = document.getElementById('vk-unlock');
+    const cancelBtn = document.getElementById('vk-cancel');
+    const closeBtn = document.getElementById('vk-close');
+    const passwordInput = document.getElementById('vk-master-password');
+    
+    // Clear any existing timeout
+    if (promptTimeoutId) {
+        clearTimeout(promptTimeoutId);
+    }
+    
+    // Set up 60-second timeout for unlock form (longer than regular save prompt)
+    promptTimeoutId = setTimeout(() => {
+        hidePrompt();
+    }, 60000);
+    
+    unlockBtn?.addEventListener('click', async () => {
+        const masterPassword = passwordInput?.value;
+        if (!masterPassword) {
+            showUnlockError('Please enter your master password');
+            return;
+        }
+        
+        unlockBtn.disabled = true;
+        unlockBtn.textContent = 'Unlocking...';
+        
+        try {
+            const unlockResponse = await browserAPI.runtime.sendMessage({
+                action: 'unlock',
+                password: masterPassword
+            });
+            
+            if (unlockResponse && unlockResponse.success) {
+                // Vault unlocked successfully - now save/update credentials
+                hidePrompt();
+                
+                if (isUpdateMode && credentialId) {
+                    await updateCredentials(credentials, credentialId);
+                } else {
+                    await saveCredentials(credentials);
+                }
+            } else {
+                showUnlockError('Invalid master password');
+                unlockBtn.disabled = false;
+                unlockBtn.textContent = 'Unlock & Save';
+            }
+        } catch (error) {
+            showUnlockError('Failed to unlock vault');
+            unlockBtn.disabled = false;
+            unlockBtn.textContent = 'Unlock & Save';
+        }
+    });
+    
+    // Handle Enter key in password field
+    passwordInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            unlockBtn?.click();
+        }
+    });
+    
+    cancelBtn?.addEventListener('click', hidePrompt);
+    closeBtn?.addEventListener('click', hidePrompt);
+    
+    // Focus the password input
+    setTimeout(() => passwordInput?.focus(), 100);
+}
+
+
+/**
+ * Show error message in unlock form
+ */
+function showUnlockError(message) {
+    const errorEl = document.getElementById('vk-unlock-error');
+    if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+    }
+}
+
+
 function showNotification(message, type = 'success') {
     const existing = document.getElementById('vaultkeeper-notification');
     if (existing) existing.remove();
     
+    const checkSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const xSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    
     const notification = document.createElement('div');
     notification.id = 'vaultkeeper-notification';
+    notification.className = type;
     notification.innerHTML = `
-        <span class="vk-notif-icon">${type === 'success' ? '✓' : '✕'}</span>
+        <span class="vk-notif-icon">${type === 'success' ? checkSvg : xSvg}</span>
         <span class="vk-notif-message">${message}</span>
     `;
     
-    const style = document.createElement('style');
-    style.textContent = `
-        #vaultkeeper-notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: ${type === 'success' ? '#34c759' : '#ff3b30'};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-size: 14px;
-            font-weight: 500;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            z-index: 2147483647;
-            animation: vk-notif-in 0.3s ease;
-        }
-        
-        @keyframes vk-notif-in {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-        }
-        
-        .vk-notif-icon {
-            font-size: 18px;
-        }
-    `;
-    
-    document.head.appendChild(style);
     document.body.appendChild(notification);
     
     setTimeout(() => {
-        notification.style.animation = 'vk-notif-out 0.3s ease forwards';
+        notification.classList.add('fade-out');
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
 
-/**
- * Check if domain is in never-save list
- */
+
 function shouldNeverSave() {
     const neverSave = JSON.parse(localStorage.getItem('vaultkeeper_never_save') || '[]');
     return neverSave.includes(currentDomain);
 }
 
-/**
- * Setup form submission interception
- */
+
 function setupFormInterception() {
-    // Listen for form submissions
+    // Track if interception is already set up
+    if (document._vaultKeeperInterceptionSetup) return;
+    document._vaultKeeperInterceptionSetup = true;
+    
     document.addEventListener('submit', (e) => {
         const form = e.target;
         if (form.tagName !== 'FORM') return;
         
         const credentials = captureCredentials(form);
         if (credentials && !shouldNeverSave()) {
-            // Small delay to allow form to submit
             setTimeout(() => showSavePrompt(credentials), 500);
         }
     }, true);
     
-    // Also intercept click on submit buttons (for SPAs)
     document.addEventListener('click', (e) => {
         const button = e.target.closest('button[type="submit"], input[type="submit"], button:not([type])');
         if (!button) return;
@@ -534,79 +741,56 @@ function setupFormInterception() {
         const form = button.closest('form');
         if (!form) return;
         
-        // Check if form has password field
-        const passwordField = form.querySelector('input[type="password"]');
-        if (!passwordField || !passwordField.value) return;
-        
+        // Capture credentials (handles both single and multi-step)
         const credentials = captureCredentials(form);
+        
         if (credentials && !shouldNeverSave()) {
             setTimeout(() => showSavePrompt(credentials), 500);
         }
     }, true);
     
-    // Intercept Enter key in password fields
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;
         
         const field = e.target;
-        if (field.type !== 'password') return;
-        
         const form = field.closest('form');
         if (!form) return;
         
-        const credentials = captureCredentials(form);
-        if (credentials && !shouldNeverSave()) {
-            setTimeout(() => showSavePrompt(credentials), 500);
+        // Handle Enter key for both username and password fields
+        if (field.type === 'password' || USERNAME_SELECTORS.some(s => field.matches(s))) {
+            const credentials = captureCredentials(form);
+            if (credentials && !shouldNeverSave()) {
+                setTimeout(() => showSavePrompt(credentials), 500);
+            }
         }
     }, true);
 }
 
-/**
- * Create VaultKeeper icon in password fields
- */
+
 function addVaultKeeperIcon(field) {
     if (field.dataset.vaultkeeperIcon) return;
     field.dataset.vaultkeeperIcon = 'true';
     
-    // Create wrapper if needed
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'position: relative; display: inline-block;';
+    const lockSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
     
     const icon = document.createElement('div');
     icon.className = 'vaultkeeper-field-icon';
-    icon.innerHTML = '🔐';
+    icon.innerHTML = lockSvg;
     icon.title = 'VaultKeeper - Fill credential';
-    icon.style.cssText = `
-        position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-        cursor: pointer;
-        font-size: 14px;
-        z-index: 10000;
-        opacity: 0.6;
-        transition: opacity 0.2s;
-        user-select: none;
-    `;
     
-    icon.addEventListener('mouseenter', () => icon.style.opacity = '1');
-    icon.addEventListener('mouseleave', () => icon.style.opacity = '0.6');
     icon.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         requestCredentials();
     });
     
-    // Insert icon after field
     if (field.parentElement) {
         field.parentElement.style.position = 'relative';
         field.parentElement.appendChild(icon);
     }
 }
 
-/**
- * Request credentials from background
- */
+
 function requestCredentials() {
     browserAPI.runtime.sendMessage({
         action: 'get_credentials',
@@ -614,8 +798,24 @@ function requestCredentials() {
     }, (response) => {
         if (response && response.success && response.credentials && response.credentials.length > 0) {
             const cred = response.credentials[0];
-            fillCredentials(cred.username, cred.password);
-            showNotification('Credentials filled!', 'success');
+            const filled = fillCredentials(cred.username, cred.password);
+            
+            if (filled) {
+                // Provide appropriate feedback based on what was filled
+                if (detectedFields?.isMultiStep) {
+                    if (detectedFields.username && !detectedFields.password) {
+                        showNotification('Email/username filled!', 'success');
+                    } else if (detectedFields.password && !detectedFields.username) {
+                        showNotification('Password filled!', 'success');
+                    } else {
+                        showNotification('Credentials filled!', 'success');
+                    }
+                } else {
+                    showNotification('Credentials filled!', 'success');
+                }
+            } else {
+                showNotification('Could not fill credentials', 'error');
+            }
         } else if (response && response.locked) {
             showNotification('Vault is locked', 'error');
         } else {
@@ -624,52 +824,120 @@ function requestCredentials() {
     });
 }
 
-/**
- * Initialize content script
- */
+
 function init() {
+    // Check for pending credentials from a previous navigation
+    const pendingData = getPendingCredentials();
+    if (pendingData && pendingData.credentials) {
+        // Restore the state
+        pendingCredentials = pendingData.credentials;
+        existingCredentialId = pendingData.credentialId;
+        savePromptShown = true;
+        
+        // Re-display the prompt
+        setTimeout(() => {
+            displaySavePrompt(pendingData.credentials, pendingData.isUpdate);
+        }, 300);
+    }
+    
     detectedFields = detectLoginFields();
     
-    if (detectedFields && detectedFields.password) {
-        console.log('VaultKeeper: Login form detected on', currentDomain);
+    // Check for any login fields (username OR password)
+    if (detectedFields && (detectedFields.username || detectedFields.password)) {
+        const fieldType = detectedFields.password && detectedFields.username ? 'standard' :
+                         detectedFields.password ? 'password-only' : 'username-only';
         
-        // Add icons to password fields
-        document.querySelectorAll('input[type="password"]').forEach(addVaultKeeperIcon);
+        // Add icon to password fields if present
+        if (detectedFields.password) {
+            document.querySelectorAll('input[type="password"]').forEach(addVaultKeeperIcon);
+        }
         
-        // Setup form interception for save prompts
+        // Add icon to username fields in multi-step scenarios
+        if (detectedFields.isMultiStep && detectedFields.username && !detectedFields.password) {
+            // Add icon to username field for multi-step login
+            addVaultKeeperIconToUsername(detectedFields.username);
+        }
+        
         setupFormInterception();
     }
 }
 
-// Listen for messages from background script
+/**
+ * Add VaultKeeper icon to username field (for multi-step login first step)
+ */
+function addVaultKeeperIconToUsername(field) {
+    if (field.dataset.vaultkeeperIcon) return;
+    field.dataset.vaultkeeperIcon = 'true';
+    
+    const lockSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+    
+    const icon = document.createElement('div');
+    icon.className = 'vaultkeeper-field-icon';
+    icon.innerHTML = lockSvg;
+    icon.title = 'VaultKeeper - Fill credential';
+    
+    icon.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        requestCredentials();
+    });
+    
+    if (field.parentElement) {
+        field.parentElement.style.position = 'relative';
+        field.parentElement.appendChild(icon);
+    }
+}
+
 browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
     switch (request.action) {
         case 'fill':
+            // Re-detect fields to ensure we have the latest state
+            detectedFields = detectLoginFields();
             const success = fillCredentials(request.username, request.password);
-            sendResponse({ success });
+            sendResponse({ success, isMultiStep: detectedFields?.isMultiStep || false });
             break;
         case 'detect':
             detectedFields = detectLoginFields();
-            sendResponse({ hasForm: !!detectedFields?.password, domain: currentDomain });
+            sendResponse({ 
+                hasForm: !!(detectedFields?.username || detectedFields?.password),
+                hasPassword: !!detectedFields?.password,
+                hasUsername: !!detectedFields?.username, 
+                isMultiStep: detectedFields?.isMultiStep || false,
+                domain: currentDomain 
+            });
             break;
     }
     return true;
 });
 
-// Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
 }
 
-// Re-run detection on dynamic content
+// MutationObserver to detect dynamically added login fields
 const observer = new MutationObserver(() => {
     const newFields = detectLoginFields();
-    if (newFields?.password && !detectedFields?.password) {
-        detectedFields = newFields;
-        document.querySelectorAll('input[type="password"]').forEach(addVaultKeeperIcon);
-        setupFormInterception();
+    
+    // React to new fields being added
+    if (newFields) {
+        const hasNewPassword = newFields.password && !detectedFields?.password;
+        const hasNewUsername = newFields.username && !detectedFields?.username;
+        
+        if (hasNewPassword || hasNewUsername) {
+            detectedFields = newFields;
+            
+            if (newFields.password) {
+                document.querySelectorAll('input[type="password"]').forEach(addVaultKeeperIcon);
+            }
+            
+            if (newFields.isMultiStep && newFields.username && !newFields.password) {
+                addVaultKeeperIconToUsername(newFields.username);
+            }
+            
+            setupFormInterception();
+        }
     }
 });
 
@@ -678,4 +946,3 @@ observer.observe(document.body, {
     subtree: true
 });
 
-console.log('VaultKeeper content script loaded');

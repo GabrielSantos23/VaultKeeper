@@ -4,17 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VaultKeeper</title>
+    <link rel="stylesheet" href="variables.css">
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
     <div class="app">
-        <!-- Loading State -->
         <div id="loading-view" class="view loading-view">
             <div class="spinner"></div>
             <p>Connecting...</p>
         </div>
 
-        <!-- Locked State -->
         <div id="locked-view" class="view locked-view hidden">
             <div class="lock-container">
                 <div class="lock-icon">🔐</div>
@@ -28,7 +27,6 @@
             </div>
         </div>
 
-        <!-- Disconnected State -->
         <div id="disconnected-view" class="view disconnected-view hidden">
             <div class="disconnect-container">
                 <div class="disconnect-icon">⚠️</div>
@@ -38,9 +36,7 @@
             </div>
         </div>
 
-        <!-- Main Unlocked View -->
         <div id="unlocked-view" class="view unlocked-view hidden">
-            <!-- Top Bar -->
             <header class="top-bar">
                 <div class="search-container">
                     <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -64,9 +60,7 @@
                 </div>
             </header>
 
-            <!-- Split View -->
             <div class="split-view">
-                <!-- Left Panel - List -->
                 <aside class="sidebar">
                     <div class="sidebar-header">
                         <span class="section-title">All Items</span>
@@ -77,7 +71,6 @@
                     </div>
                 </aside>
 
-                <!-- Right Panel - Details -->
                 <main class="detail-panel">
                     <div id="empty-state" class="empty-detail">
                         <div class="empty-icon">🔐</div>
@@ -155,7 +148,6 @@
             </div>
         </div>
 
-        <!-- Add/Edit Modal -->
         <div id="modal" class="modal hidden">
             <div class="modal-backdrop"></div>
             <div class="modal-content">
@@ -193,6 +185,7 @@
         </div>
     </div>
 
+    <script src="password_strength.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>

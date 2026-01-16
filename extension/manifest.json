@@ -21,6 +21,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
+      "css": ["variables.css", "content.css"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
@@ -41,9 +42,15 @@
     "128": "icons/icon128.png"
   },
 
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "vaultkeeper@example.com"
+"browser_specific_settings": {
+  "gecko": {
+    "id": "vaultkeeper@example.com",
+    "data_collection_permissions": {
+      "required": ["none"]
     }
   }
+}
+
+
+
 }

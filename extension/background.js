@@ -1,22 +1,15 @@
-/**
- * VaultKeeper - Background Service Worker
- * Handles native messaging communication with the desktop app
- */
 
-// Browser API compatibility (Firefox uses 'browser', Chrome uses 'chrome')
 const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
 const NATIVE_HOST_NAME = "com.vaultkeeper.host";
 
-// State
+
 let nativePort = null;
 let isConnected = false;
 let pendingRequests = new Map();
 let requestId = 0;
 
-/**
- * Connect to the native host
- */
+
 function connectNativeHost() {
   if (nativePort) {
     return;
@@ -26,19 +19,13 @@ function connectNativeHost() {
     nativePort = browserAPI.runtime.connectNative(NATIVE_HOST_NAME);
 
     nativePort.onMessage.addListener((message) => {
-      console.log("Received from native host:", message);
       handleNativeMessage(message);
     });
 
     nativePort.onDisconnect.addListener(() => {
-      console.log(
-        "Native host disconnected:",
-        browserAPI.runtime.lastError?.message
-      );
       nativePort = null;
       isConnected = false;
 
-      // Reject all pending requests
       for (const [id, { reject }] of pendingRequests) {
         reject(new Error("Native host disconnected"));
       }
@@ -46,18 +33,13 @@ function connectNativeHost() {
     });
 
     isConnected = true;
-    console.log("Connected to native host");
   } catch (error) {
-    console.error("Failed to connect to native host:", error);
     isConnected = false;
   }
 }
 
-/**
- * Handle messages from the native host
- */
+
 function handleNativeMessage(message) {
-  // If this is a response to a pending request
   if (message._requestId !== undefined) {
     const pending = pendingRequests.get(message._requestId);
     if (pending) {
@@ -67,9 +49,7 @@ function handleNativeMessage(message) {
   }
 }
 
-/**
- * Send a message to the native host
- */
+
 async function sendNativeMessage(action, data = {}) {
   return new Promise((resolve, reject) => {
     if (!nativePort) {
@@ -86,7 +66,6 @@ async function sendNativeMessage(action, data = {}) {
 
     pendingRequests.set(id, { resolve, reject });
 
-    // Timeout after 30 seconds
     setTimeout(() => {
       if (pendingRequests.has(id)) {
         pendingRequests.delete(id);
@@ -103,16 +82,12 @@ async function sendNativeMessage(action, data = {}) {
   });
 }
 
-/**
- * Get credentials for a domain
- */
+
 async function getCredentials(domain) {
   return sendNativeMessage("get_credentials", { domain });
 }
 
-/**
- * Save credentials
- */
+
 async function saveCredentials(domain, username, password, notes = null) {
   return sendNativeMessage("save_credentials", {
     domain,
@@ -122,44 +97,32 @@ async function saveCredentials(domain, username, password, notes = null) {
   });
 }
 
-/**
- * Get vault status
- */
+
 async function getStatus() {
   return sendNativeMessage("status");
 }
 
-/**
- * Unlock the vault
- */
+
 async function unlock(password) {
   return sendNativeMessage("unlock", { password });
 }
 
-/**
- * Lock the vault
- */
+
 async function lock() {
   return sendNativeMessage("lock");
 }
 
-/**
- * Get all credentials
- */
 async function getAllCredentials() {
   return sendNativeMessage("get_all_credentials");
 }
 
-/**
- * Search credentials
- */
+
 async function searchCredentials(query) {
   return sendNativeMessage("search", { query });
 }
 
-// Listen for messages from popup and content scripts
 browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("Background received message:", request);
+
 
   (async () => {
     try {
@@ -203,8 +166,36 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           response = await searchCredentials(request.query);
           break;
 
+        case "toggle_favorite":
+          response = await sendNativeMessage("toggle_favorite", { id: request.id });
+          break;
+
+        case "delete_credentials":
+          response = await sendNativeMessage("delete_credentials", { id: request.id });
+          break;
+
+        case "update_credentials":
+          response = await sendNativeMessage("update_credentials", {
+            id: request.id,
+            domain: request.domain,
+            username: request.username,
+            password: request.password,
+            notes: request.notes
+          });
+          break;
+
+        case "get_folders":
+          response = await sendNativeMessage("get_folders");
+          break;
+
+        case "set_folder":
+          response = await sendNativeMessage("set_folder", {
+            id: request.id,
+            folder_id: request.folder_id
+          });
+          break;
+
         case "fill_credentials":
-          // Send credentials to content script
           browserAPI.tabs.sendMessage(sender.tab?.id || request.tabId, {
             action: "fill",
             username: request.username,
@@ -222,15 +213,14 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       sendResponse(response);
     } catch (error) {
-      console.error("Error handling message:", error);
+
       sendResponse({ success: false, error: error.message });
     }
   })();
 
-  return true; // Keep the message channel open for async response
+  return true;
 });
 
-// Connect on startup
 connectNativeHost();
 
-console.log("VaultKeeper background service worker started");
+

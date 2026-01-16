@@ -1,0 +1,85 @@
+NOTES TO REVIEWER: VAULTKEEPER ARCHITECTURE & TESTING GUIDE
+=========================================================
+
+To the Review Team:
+This extension serves as the browser interface for the VaultKeeper Password Manager desktop application. It requires a Native Messaging Host to function. Without the accompanying native host running locally, the extension cannot retrieve or save credentials.
+
+Please find below the technical details and instructions on how to set up the test environment.
+
+1. PERMISSION JUSTIFICATION
+---------------------------
+- `nativeMessaging`: Essential to communicate with the local Python desktop application which holds the encrypted database.
+- `activeTab` / `contextMenus`: Used to detect login forms and autofill credentials upon user request.
+- `clipboardWrite`: To allow copying passwords from the extension popup.
+
+2. TECHNICAL ARCHITECTURE
+-------------------------
+A. **Extension (Frontend)**: 
+   - Uses `runtime.connectNative("com.vaultkeeper.host")` in `background.js` to establish a persistent connection.
+   - Sends JSON requests (e.g., `get_credentials`, `save_credentials`) to the host.
+
+B. **Native Host (Backend)**:
+   - A Python script (`app/native/host.py`) running locally.
+   - Communicates via Stdin/Stdout using the standard Chrome/Firefox Native Messaging protocol (Length-prefixed JSON).
+   - IT IS NOT A BINARY: It is a plain Python script that the user (and you) can inspect.
+
+C. **Data Privacy**:
+   - All data is stored locally in an encrypted SQLite database.
+   - No data is sent to external cloud servers by the extension itself.
+
+3. TESTING INSTRUCTIONS (For Linux/Mac)
+---------------------------------------
+Since you cannot review the compiled binary, please use the provided Python source code to run the host.
+
+**Prerequisites:**
+- Python 3.10+ installed.
+- Pip (Python Package Installer).
+
+**Setup Steps:**
+1. Unzip the provided source code.
+2. Open a terminal in the root directory of the project.
+3. Install dependencies (if any):
+   `pip install -r requirements.txt`
+4. Run the installation script to register the Native Host manifest in your browser configuration path (`~/.mozilla/native-messaging-hosts/`):
+   `bash native_host/install_linux.sh`
+   *(Select "firefox" if prompted, or ensure the script writes to the Mozilla Native Messaging folder)*.
+5. Verify that `native_host/com.vaultkeeper.host.json` was copied to the correct location and that the `"path"` field inside it points correctly to `app/native/host.py`.
+
+**Verification Steps:**
+1. Open Firefox and load the extension temporarily.
+2. Open the Browser Console (Ctrl+Shift+J) or the Extension Debug Console.
+3. You should see a log: "Connected to native host".
+4. If you see this, the `nativeMessaging` permission is working correctly.
+
+**Troubleshooting:**
+If the connection fails, it is usually because the `path` in the manifest JSON does not match the absolute path of the `host.py` file on your specific machine. Please edit the manifest in `~/.mozilla/native-messaging-hosts/com.vaultkeeper.host.json` to match your local path.
+
+4. MULTI-STEP LOGIN SUPPORT
+---------------------------
+The extension supports websites that use multi-step/two-stage login flows, such as:
+- accounts.firefox.com
+- icloud.com  
+- accounts.google.com
+- login.microsoft.com
+
+**How it works:**
+A. **Step 1 (Email/Username):**
+   - Extension detects when only a username/email field is visible.
+   - When you click the VaultKeeper icon or use autofill, it fills ONLY the email/username.
+   - The username is stored temporarily in sessionStorage for 5 minutes.
+
+B. **Step 2 (Password):**
+   - After submitting the email, the site shows the password field.
+   - Extension detects this is a "password-only" step.
+   - Clicking the VaultKeeper icon fills ONLY the password.
+
+C. **Credential Capture:**
+   - When you log in manually, the extension captures the email from step 1.
+   - On step 2 (password submission), it combines both to offer saving the complete credential.
+
+**Technical Implementation (content.js):**
+- `storeMultiStepUsername()`: Stores the email in sessionStorage with a 5-minute expiry.
+- `getMultiStepUsername()`: Retrieves stored email for combining with password.
+- `detectLoginFields()`: Returns `isMultiStep: true` when only one field type is visible.
+- `fillCredentials()`: Intelligently fills only available fields.
+- `captureCredentials()`: Combines stored email with password for multi-step captures.
