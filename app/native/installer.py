@@ -118,12 +118,27 @@ class NativeHostInstaller:
     def create_manifest(self, browser: str, chrome_extension_id: Optional[str] = None) -> dict:
         """Create the native messaging host manifest."""
         # Windows needs a .bat/.exe file, Unix needs executable script
-        if self.system == "windows":
-            # Windows: use the batch wrapper script
-            self.wrapper_bat = self.project_root / "app" / "native" / "vaultkeeper_host.bat"
-            host_path = str(self.wrapper_bat)
+        
+        if getattr(sys, 'frozen', False):
+            # COMPILED MODE (Portable)
+            # The executable logic changes here.
+            # We expect a sibling executable 'vk_host.exe' or we use the main exe.
+            # For this plan, we are building a separate 'vk_host.exe'
+            base_path = Path(sys.executable).parent
+            
+            if self.system == "windows":
+                host_path = str(base_path / "vk_host.exe")
+            else:
+                host_path = str(base_path / "vk_host")
+                
         else:
-            host_path = str(self.wrapper_script)
+            # DEVELOPMENT MODE (Source)
+            if self.system == "windows":
+                # Windows: use the batch wrapper script
+                self.wrapper_bat = self.project_root / "app" / "native" / "vaultkeeper_host.bat"
+                host_path = str(self.wrapper_bat)
+            else:
+                host_path = str(self.wrapper_script)
         
         manifest = {
             "name": HOST_NAME,
@@ -146,6 +161,13 @@ class NativeHostInstaller:
     
     def create_wrapper_script(self):
         """Create a wrapper script that activates venv and runs the host."""
+        
+        # If frozen (compiled exe), we don't need a wrapper script for Python,
+        # but we might need a batch wrapper for Chrome to handle metadata if we used --native-host flag
+        # For now, we assume direct exe usage or separate host exe.
+        if getattr(sys, 'frozen', False):
+            return None
+
         if self.system == "windows":
             # Windows batch file - use relative paths so it works on any computer
             wrapper_path = self.project_root / "app" / "native" / "vaultkeeper_host.bat"
@@ -261,8 +283,11 @@ fi
         """Install for all detected browsers."""
         results = []
         
-        # Ensure wrapper script exists
-        self.create_wrapper_script()
+        results = []
+        
+        # Ensure wrapper script exists (only needed in dev mode)
+        if not getattr(sys, 'frozen', False):
+            self.create_wrapper_script()
         
         # Make host.py executable
         if self.system != "windows":

@@ -57,7 +57,7 @@ DIST_NAME="${APP_NAME}-${VERSION}-linux-x64"
 DIST_DIR="dist/${DIST_NAME}"
 
 mkdir -p "$DIST_DIR"
-cp dist/VaultKeeper "$DIST_DIR/"
+cp -r dist/VaultKeeper "$DIST_DIR/"
 cp README.md "$DIST_DIR/" 2>/dev/null || true
 
 cd dist
@@ -73,8 +73,8 @@ mkdir -p "$APPDIR/usr/bin"
 mkdir -p "$APPDIR/usr/share/applications"
 mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
-# Copy executable
-cp dist/VaultKeeper "$APPDIR/usr/bin/"
+# Copy executable and dependencies
+cp -r dist/VaultKeeper/* "$APPDIR/usr/bin/"
 
 # Create .desktop file
 cat > "$APPDIR/${APP_NAME}.desktop" << EOF
@@ -154,10 +154,10 @@ echo "  Build Complete!"
 echo "==========================================${NC}"
 echo ""
 echo -e "Outputs:"
-echo -e "  ${GREEN}Executable:${NC}  dist/VaultKeeper"
+echo -e "  ${GREEN}Executable:${NC}  dist/VaultKeeper/VaultKeeper"
 echo -e "  ${GREEN}Tar.gz:${NC}      dist/${DIST_NAME}.tar.gz"
 echo -e "  ${GREEN}AppImage:${NC}    dist/${APP_NAME}-${VERSION}-x86_64.AppImage"
 echo ""
 echo "To run:"
-echo "  ./dist/VaultKeeper"
+echo "  ./dist/VaultKeeper/VaultKeeper"
 echo "  ./dist/${APP_NAME}-${VERSION}-x86_64.AppImage"
