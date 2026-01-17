@@ -34,6 +34,8 @@ class Credential:
     username: str
     password: str  # Decrypted password
     notes: Optional[str] = None
+    totp_secret: Optional[str] = None  # Base32-encoded TOTP secret
+    backup_codes: Optional[str] = None  # 2FA backup/recovery codes
     is_favorite: bool = False
     folder_id: Optional[int] = None
     created_at: Optional[str] = None
@@ -112,6 +114,18 @@ class VaultManager:
             except sqlite3.OperationalError:
                 pass  # Column already exists
             
+            # Add totp_secret column if not exists (for existing databases)
+            try:
+                cursor.execute('ALTER TABLE vault ADD COLUMN totp_secret BLOB')
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+            
+            # Add backup_codes column if not exists (for existing databases)
+            try:
+                cursor.execute('ALTER TABLE vault ADD COLUMN backup_codes BLOB')
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+            
             # Create index on domain for faster lookups
             cursor.execute('''
                 CREATE INDEX IF NOT EXISTS idx_domain ON vault(domain)
@@ -144,7 +158,8 @@ class VaultManager:
                 self.crypto.derive_key(master_password)
     
     def add_credential(self, domain: str, username: str, password: str, 
-                       notes: Optional[str] = None) -> int:
+                       notes: Optional[str] = None, totp_secret: Optional[str] = None,
+                       backup_codes: Optional[str] = None) -> int:
         """
         Add a new credential to the vault.
         
@@ -153,6 +168,8 @@ class VaultManager:
             username: The username/email
             password: The password (will be encrypted)
             notes: Optional notes
+            totp_secret: Optional TOTP secret (base32 encoded)
+            backup_codes: Optional 2FA backup/recovery codes
             
         Returns:
             The ID of the newly created credential
@@ -160,16 +177,18 @@ class VaultManager:
         self._ensure_unlocked()
         self.auth.touch()
         
-        # Encrypt the password
+        # Encrypt sensitive fields
         encrypted_password = self.crypto.encrypt(password)
         encrypted_notes = self.crypto.encrypt(notes) if notes else None
+        encrypted_totp = self.crypto.encrypt(totp_secret) if totp_secret else None
+        encrypted_backup = self.crypto.encrypt(backup_codes) if backup_codes else None
         
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO vault (domain, username, password, notes)
-                VALUES (?, ?, ?, ?)
-            ''', (domain, username, encrypted_password, encrypted_notes))
+                INSERT INTO vault (domain, username, password, notes, totp_secret, backup_codes)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (domain, username, encrypted_password, encrypted_notes, encrypted_totp, encrypted_backup))
             conn.commit()
             return cursor.lastrowid
     
@@ -252,7 +271,9 @@ class VaultManager:
     
     def update_credential(self, credential_id: int, domain: Optional[str] = None,
                           username: Optional[str] = None, password: Optional[str] = None,
-                          notes: Optional[str] = None) -> bool:
+                          notes: Optional[str] = None, totp_secret: Optional[str] = None,
+                          clear_totp: bool = False, backup_codes: Optional[str] = None,
+                          clear_backup: bool = False) -> bool:
         """
         Update an existing credential.
         
@@ -262,6 +283,10 @@ class VaultManager:
             username: New username (optional)
             password: New password (optional)
             notes: New notes (optional)
+            totp_secret: New TOTP secret (optional)
+            clear_totp: If True, clear the TOTP secret
+            backup_codes: New backup codes (optional)
+            clear_backup: If True, clear the backup codes
             
         Returns:
             True if the credential was updated
@@ -288,6 +313,20 @@ class VaultManager:
         if notes is not None:
             updates.append('notes = ?')
             params.append(self.crypto.encrypt(notes) if notes else None)
+        
+        if clear_totp:
+            updates.append('totp_secret = ?')
+            params.append(None)
+        elif totp_secret is not None:
+            updates.append('totp_secret = ?')
+            params.append(self.crypto.encrypt(totp_secret))
+        
+        if clear_backup:
+            updates.append('backup_codes = ?')
+            params.append(None)
+        elif backup_codes is not None:
+            updates.append('backup_codes = ?')
+            params.append(self.crypto.encrypt(backup_codes))
         
         if not updates:
             return False
@@ -371,12 +410,30 @@ class VaultManager:
             except:
                 decrypted_notes = None
         
+        # Decrypt TOTP secret if present
+        decrypted_totp = None
+        if row.get('totp_secret'):
+            try:
+                decrypted_totp = self.crypto.decrypt(row['totp_secret'], master_password)
+            except:
+                decrypted_totp = None
+        
+        # Decrypt backup codes if present
+        decrypted_backup = None
+        if row.get('backup_codes'):
+            try:
+                decrypted_backup = self.crypto.decrypt(row['backup_codes'], master_password)
+            except:
+                decrypted_backup = None
+        
         return Credential(
             id=row['id'],
             domain=row['domain'],
             username=row['username'],
             password=decrypted_password,
             notes=decrypted_notes,
+            totp_secret=decrypted_totp,
+            backup_codes=decrypted_backup,
             is_favorite=bool(row.get('is_favorite', 0)),
             folder_id=row.get('folder_id'),
             created_at=row.get('created_at'),

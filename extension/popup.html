@@ -280,6 +280,106 @@
                     </button>
                   </div>
                 </div>
+
+                <div id="totp-field-group" class="field-group hidden">
+                  <label>two-factor code</label>
+                  <div class="field-value totp-value">
+                    <span id="detail-totp-code" class="totp-code">--- ---</span>
+                    <div class="totp-timer">
+                      <span id="detail-totp-countdown" class="totp-countdown"
+                        >30s</span
+                      >
+                      <svg
+                        id="totp-progress"
+                        class="totp-progress-ring"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          class="totp-progress-bg"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          fill="none"
+                          stroke-width="2"
+                        />
+                        <circle
+                          id="totp-progress-circle"
+                          class="totp-progress-circle"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          fill="none"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                        />
+                      </svg>
+                    </div>
+                    <button class="copy-btn" data-copy="totp" title="Copy TOTP">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                        <path
+                          d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div id="backup-field-group" class="field-group hidden">
+                  <label>backup 2fa code</label>
+                  <div class="field-value">
+                    <span id="detail-backup-codes" class="backup-codes-masked"
+                      >••••••••••••••••</span
+                    >
+                    <button
+                      id="toggle-backup"
+                      class="icon-btn-tiny"
+                      title="Show/Hide"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                        ></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </button>
+                    <button
+                      class="copy-btn"
+                      data-copy="backup"
+                      title="Copy Backup Codes"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                        <path
+                          d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </main>

@@ -28,6 +28,7 @@ from ..core.vault import VaultManager, Credential, Folder
 from ..core.auth import AuthManager
 from ..core.config import get_config
 from ..core.password_strength import analyze_password, PasswordStrength
+from ..core.totp import TOTPManager, get_totp_code, is_valid_totp_secret
 from .theme import get_theme, get_stylesheet, ThemeMode, set_theme
 from .settings_dialog import SettingsDialog
 from .ui_utils import load_svg_icon, create_icon_button, get_icon_path, ICONS_DIR
@@ -469,6 +470,197 @@ class DetailField(QFrame):
                 QTimer.singleShot(timeout * 1000, lambda: QApplication.clipboard().clear())
 
 
+class TOTPField(QFrame):
+    """Modern TOTP field display with countdown timer and copy functionality."""
+    
+    copied = Signal(str)
+    
+    def __init__(self, totp_secret: str, parent=None):
+        super().__init__(parent)
+        self.totp_secret = totp_secret
+        self.totp_manager = TOTPManager(totp_secret)
+        self.setup_ui()
+        
+        # Start the timer to update every second
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self._update_display)
+        self.update_timer.start(1000)
+        
+        # Initial update
+        self._update_display()
+    
+    def setup_ui(self):
+        theme = get_theme()
+        
+        self.setStyleSheet(f"""
+            TOTPField {{
+                background-color: {theme.colors.card};
+                border-radius: 8px;
+                border: 1px solid {theme.colors.border};
+            }}
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(6)
+        
+        # Label
+        label = QLabel("TWO-FACTOR CODE")
+        label.setStyleSheet(f"""
+            color: {theme.colors.primary};
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        """)
+        layout.addWidget(label)
+        
+        # Value row
+        value_layout = QHBoxLayout()
+        value_layout.setSpacing(12)
+        
+        # TOTP Code display
+        self.code_label = QLabel("------")
+        self.code_label.setStyleSheet(f"""
+            color: {theme.colors.foreground};
+            font-size: 24px;
+            font-weight: 600;
+            font-family: 'Consolas', 'Monaco', monospace;
+            letter-spacing: 4px;
+        """)
+        value_layout.addWidget(self.code_label)
+        
+        value_layout.addStretch()
+        
+        # Countdown timer label
+        self.timer_label = QLabel("30s")
+        self.timer_label.setFixedWidth(40)
+        self.timer_label.setAlignment(Qt.AlignCenter)
+        self.timer_label.setStyleSheet(f"""
+            color: {theme.colors.muted_foreground};
+            font-size: 12px;
+            font-weight: 500;
+        """)
+        value_layout.addWidget(self.timer_label)
+        
+        # Circular progress indicator
+        self.progress_widget = TOTPProgressWidget(30)
+        value_layout.addWidget(self.progress_widget)
+        
+        # Copy button
+        copy_btn = create_icon_button("copy", 16, theme.colors.muted_foreground, "Copiar")
+        copy_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 6px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """)
+        copy_btn.clicked.connect(self.copy_value)
+        value_layout.addWidget(copy_btn)
+        
+        layout.addLayout(value_layout)
+    
+    def _update_display(self):
+        """Update the TOTP code and timer display."""
+        try:
+            code, remaining = get_totp_code(self.totp_secret)
+            # Format code with space in the middle (e.g., "123 456")
+            formatted_code = f"{code[:3]} {code[3:]}" if len(code) == 6 else code
+            self.code_label.setText(formatted_code)
+            self.timer_label.setText(f"{remaining}s")
+            self.progress_widget.set_remaining(remaining)
+            
+            # Change color when low on time
+            theme = get_theme()
+            if remaining <= 5:
+                self.code_label.setStyleSheet(f"""
+                    color: #ef4444;
+                    font-size: 24px;
+                    font-weight: 600;
+                    font-family: 'Consolas', 'Monaco', monospace;
+                    letter-spacing: 4px;
+                """)
+            else:
+                self.code_label.setStyleSheet(f"""
+                    color: {theme.colors.foreground};
+                    font-size: 24px;
+                    font-weight: 600;
+                    font-family: 'Consolas', 'Monaco', monospace;
+                    letter-spacing: 4px;
+                """)
+        except Exception as e:
+            self.code_label.setText("ERROR")
+            self.timer_label.setText("--")
+    
+    def copy_value(self):
+        """Copy the current TOTP code to clipboard."""
+        try:
+            code, _ = get_totp_code(self.totp_secret)
+            QApplication.clipboard().setText(code)
+            self.copied.emit("TOTP Code")
+            # Auto-clear after short timeout (TOTP codes expire anyway)
+            QTimer.singleShot(30000, lambda: QApplication.clipboard().clear())
+        except:
+            pass
+    
+    def cleanup(self):
+        """Stop the timer when widget is being destroyed."""
+        if self.update_timer:
+            self.update_timer.stop()
+
+
+class TOTPProgressWidget(QWidget):
+    """Circular progress widget for TOTP countdown."""
+    
+    def __init__(self, total_seconds: int = 30, parent=None):
+        super().__init__(parent)
+        self.total_seconds = total_seconds
+        self.remaining_seconds = total_seconds
+        self.setFixedSize(24, 24)
+    
+    def set_remaining(self, remaining: int):
+        self.remaining_seconds = remaining
+        self.update()
+    
+    def paintEvent(self, event):
+        from PySide6.QtGui import QPen
+        
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        theme = get_theme()
+        
+        # Calculate progress (0 to 1)
+        progress = self.remaining_seconds / self.total_seconds
+        
+        # Background circle
+        pen = QPen(QColor(theme.colors.border))
+        pen.setWidth(3)
+        painter.setPen(pen)
+        painter.drawEllipse(3, 3, 18, 18)
+        
+        # Progress arc
+        if self.remaining_seconds <= 5:
+            arc_color = QColor("#ef4444")  # Red when low
+        elif self.remaining_seconds <= 10:
+            arc_color = QColor("#f97316")  # Orange when getting low
+        else:
+            arc_color = QColor(theme.colors.primary)
+        
+        pen.setColor(arc_color)
+        pen.setWidth(3)
+        pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(pen)
+        
+        # Arc goes from 90 degrees (top) clockwise
+        start_angle = 90 * 16  # Qt uses 1/16th of a degree
+        span_angle = int(-progress * 360 * 16)  # Negative for clockwise
+        painter.drawArc(3, 3, 18, 18, start_angle, span_angle)
+
+
 class DetailPanel(QScrollArea):
     """Right panel showing credential details."""
     
@@ -482,6 +674,7 @@ class DetailPanel(QScrollArea):
         super().__init__(parent)
         self.credential = None
         self.available_folders = []  # List of Folder objects for move menu
+        self._totp_update_timer = None  # Timer for TOTP updates
         self.setup_ui()
     
     def setup_ui(self):
@@ -507,6 +700,9 @@ class DetailPanel(QScrollArea):
         self.show_empty_state()
     
     def show_empty_state(self):
+        # Stop any running TOTP timer
+        self._stop_totp_timer()
+        
         self.clear_layout()
         theme = get_theme()
         
@@ -551,6 +747,10 @@ class DetailPanel(QScrollArea):
     
     def show_credential(self, credential: Credential):
         self.credential = credential
+        
+        # Stop any running TOTP timer before clearing layout
+        self._stop_totp_timer()
+        
         self.clear_layout()
         
         theme = get_theme()
@@ -717,6 +917,30 @@ class DetailPanel(QScrollArea):
         # Password field
         password_section = self._create_field_section("PASSWORD", credential.password, True, theme)
         main_card_layout.addLayout(password_section)
+        
+        # TOTP field (if configured)
+        if credential.totp_secret:
+            # Separator before TOTP
+            sep_totp = QFrame()
+            sep_totp.setFixedHeight(1)
+            sep_totp.setStyleSheet(f"background-color: {theme.colors.border};")
+            main_card_layout.addWidget(sep_totp)
+            
+            # TOTP section
+            totp_section = self._create_totp_section(credential.totp_secret, theme)
+            main_card_layout.addLayout(totp_section)
+        
+        # Backup 2FA Code field (if configured)
+        if credential.backup_codes:
+            # Separator before backup codes
+            sep_backup = QFrame()
+            sep_backup.setFixedHeight(1)
+            sep_backup.setStyleSheet(f"background-color: {theme.colors.border};")
+            main_card_layout.addWidget(sep_backup)
+            
+            # Backup codes section (masked like password)
+            backup_section = self._create_backup_codes_section(credential.backup_codes, theme)
+            main_card_layout.addLayout(backup_section)
         
         self.main_layout.addWidget(main_card)
         self.main_layout.addSpacing(16)
@@ -917,6 +1141,263 @@ class DetailPanel(QScrollArea):
         self.status_message.emit(f"✓ {label} copiado!")
         if is_password:
             QTimer.singleShot(10000, lambda: QApplication.clipboard().clear())
+    
+    def _create_totp_section(self, totp_secret: str, theme) -> QVBoxLayout:
+        """Create a TOTP field section with live code updates."""
+        section = QVBoxLayout()
+        section.setSpacing(8)
+        section.setContentsMargins(0, 16, 0, 16)
+        
+        # Header row
+        header_row = QHBoxLayout()
+        header_row.setSpacing(8)
+        
+        # Label
+        label_widget = QLabel("TWO-FACTOR CODE")
+        label_widget.setStyleSheet(f"""
+            color: {theme.colors.primary};
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            background-color: transparent;
+        """)
+        header_row.addWidget(label_widget)
+        header_row.addStretch()
+        section.addLayout(header_row)
+        
+        # Value row
+        value_row = QHBoxLayout()
+        value_row.setSpacing(8)
+        
+        # Code display
+        self._totp_secret = totp_secret
+        self._totp_code_label = QLabel("--- ---")
+        self._totp_code_label.setStyleSheet(f"""
+            color: {theme.colors.foreground};
+            font-size: 20px;
+            font-weight: 600;
+            font-family: 'Consolas', 'Monaco', monospace;
+            letter-spacing: 2px;
+            background-color: transparent;
+        """)
+        value_row.addWidget(self._totp_code_label, alignment=Qt.AlignVCenter)
+        
+        # Timer label
+        self._totp_timer_label = QLabel("30s")
+        self._totp_timer_label.setFixedWidth(35)
+        self._totp_timer_label.setStyleSheet(f"""
+            color: {theme.colors.muted_foreground};
+            font-size: 12px;
+            font-weight: 500;
+            background-color: transparent;
+        """)
+        value_row.addWidget(self._totp_timer_label, alignment=Qt.AlignVCenter)
+        
+        # Progress widget
+        self._totp_progress = TOTPProgressWidget(30)
+        value_row.addWidget(self._totp_progress, alignment=Qt.AlignVCenter)
+        
+        value_row.addStretch()
+        
+        # Copy button
+        copy_btn = create_icon_button("copy", 14, theme.colors.muted_foreground)
+        copy_btn.setFixedSize(24, 24)
+        copy_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """)
+        copy_btn.clicked.connect(self._copy_totp_code)
+        value_row.addWidget(copy_btn, alignment=Qt.AlignVCenter)
+        
+        section.addLayout(value_row)
+        
+        # Start the TOTP update timer
+        self._start_totp_timer(theme)
+        
+        return section
+    
+    def _start_totp_timer(self, theme):
+        """Start timer to update TOTP code every second."""
+        if hasattr(self, '_totp_update_timer') and self._totp_update_timer:
+            self._totp_update_timer.stop()
+        
+        self._totp_update_timer = QTimer(self)
+        self._totp_theme = theme
+        self._totp_update_timer.timeout.connect(self._update_totp_display)
+        self._totp_update_timer.start(1000)
+        
+        # Initial update
+        self._update_totp_display()
+    
+    def _stop_totp_timer(self):
+        """Stop the TOTP update timer if running."""
+        if hasattr(self, '_totp_update_timer') and self._totp_update_timer:
+            self._totp_update_timer.stop()
+            self._totp_update_timer = None
+    
+    def _update_totp_display(self):
+        """Update the TOTP code and timer display."""
+        # Check if widgets still exist before updating
+        if not hasattr(self, '_totp_code_label') or self._totp_code_label is None:
+            self._stop_totp_timer()
+            return
+        
+        try:
+            # Additional check if Qt object is still valid
+            if not self._totp_code_label.isVisible():
+                pass  # Widget exists but may be hidden, still update
+        except RuntimeError:
+            # Qt object was deleted
+            self._stop_totp_timer()
+            return
+        
+        try:
+            code, remaining = get_totp_code(self._totp_secret)
+            formatted_code = f"{code[:3]} {code[3:]}" if len(code) == 6 else code
+            self._totp_code_label.setText(formatted_code)
+            self._totp_timer_label.setText(f"{remaining}s")
+            self._totp_progress.set_remaining(remaining)
+            
+            # Change color when low on time
+            if remaining <= 5:
+                self._totp_code_label.setStyleSheet("""
+                    color: #ef4444;
+                    font-size: 20px;
+                    font-weight: 600;
+                    font-family: 'Consolas', 'Monaco', monospace;
+                    letter-spacing: 2px;
+                    background-color: transparent;
+                """)
+            else:
+                self._totp_code_label.setStyleSheet(f"""
+                    color: {self._totp_theme.colors.foreground};
+                    font-size: 20px;
+                    font-weight: 600;
+                    font-family: 'Consolas', 'Monaco', monospace;
+                    letter-spacing: 2px;
+                    background-color: transparent;
+                """)
+        except RuntimeError:
+            # Widget was deleted, stop the timer
+            self._stop_totp_timer()
+        except Exception:
+            # Other error (e.g., TOTP generation failed)
+            try:
+                self._totp_code_label.setText("ERROR")
+                self._totp_timer_label.setText("--")
+            except RuntimeError:
+                self._stop_totp_timer()
+    
+    def _copy_totp_code(self):
+        """Copy TOTP code to clipboard."""
+        try:
+            code, _ = get_totp_code(self._totp_secret)
+            QApplication.clipboard().setText(code)
+            self.status_message.emit("✓ TOTP Code copiado!")
+            # Auto-clear after 30 seconds
+            QTimer.singleShot(30000, lambda: QApplication.clipboard().clear())
+        except:
+            pass
+    
+    def _create_backup_codes_section(self, backup_codes: str, theme) -> QVBoxLayout:
+        """Create a backup codes field section (masked like password)."""
+        section = QVBoxLayout()
+        section.setSpacing(8)
+        section.setContentsMargins(0, 16, 0, 16)
+        
+        # Header row
+        header_row = QHBoxLayout()
+        header_row.setSpacing(8)
+        
+        # Label
+        label_widget = QLabel("BACKUP 2FA CODE")
+        label_widget.setStyleSheet(f"""
+            color: {theme.colors.primary};
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            background-color: transparent;
+        """)
+        header_row.addWidget(label_widget)
+        header_row.addStretch()
+        section.addLayout(header_row)
+        
+        # Value row
+        value_row = QHBoxLayout()
+        value_row.setSpacing(8)
+        
+        # Masked code display
+        self._backup_codes_value = backup_codes
+        self._backup_codes_visible = False
+        self._backup_codes_label = QLabel("•" * min(24, len(backup_codes)))
+        self._backup_codes_label.setStyleSheet(f"""
+            color: {theme.colors.foreground};
+            font-size: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: transparent;
+        """)
+        value_row.addWidget(self._backup_codes_label, alignment=Qt.AlignVCenter)
+        
+        value_row.addStretch()
+        
+        # Toggle visibility button
+        self._backup_toggle_btn = create_icon_button("view", 14, theme.colors.muted_foreground)
+        self._backup_toggle_btn.setFixedSize(24, 24)
+        self._backup_toggle_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """)
+        self._backup_toggle_btn.clicked.connect(lambda: self._toggle_backup_visibility(theme))
+        value_row.addWidget(self._backup_toggle_btn, alignment=Qt.AlignVCenter)
+        
+        # Copy button
+        copy_btn = create_icon_button("copy", 14, theme.colors.muted_foreground)
+        copy_btn.setFixedSize(24, 24)
+        copy_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """)
+        copy_btn.clicked.connect(self._copy_backup_codes)
+        value_row.addWidget(copy_btn, alignment=Qt.AlignVCenter)
+        
+        section.addLayout(value_row)
+        return section
+    
+    def _toggle_backup_visibility(self, theme):
+        """Toggle backup codes visibility."""
+        self._backup_codes_visible = not self._backup_codes_visible
+        if self._backup_codes_visible:
+            self._backup_codes_label.setText(self._backup_codes_value)
+            self._backup_toggle_btn.setIcon(QIcon(load_svg_icon("visibility_off", 14, theme.colors.muted_foreground)))
+        else:
+            self._backup_codes_label.setText("•" * min(24, len(self._backup_codes_value)))
+            self._backup_toggle_btn.setIcon(QIcon(load_svg_icon("view", 14, theme.colors.muted_foreground)))
+    
+    def _copy_backup_codes(self):
+        """Copy backup codes to clipboard."""
+        QApplication.clipboard().setText(self._backup_codes_value)
+        self.status_message.emit("✓ Backup Code copiado!")
+        # Auto-clear after 30 seconds
+        QTimer.singleShot(30000, lambda: QApplication.clipboard().clear())
+
     
     def _show_menu(self, button, credential):
         theme = get_theme()
@@ -1309,6 +1790,107 @@ class CredentialDialog(QDialog):
         """)
         form_layout.addWidget(self.notes_input)
         
+        # TOTP Secret
+        totp_label = QLabel("TOTP Secret (optional)")
+        totp_label.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px; font-weight: 500;")
+        form_layout.addWidget(totp_label)
+        
+        totp_hint = QLabel("Enter the base32 secret key from your authenticator app setup")
+        totp_hint.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 10px;")
+        totp_hint.setWordWrap(True)
+        form_layout.addWidget(totp_hint)
+        
+        totp_row = QHBoxLayout()
+        totp_row.setSpacing(8)
+        
+        self.totp_input = QLineEdit()
+        self.totp_input.setPlaceholderText("e.g., JBSWY3DPEHPK3PXP")
+        if self.credential and self.credential.totp_secret:
+            self.totp_input.setText(self.credential.totp_secret)
+        self.totp_input.setStyleSheet(self._get_input_style())
+        self.totp_input.textChanged.connect(self._validate_totp_input)
+        totp_row.addWidget(self.totp_input)
+        
+        # Clear TOTP button (only for editing existing credentials with TOTP)
+        if self.credential and self.credential.totp_secret:
+            clear_totp_btn = create_icon_button("close", 18, theme.colors.muted_foreground, "Clear TOTP")
+            clear_totp_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {theme.colors.secondary};
+                    border: 1px solid {theme.colors.border};
+                    border-radius: 8px;
+                }}
+                QPushButton:hover {{
+                    background-color: {theme.colors.destructive};
+                }}
+            """)
+            clear_totp_btn.setFixedSize(40, 40)
+            clear_totp_btn.clicked.connect(self._clear_totp)
+            totp_row.addWidget(clear_totp_btn)
+        
+        form_layout.addLayout(totp_row)
+        
+        # TOTP validation label
+        self.totp_validation_label = QLabel("")
+        self.totp_validation_label.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 11px;")
+        form_layout.addWidget(self.totp_validation_label)
+        
+        # Backup 2FA Codes
+        backup_label = QLabel("Backup 2FA Codes (optional)")
+        backup_label.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px; font-weight: 500;")
+        form_layout.addWidget(backup_label)
+        
+        backup_hint = QLabel("Enter your recovery/backup codes for two-factor authentication")
+        backup_hint.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 10px;")
+        backup_hint.setWordWrap(True)
+        form_layout.addWidget(backup_hint)
+        
+        backup_row = QHBoxLayout()
+        backup_row.setSpacing(8)
+        
+        self.backup_input = QLineEdit()
+        self.backup_input.setPlaceholderText("e.g., XXXX-XXXX-XXXX or recovery code list")
+        self.backup_input.setEchoMode(QLineEdit.Password)
+        if self.credential and self.credential.backup_codes:
+            self.backup_input.setText(self.credential.backup_codes)
+        self.backup_input.setStyleSheet(self._get_input_style())
+        backup_row.addWidget(self.backup_input)
+        
+        # Toggle visibility button for backup codes
+        backup_toggle_btn = create_icon_button("view", 18, theme.colors.muted_foreground, "Show/hide")
+        backup_toggle_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.colors.secondary};
+                border: 1px solid {theme.colors.border};
+                border-radius: 8px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """)
+        backup_toggle_btn.setFixedSize(40, 40)
+        backup_toggle_btn.clicked.connect(self._toggle_backup_visibility)
+        backup_row.addWidget(backup_toggle_btn)
+        
+        # Clear backup codes button (only for editing existing credentials with backup)
+        if self.credential and self.credential.backup_codes:
+            clear_backup_btn = create_icon_button("close", 18, theme.colors.muted_foreground, "Clear Backup")
+            clear_backup_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {theme.colors.secondary};
+                    border: 1px solid {theme.colors.border};
+                    border-radius: 8px;
+                }}
+                QPushButton:hover {{
+                    background-color: {theme.colors.destructive};
+                }}
+            """)
+            clear_backup_btn.setFixedSize(40, 40)
+            clear_backup_btn.clicked.connect(self._clear_backup)
+            backup_row.addWidget(clear_backup_btn)
+        
+        form_layout.addLayout(backup_row)
+        
         layout.addLayout(form_layout)
         
         # Buttons
@@ -1383,12 +1965,59 @@ class CredentialDialog(QDialog):
         else:
             self.password_input.setEchoMode(QLineEdit.Password)
     
+    def _validate_totp_input(self, text: str):
+        """Validate the TOTP secret input and show feedback."""
+        theme = get_theme()
+        if not text.strip():
+            self.totp_validation_label.setText("")
+            return
+        
+        if is_valid_totp_secret(text.strip()):
+            try:
+                code, remaining = get_totp_code(text.strip())
+                self.totp_validation_label.setText(f"✓ Valid - Current code: {code} ({remaining}s remaining)")
+                self.totp_validation_label.setStyleSheet(f"color: #22c55e; font-size: 11px;")
+            except:
+                self.totp_validation_label.setText("✗ Invalid TOTP secret")
+                self.totp_validation_label.setStyleSheet(f"color: #ef4444; font-size: 11px;")
+        else:
+            self.totp_validation_label.setText("✗ Invalid base32 format")
+            self.totp_validation_label.setStyleSheet(f"color: #ef4444; font-size: 11px;")
+    
+    def _clear_totp(self):
+        """Clear the TOTP secret field."""
+        self.totp_input.clear()
+        self._totp_cleared = True
+        self.totp_validation_label.setText("TOTP will be removed when saved")
+        self.totp_validation_label.setStyleSheet(f"color: #f97316; font-size: 11px;")
+    
+    def _toggle_backup_visibility(self):
+        """Toggle backup codes input visibility."""
+        if self.backup_input.echoMode() == QLineEdit.Password:
+            self.backup_input.setEchoMode(QLineEdit.Normal)
+        else:
+            self.backup_input.setEchoMode(QLineEdit.Password)
+    
+    def _clear_backup(self):
+        """Clear the backup codes field."""
+        self.backup_input.clear()
+        self._backup_cleared = True
+    
     def get_data(self) -> dict:
+        totp_secret = self.totp_input.text().strip() or None
+        clear_totp = getattr(self, '_totp_cleared', False) and not totp_secret
+        backup_codes = self.backup_input.text().strip() or None
+        clear_backup = getattr(self, '_backup_cleared', False) and not backup_codes
+        
         return {
             'domain': self.domain_input.text().strip(),
             'username': self.username_input.text().strip(),
             'password': self.password_input.text(),
-            'notes': self.notes_input.toPlainText().strip() or None
+            'notes': self.notes_input.toPlainText().strip() or None,
+            'totp_secret': totp_secret,
+            'clear_totp': clear_totp,
+            'backup_codes': backup_codes,
+            'clear_backup': clear_backup
         }
 
 

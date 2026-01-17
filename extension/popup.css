@@ -1045,3 +1045,85 @@ body {
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
+
+/* TOTP Styles */
+.totp-value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.totp-code {
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  color: var(--vk-text-primary);
+}
+
+.totp-code.expiring {
+  color: var(--vk-accent-red);
+  animation: totp-blink 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes totp-blink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.6;
+  }
+}
+
+.totp-timer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.totp-countdown {
+  font-size: 11px;
+  color: var(--vk-text-secondary);
+  font-weight: 500;
+  min-width: 24px;
+}
+
+.totp-countdown.expiring {
+  color: var(--vk-accent-red);
+}
+
+.totp-progress-ring {
+  transform: rotate(-90deg);
+}
+
+.totp-progress-bg {
+  stroke: var(--vk-border-color);
+}
+
+.totp-progress-circle {
+  stroke: var(--vk-accent-blue);
+  transition: stroke-dashoffset 0.25s linear;
+}
+
+.totp-progress-circle.expiring {
+  stroke: var(--vk-accent-red);
+}
+
+.totp-progress-circle.warning {
+  stroke: var(--vk-accent-orange);
+}
+
+/* Backup 2FA Code Styles */
+.backup-codes-masked {
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--vk-text-primary);
+}
+
+.backup-codes-visible {
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 13px;
+  color: var(--vk-text-primary);
+  word-break: break-all;
+}

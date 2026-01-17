@@ -44,6 +44,21 @@ const credPassword = document.getElementById("cred-password");
 const credNotes = document.getElementById("cred-notes");
 const strengthBadge = document.querySelector(".strength-badge");
 
+// TOTP elements and state
+const totpFieldGroup = document.getElementById("totp-field-group");
+const totpCodeElement = document.getElementById("detail-totp-code");
+const totpCountdownElement = document.getElementById("detail-totp-countdown");
+const totpProgressCircle = document.getElementById("totp-progress-circle");
+let totpUpdateInterval = null;
+let currentTotpCredentialId = null;
+
+// Backup codes elements and state
+const backupFieldGroup = document.getElementById("backup-field-group");
+const backupCodesElement = document.getElementById("detail-backup-codes");
+const toggleBackupBtn = document.getElementById("toggle-backup");
+let backupCodesVisible = false;
+let actualBackupCodes = {};
+
 function showView(viewId) {
   [loadingView, lockedView, unlockedView, disconnectedView, setupView].forEach(
     (v) => {
@@ -151,8 +166,12 @@ async function loadCredentials() {
       currentCredentials = response.credentials || [];
 
       actualPasswords = {};
+      actualBackupCodes = {};
       currentCredentials.forEach((cred) => {
         actualPasswords[cred.id] = cred.password;
+        if (cred.backup_codes) {
+          actualBackupCodes[cred.id] = cred.backup_codes;
+        }
       });
 
       currentCredentials.sort((a, b) => a.domain.localeCompare(b.domain));
@@ -290,6 +309,28 @@ function selectCredential(cred) {
   }
   detailUrl.textContent = url;
   detailUrl.href = url;
+
+  // Handle TOTP display
+  if (cred.totp_secret && totpFieldGroup) {
+    totpFieldGroup.classList.remove("hidden");
+    currentTotpCredentialId = cred.id;
+    startTotpUpdates(cred.id);
+  } else if (totpFieldGroup) {
+    totpFieldGroup.classList.add("hidden");
+    stopTotpUpdates();
+    currentTotpCredentialId = null;
+  }
+
+  // Handle backup codes display
+  if (cred.backup_codes && backupFieldGroup) {
+    backupFieldGroup.classList.remove("hidden");
+    backupCodesVisible = false;
+    backupCodesElement.textContent = "••••••••••••••••";
+    backupCodesElement.classList.add("backup-codes-masked");
+    backupCodesElement.classList.remove("backup-codes-visible");
+  } else if (backupFieldGroup) {
+    backupFieldGroup.classList.add("hidden");
+  }
 }
 
 function toggleDetailPassword() {
@@ -341,6 +382,28 @@ async function copyToClipboard(type) {
     case "url":
       text = selectedCredential.domain;
       break;
+    case "totp":
+      // Get fresh TOTP code from native host
+      try {
+        const response = await sendMessage({
+          action: "get_totp",
+          id: selectedCredential.id,
+        });
+        if (response.success) {
+          text = response.code;
+        } else {
+          console.error("Failed to get TOTP:", response.error);
+          return;
+        }
+      } catch (error) {
+        console.error("Error getting TOTP:", error);
+        return;
+      }
+      break;
+    case "backup":
+      text = actualBackupCodes[selectedCredential.id] || "";
+      if (!text) return;
+      break;
   }
 
   try {
@@ -353,7 +416,7 @@ async function copyToClipboard(type) {
       setTimeout(() => (btn.innerHTML = originalHTML), 1500);
     }
 
-    if (type === "password") {
+    if (type === "password" || type === "totp" || type === "backup") {
       setTimeout(async () => {
         try {
           const current = await navigator.clipboard.readText();
@@ -366,8 +429,100 @@ async function copyToClipboard(type) {
   } catch (error) {}
 }
 
+// TOTP Update Functions
+function startTotpUpdates(credentialId) {
+  stopTotpUpdates();
+
+  // Update immediately
+  updateTotpDisplay(credentialId);
+
+  // Then update every second
+  totpUpdateInterval = setInterval(() => {
+    updateTotpDisplay(credentialId);
+  }, 1000);
+}
+
+function stopTotpUpdates() {
+  if (totpUpdateInterval) {
+    clearInterval(totpUpdateInterval);
+    totpUpdateInterval = null;
+  }
+}
+
+async function updateTotpDisplay(credentialId) {
+  if (!totpCodeElement || !totpCountdownElement || !totpProgressCircle) return;
+
+  try {
+    const response = await sendMessage({
+      action: "get_totp",
+      id: credentialId,
+    });
+
+    if (response.success) {
+      const code = response.code;
+      const remaining = response.remaining_seconds;
+
+      // Format code with space in middle (e.g., "123 456")
+      const formattedCode =
+        code.length === 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
+      totpCodeElement.textContent = formattedCode;
+      totpCountdownElement.textContent = `${remaining}s`;
+
+      // Update progress ring
+      const circumference = 2 * Math.PI * 10; // r=10
+      const progress = remaining / 30;
+      const offset = circumference * (1 - progress);
+      totpProgressCircle.style.strokeDasharray = circumference;
+      totpProgressCircle.style.strokeDashoffset = offset;
+
+      // Update classes based on time remaining
+      if (remaining <= 5) {
+        totpCodeElement.classList.add("expiring");
+        totpCountdownElement.classList.add("expiring");
+        totpProgressCircle.classList.add("expiring");
+        totpProgressCircle.classList.remove("warning");
+      } else if (remaining <= 10) {
+        totpCodeElement.classList.remove("expiring");
+        totpCountdownElement.classList.remove("expiring");
+        totpProgressCircle.classList.remove("expiring");
+        totpProgressCircle.classList.add("warning");
+      } else {
+        totpCodeElement.classList.remove("expiring");
+        totpCountdownElement.classList.remove("expiring");
+        totpProgressCircle.classList.remove("expiring");
+        totpProgressCircle.classList.remove("warning");
+      }
+    } else {
+      totpCodeElement.textContent = "ERROR";
+      totpCountdownElement.textContent = "--";
+    }
+  } catch (error) {
+    console.error("Error updating TOTP:", error);
+    totpCodeElement.textContent = "ERROR";
+    totpCountdownElement.textContent = "--";
+  }
+}
+
 function updateCredentialCount() {
   credentialCount.textContent = currentCredentials.length;
+}
+
+// Toggle backup codes visibility
+function toggleBackupVisibility() {
+  if (!selectedCredential || !backupCodesElement) return;
+
+  backupCodesVisible = !backupCodesVisible;
+
+  if (backupCodesVisible) {
+    backupCodesElement.textContent =
+      actualBackupCodes[selectedCredential.id] || "";
+    backupCodesElement.classList.remove("backup-codes-masked");
+    backupCodesElement.classList.add("backup-codes-visible");
+  } else {
+    backupCodesElement.textContent = "••••••••••••••••";
+    backupCodesElement.classList.add("backup-codes-masked");
+    backupCodesElement.classList.remove("backup-codes-visible");
+  }
 }
 
 function openAddModal() {
@@ -498,6 +653,10 @@ searchInput.addEventListener("input", (e) => {
 
 fillBtn.addEventListener("click", fillCredential);
 togglePasswordBtn.addEventListener("click", toggleDetailPassword);
+
+if (toggleBackupBtn) {
+  toggleBackupBtn.addEventListener("click", toggleBackupVisibility);
+}
 
 document.querySelectorAll(".copy-btn").forEach((btn) => {
   btn.addEventListener("click", () => copyToClipboard(btn.dataset.copy));

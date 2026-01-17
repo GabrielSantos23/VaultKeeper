@@ -11,11 +11,13 @@ import logging
 from typing import Optional, Dict, Any
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Add parent directory to path for imports (only for source execution)
+if not getattr(sys, 'frozen', False):
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.core.vault import VaultManager
 from app.core.auth import AuthManager
+from app.core.totp import TOTPManager, get_totp_code, is_valid_totp_secret
 
 
 # Configure logging
@@ -142,6 +144,9 @@ class NativeMessagingHost:
             elif action == 'search':
                 return self._handle_search(message)
             
+            elif action == 'get_totp':
+                return self._handle_get_totp(message)
+            
             else:
                 return {'success': False, 'error': f'Unknown action: {action}'}
                 
@@ -215,10 +220,18 @@ class NativeMessagingHost:
         username = message.get('username')
         password = message.get('password')
         notes = message.get('notes')
+        totp_secret = message.get('totp_secret')
+        clear_totp = message.get('clear_totp', False)
+        backup_codes = message.get('backup_codes')
+        clear_backup = message.get('clear_backup', False)
         credential_id = message.get('id')
         
         if not all([domain, username, password]):
             return {'success': False, 'error': 'Domain, username, and password are required'}
+        
+        # Validate TOTP secret if provided
+        if totp_secret and not is_valid_totp_secret(totp_secret):
+            return {'success': False, 'error': 'Invalid TOTP secret. Must be a valid base32 string.'}
         
         try:
             if credential_id:
@@ -228,12 +241,16 @@ class NativeMessagingHost:
                     domain=domain,
                     username=username,
                     password=password,
-                    notes=notes
+                    notes=notes,
+                    totp_secret=totp_secret,
+                    clear_totp=clear_totp,
+                    backup_codes=backup_codes,
+                    clear_backup=clear_backup
                 )
                 return {'success': True, 'message': 'Credential updated', 'id': credential_id}
             else:
                 # Create new credential
-                new_id = self.vault.add_credential(domain, username, password, notes)
+                new_id = self.vault.add_credential(domain, username, password, notes, totp_secret, backup_codes)
                 return {'success': True, 'message': 'Credential saved', 'id': new_id}
                 
         except Exception as e:
@@ -276,6 +293,36 @@ class NativeMessagingHost:
             'success': True,
             'credentials': [cred.to_dict() for cred in credentials]
         }
+    
+    def _handle_get_totp(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle get_totp action - generate current TOTP code for a credential."""
+        if not self.auth.is_unlocked:
+            return {'success': False, 'error': 'Vault is locked', 'locked': True}
+        
+        credential_id = message.get('id')
+        if not credential_id:
+            return {'success': False, 'error': 'Credential ID required'}
+        
+        try:
+            credential = self.vault.get_credential(credential_id)
+            if not credential:
+                return {'success': False, 'error': 'Credential not found'}
+            
+            if not credential.totp_secret:
+                return {'success': False, 'error': 'No TOTP secret configured for this credential'}
+            
+            code, remaining = get_totp_code(credential.totp_secret)
+            return {
+                'success': True,
+                'code': code,
+                'remaining_seconds': remaining,
+                'credential_id': credential_id
+            }
+        except ValueError as e:
+            return {'success': False, 'error': str(e)}
+        except Exception as e:
+            logger.error(f"Error generating TOTP: {e}")
+            return {'success': False, 'error': 'Failed to generate TOTP code'}
     
     def run(self):
         """Main loop to handle messages."""

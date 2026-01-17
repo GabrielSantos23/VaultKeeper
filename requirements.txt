@@ -1,17 +1,11 @@
-# VaultKeeper - Password Manager
-# Python 3.11+
 
-# UI Framework
 PySide6>=6.6.0
 
-# Database
-# SQLite is built-in
-
-# Cryptography
 cryptography>=41.0.0
 
-# Password Hashing
 argon2-cffi>=23.1.0
 
-# Environment variables (optional)
 python-dotenv>=1.0.0
+
+pyinstaller>=6.0.0
+
