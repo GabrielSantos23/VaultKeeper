@@ -226,7 +226,7 @@ sqlite3 ~/.vaultkeeper/vault.db "SELECT id, domain, username FROM vault;"
 - [ ] Importação de CSV
 - [ ] Detecção de senhas vazadas (HIBP)
 - [x] Suporte a TOTP (2FA)
-- [ ] Geração de senhas personalizável
+- [x] Geração de senhas personalizável
 - [x] Extensão para Firefox
 
 ## 📄 Licença
