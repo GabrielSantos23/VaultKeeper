@@ -1,14 +1,11 @@
-
-const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 const NATIVE_HOST_NAME = "com.vaultkeeper.host";
-
 
 let nativePort = null;
 let isConnected = false;
 let pendingRequests = new Map();
 let requestId = 0;
-
 
 function connectNativeHost() {
   if (nativePort) {
@@ -38,7 +35,6 @@ function connectNativeHost() {
   }
 }
 
-
 function handleNativeMessage(message) {
   if (message._requestId !== undefined) {
     const pending = pendingRequests.get(message._requestId);
@@ -48,7 +44,6 @@ function handleNativeMessage(message) {
     }
   }
 }
-
 
 async function sendNativeMessage(action, data = {}) {
   return new Promise((resolve, reject) => {
@@ -82,11 +77,9 @@ async function sendNativeMessage(action, data = {}) {
   });
 }
 
-
 async function getCredentials(domain) {
   return sendNativeMessage("get_credentials", { domain });
 }
-
 
 async function saveCredentials(domain, username, password, notes = null) {
   return sendNativeMessage("save_credentials", {
@@ -97,16 +90,13 @@ async function saveCredentials(domain, username, password, notes = null) {
   });
 }
 
-
 async function getStatus() {
   return sendNativeMessage("status");
 }
 
-
 async function unlock(password) {
   return sendNativeMessage("unlock", { password });
 }
-
 
 async function lock() {
   return sendNativeMessage("lock");
@@ -116,14 +106,11 @@ async function getAllCredentials() {
   return sendNativeMessage("get_all_credentials");
 }
 
-
 async function searchCredentials(query) {
   return sendNativeMessage("search", { query });
 }
 
 browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
-
-
   (async () => {
     try {
       let response;
@@ -154,7 +141,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
             request.domain,
             request.username,
             request.password,
-            request.notes
+            request.notes,
           );
           break;
 
@@ -167,11 +154,15 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "toggle_favorite":
-          response = await sendNativeMessage("toggle_favorite", { id: request.id });
+          response = await sendNativeMessage("toggle_favorite", {
+            id: request.id,
+          });
           break;
 
         case "delete_credentials":
-          response = await sendNativeMessage("delete_credentials", { id: request.id });
+          response = await sendNativeMessage("delete_credentials", {
+            id: request.id,
+          });
           break;
 
         case "update_credentials":
@@ -180,7 +171,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
             domain: request.domain,
             username: request.username,
             password: request.password,
-            notes: request.notes
+            notes: request.notes,
           });
           break;
 
@@ -191,7 +182,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case "set_folder":
           response = await sendNativeMessage("set_folder", {
             id: request.id,
-            folder_id: request.folder_id
+            folder_id: request.folder_id,
           });
           break;
 
@@ -213,7 +204,6 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       sendResponse(response);
     } catch (error) {
-
       sendResponse({ success: false, error: error.message });
     }
   })();
@@ -222,5 +212,3 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 connectNativeHost();
-
-

@@ -2,37 +2,37 @@
    This file defines the color palette used across all extension components */
 
 :root {
-    /* Background colors - Dark theme */
-    --bg-primary: #1C1F24;
-    --bg-secondary: #2a2e35;
-    --bg-tertiary: #252930;
-    --bg-hover: #363a42;
-    --bg-selected: #3b9eff;
-    
-    /* Text colors */
-    --text-primary: #e5e7eb;
-    --text-secondary: #9ca3af;
-    --text-tertiary: #6b7280;
-    --text-white: #ffffff;
-    --text-link: #3b9eff;
-    
-    /* Border colors */
-    --border-color: #3a3f4b;
-    --border-light: #2a2e35;
-    
-    /* Accent colors */
-    --accent-blue: #3b9eff;
-    --accent-green: #22c55e;
-    --accent-red: #ef4444;
-    --accent-warning: #f59e0b;
-    
-    /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.4);
-    
-    /* Border radius */
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
+  /* Background colors - Dark theme */
+  --vk-bg-primary: #1c1f24;
+  --vk-bg-secondary: #2a2e35;
+  --vk-bg-tertiary: #252930;
+  --vk-bg-hover: #363a42;
+  --vk-bg-selected: #3b9eff;
+
+  /* Text colors */
+  --vk-text-primary: #e5e7eb;
+  --vk-text-secondary: #9ca3af;
+  --vk-text-tertiary: #6b7280;
+  --vk-text-white: #ffffff;
+  --vk-text-link: #3b9eff;
+
+  /* Border colors */
+  --vk-border-color: #3a3f4b;
+  --vk-border-light: #2a2e35;
+
+  /* Accent colors */
+  --vk-accent-blue: #3b9eff;
+  --vk-accent-green: #22c55e;
+  --vk-accent-red: #ef4444;
+  --vk-accent-warning: #f59e0b;
+
+  /* Shadows */
+  --vk-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --vk-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --vk-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.4);
+
+  /* Border radius */
+  --vk-radius-sm: 6px;
+  --vk-radius-md: 8px;
+  --vk-radius-lg: 12px;
 }

@@ -51,6 +51,8 @@ VaultKeeper-v2/
 
 ### 1. Dependências Python
 
+#### Linux / macOS
+
 ```bash
 # Criar ambiente virtual (recomendado)
 python3 -m venv .venv
@@ -60,10 +62,30 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+#### Windows
+
+```powershell
+# Criar ambiente virtual (recomendado)
+# Se o comando 'python' não funcionar, tente 'py'
+python -m venv .venv
+.\.venv\Scripts\Activate
+
+# Instalar dependências
+pip install -r requirements.txt
+```
+
 ### 2. Executar o App Desktop
 
+#### Linux / macOS
+
 ```bash
-python app/main.py
+python3 app/main.py
+```
+
+#### Windows
+
+```powershell
+python app\main.py
 ```
 
 Na primeira execução, você criará sua **senha mestra**.
@@ -74,24 +96,29 @@ Na primeira execução, você criará sua **senha mestra**.
 2. Ative o **Modo do desenvolvedor**
 3. Clique em **Carregar sem compactação**
 4. Selecione a pasta `extension/`
-5. Copie o **ID da extensão** gerado
 
-### 4. Configurar o Native Messaging Host
+> **Nota**: O Native Messaging Host é instalado automaticamente quando o app desktop é executado. Não é necessária configuração manual.
+
+### 4. Usar
+
+1. Execute o app desktop: `python app/main.py`
+2. Na primeira execução, o Native Host será configurado automaticamente
+3. Clique no ícone da extensão VaultKeeper no navegador
+4. A extensão deve mostrar que está conectada!
+
+### Instalação Manual do Native Host (opcional)
+
+Se precisar reinstalar manualmente o Native Host:
 
 ```bash
-# Torne o script executável
-chmod +x native_host/install_linux.sh
-
-# Execute o instalador
-./native_host/install_linux.sh
-# Digite o ID da extensão quando solicitado
+python -m app.native.installer install
 ```
 
-### 5. Testar
+Para verificar o status:
 
-1. Com o app desktop aberto e desbloqueado
-2. Clique no ícone da extensão
-3. A extensão deve mostrar que está conectada
+```bash
+python -m app.native.installer check
+```
 
 ## 🔐 Funcionalidades
 

@@ -19,10 +19,36 @@ from typing import Optional, List, Tuple
 
 # Extension IDs
 FIREFOX_EXTENSION_ID = "vaultkeeper@example.com"
-CHROME_EXTENSION_ID = None  # Set after extension is published
+
+# Chrome Extension ID - This is a FIXED ID generated from the "key" in manifest.json
+# DO NOT CHANGE THIS - it must match the key in extension/manifest.json
+# The key ensures the extension always has this same ID on any computer
+CHROME_EXTENSION_ID = "bklgfpmbbpfboanbdjakcgmlldhmlkco"
 
 HOST_NAME = "com.vaultkeeper.host"
 HOST_DESCRIPTION = "VaultKeeper Native Messaging Host"
+
+
+def get_chrome_extension_id() -> Optional[str]:
+    """Get Chrome extension ID from various sources."""
+    # 1. Check if it's hardcoded
+    if CHROME_EXTENSION_ID:
+        return CHROME_EXTENSION_ID
+    
+    # 2. Check for .chrome_extension_id file in project root
+    project_root = Path(__file__).parent.parent.parent
+    id_file = project_root / ".chrome_extension_id"
+    if id_file.exists():
+        ext_id = id_file.read_text().strip()
+        if ext_id and len(ext_id) == 32:
+            return ext_id
+    
+    # 3. Check environment variable
+    env_id = os.environ.get("VAULTKEEPER_CHROME_EXTENSION_ID")
+    if env_id and len(env_id) == 32:
+        return env_id
+    
+    return None
 
 
 class NativeHostInstaller:
@@ -40,33 +66,62 @@ class NativeHostInstaller:
         
         if self.system == "linux":
             return {
+                # Firefox-based browsers
                 "firefox": home / ".mozilla" / "native-messaging-hosts",
+                "librewolf": home / ".librewolf" / "native-messaging-hosts",
+                "waterfox": home / ".waterfox" / "native-messaging-hosts",
+                "floorp": home / ".floorp" / "native-messaging-hosts",
+                "zen": home / ".zen" / "native-messaging-hosts",
+                # Chromium-based browsers
                 "chrome": home / ".config" / "google-chrome" / "NativeMessagingHosts",
                 "chromium": home / ".config" / "chromium" / "NativeMessagingHosts",
                 "brave": home / ".config" / "BraveSoftware" / "Brave-Browser" / "NativeMessagingHosts",
+                "edge": home / ".config" / "microsoft-edge" / "NativeMessagingHosts",
+                "vivaldi": home / ".config" / "vivaldi" / "NativeMessagingHosts",
+                "opera": home / ".config" / "opera" / "NativeMessagingHosts",
             }
         elif self.system == "darwin":  # macOS
             return {
+                # Firefox-based browsers
                 "firefox": home / "Library" / "Application Support" / "Mozilla" / "NativeMessagingHosts",
+                "librewolf": home / "Library" / "Application Support" / "librewolf" / "NativeMessagingHosts",
+                "waterfox": home / "Library" / "Application Support" / "Waterfox" / "NativeMessagingHosts",
+                # Chromium-based browsers
                 "chrome": home / "Library" / "Application Support" / "Google" / "Chrome" / "NativeMessagingHosts",
                 "chromium": home / "Library" / "Application Support" / "Chromium" / "NativeMessagingHosts",
                 "brave": home / "Library" / "Application Support" / "BraveSoftware" / "Brave-Browser" / "NativeMessagingHosts",
+                "edge": home / "Library" / "Application Support" / "Microsoft Edge" / "NativeMessagingHosts",
+                "vivaldi": home / "Library" / "Application Support" / "Vivaldi" / "NativeMessagingHosts",
+                "opera": home / "Library" / "Application Support" / "com.operasoftware.Opera" / "NativeMessagingHosts",
             }
         elif self.system == "windows":
             # Windows uses registry, but manifests can be stored anywhere
             appdata = Path(os.environ.get("LOCALAPPDATA", home / "AppData" / "Local"))
             return {
+                # Firefox-based browsers (all use Mozilla path on Windows)
                 "firefox": appdata / "Mozilla" / "NativeMessagingHosts",
+                "librewolf": appdata / "librewolf" / "NativeMessagingHosts",
+                "waterfox": appdata / "Waterfox" / "NativeMessagingHosts",
+                "floorp": appdata / "Floorp" / "NativeMessagingHosts",
+                "zen": appdata / "Zen Browser" / "NativeMessagingHosts",
+                # Chromium-based browsers
                 "chrome": appdata / "Google" / "Chrome" / "User Data" / "NativeMessagingHosts",
+                "chromium": appdata / "Chromium" / "User Data" / "NativeMessagingHosts",
+                "brave": appdata / "BraveSoftware" / "Brave-Browser" / "User Data" / "NativeMessagingHosts",
+                "edge": appdata / "Microsoft" / "Edge" / "User Data" / "NativeMessagingHosts",
+                "vivaldi": appdata / "Vivaldi" / "User Data" / "NativeMessagingHosts",
+                "opera": appdata / "Opera Software" / "Opera Stable" / "NativeMessagingHosts",
             }
         else:
             return {}
     
     def create_manifest(self, browser: str, chrome_extension_id: Optional[str] = None) -> dict:
         """Create the native messaging host manifest."""
-        # Use wrapper script on Unix to handle venv activation
+        # Windows needs a .bat/.exe file, Unix needs executable script
         if self.system == "windows":
-            host_path = str(self.host_script)
+            # Windows: use the batch wrapper script
+            self.wrapper_bat = self.project_root / "app" / "native" / "vaultkeeper_host.bat"
+            host_path = str(self.wrapper_bat)
         else:
             host_path = str(self.wrapper_script)
         
@@ -77,25 +132,43 @@ class NativeHostInstaller:
             "type": "stdio"
         }
         
-        # Firefox uses allowed_extensions, Chrome/Chromium use allowed_origins
-        if browser == "firefox":
+        # Firefox-based browsers use allowed_extensions, Chromium-based use allowed_origins
+        firefox_based = {"firefox", "librewolf", "waterfox", "floorp", "zen"}
+        
+        if browser in firefox_based:
             manifest["allowed_extensions"] = [FIREFOX_EXTENSION_ID]
         else:
-            if chrome_extension_id:
-                manifest["allowed_origins"] = [f"chrome-extension://{chrome_extension_id}/"]
-            else:
-                # Placeholder - will need to be updated after extension is published
-                manifest["allowed_origins"] = ["chrome-extension://EXTENSION_ID/"]
+            # Use the fixed Chrome extension ID (from the key in manifest.json)
+            ext_id = chrome_extension_id or get_chrome_extension_id() or CHROME_EXTENSION_ID
+            manifest["allowed_origins"] = [f"chrome-extension://{ext_id}/"]
         
         return manifest
     
     def create_wrapper_script(self):
         """Create a wrapper script that activates venv and runs the host."""
         if self.system == "windows":
-            # Windows batch file
+            # Windows batch file - use relative paths so it works on any computer
             wrapper_path = self.project_root / "app" / "native" / "vaultkeeper_host.bat"
-            content = f'''@echo off
-"{self.project_root / ".venv" / "Scripts" / "python.exe"}" "{self.host_script}"
+            # %~dp0 gives the directory of the batch file (app/native/)
+            # We need to go up two directories to reach the project root
+            content = r'''@echo off
+setlocal
+
+REM Get the directory where this script is located
+set "SCRIPT_DIR=%~dp0"
+
+REM Go up two directories to project root (app/native -> app -> project_root)
+set "PROJECT_DIR=%SCRIPT_DIR%..\.."
+
+REM Try venv first, then fallback to system Python
+if exist "%PROJECT_DIR%\.venv\Scripts\python.exe" (
+    "%PROJECT_DIR%\.venv\Scripts\python.exe" "%SCRIPT_DIR%host.py"
+) else if exist "%PROJECT_DIR%\venv\Scripts\python.exe" (
+    "%PROJECT_DIR%\venv\Scripts\python.exe" "%SCRIPT_DIR%host.py"
+) else (
+    REM Fallback to system Python
+    python "%SCRIPT_DIR%host.py"
+)
 '''
         else:
             # Unix shell script
@@ -155,8 +228,8 @@ fi
             with open(manifest_path, 'w') as f:
                 json.dump(manifest, f, indent=2)
             
-            # On Windows, also need to register in registry
-            if self.system == "windows" and browser != "firefox":
+            # On Windows, ALL browsers need registry registration
+            if self.system == "windows":
                 self._register_windows(browser, manifest_path)
             
             return True, f"Installed to {manifest_path}"
@@ -168,9 +241,13 @@ fi
         """Register native host in Windows registry."""
         import winreg
         
-        if browser == "firefox":
+        # Firefox-based browsers use Mozilla registry path
+        firefox_based = {"firefox", "librewolf", "waterfox", "floorp", "zen"}
+        
+        if browser in firefox_based:
             key_path = rf"Software\Mozilla\NativeMessagingHosts\{HOST_NAME}"
         else:
+            # Chromium-based browsers use Google Chrome registry path
             key_path = rf"Software\Google\Chrome\NativeMessagingHosts\{HOST_NAME}"
         
         try:
