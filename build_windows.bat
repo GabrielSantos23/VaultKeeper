@@ -44,7 +44,7 @@ pyinstaller vaultkeeper.spec --clean --noconfirm
 REM Create distribution package
 echo.
 echo [5/5] Creating distribution package...
-set VERSION=1.0.0
+set VERSION=1.0.1
 set DIST_NAME=VaultKeeper-%VERSION%-windows-x64
 
 REM In OneDir mode, the output is a folder "dist\VaultKeeper"
@@ -62,7 +62,7 @@ if not exist "%ISCC_PATH%" set "ISCC_PATH=%ProgramFiles%\Inno Setup 6\ISCC.exe"
 if exist "%ISCC_PATH%" (
     echo.
     echo [Optional] Compiling Installer...
-    "%ISCC_PATH%" installer.iss
+    "%ISCC_PATH%" /DMyAppVersion=%VERSION% installer.iss
     if not errorlevel 1 (
         echo Installer created: dist\VaultKeeper_Setup_v%VERSION%.exe
     )

@@ -47,13 +47,23 @@ class UpdateManager(QObject):
                 
                 latest_tag = data.get("tag_name", "").lstrip("v")
                 
-                # Determine download URL (prefer asset, fallback to source zip)
+                # Determine download URL (prefer Setup .exe, fallback to zip)
                 download_url = data.get("zipball_url", "")
                 assets = data.get("assets", [])
+                
+                setup_exe = None
+                portable_zip = None
+                
                 for asset in assets:
-                    if asset["name"].endswith(".zip") or asset["name"].endswith(".tar.gz"):
-                        download_url = asset["browser_download_url"]
-                        break
+                    name = asset["name"].lower()
+                    url = asset["browser_download_url"]
+                    if name.endswith(".exe") and "setup" in name:
+                        setup_exe = url
+                    elif name.endswith(".zip") and "windows" in name:
+                        portable_zip = url
+                
+                # Prefer Setup EXE -> Windows Zip -> Source Zip
+                download_url = setup_exe or portable_zip or download_url
                 
                 if not latest_tag:
                     self.check_failed.emit("Could not parse version tag.")
@@ -77,9 +87,16 @@ class UpdateManager(QObject):
         try:
             import tempfile
             import os
+            from urllib.parse import urlparse
             
-            # Create temp file
-            fd, path = tempfile.mkstemp(suffix=".zip")
+            # Determine extension from URL
+            path = urlparse(url).path
+            ext = os.path.splitext(path)[1]
+            if not ext:
+                ext = ".zip" # default fallback
+            
+            # Create temp file with correct extension
+            fd, path = tempfile.mkstemp(suffix=ext)
             os.close(fd)
             
             def report(block_num, block_size, total_size):
@@ -93,45 +110,55 @@ class UpdateManager(QObject):
         except Exception as e:
             self.download_error.emit(str(e))
 
-    def install_update(self, zip_path: str, target_dir: str):
-        """Extracts and installs the update."""
-        thread = threading.Thread(target=self._install_worker, args=(zip_path, target_dir))
+    def install_update(self, file_path: str, target_dir: str):
+        """Installs the update (runs EXE or extracts ZIP)."""
+        thread = threading.Thread(target=self._install_worker, args=(file_path, target_dir))
         thread.daemon = True
         thread.start()
 
-    def _install_worker(self, zip_path, target_dir):
+    def _install_worker(self, file_path, target_dir):
         try:
-            import zipfile
-            import shutil
             import os
-            from pathlib import Path
+            import subprocess
+            import sys
             
-            extract_dir = os.path.join(os.path.dirname(zip_path), "update_extracted")
-            
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_dir)
-            
-            # Find the root folder inside the zip (GitHub adds a folder like 'Repo-Tag')
-            source_dir = extract_dir
-            subdirs = [d for d in os.listdir(extract_dir) if os.path.isdir(os.path.join(extract_dir, d))]
-            if len(subdirs) == 1:
-                source_dir = os.path.join(extract_dir, subdirs[0])
+            if file_path.endswith(".exe"):
+                # Run the installer and exit
+                try:
+                    # Run detached
+                    subprocess.Popen([file_path], shell=True)
+                    self.install_complete.emit()
+                    # We should probably exit the app here, but let the UI handle it via the signal
+                except Exception as e:
+                    self.download_error.emit(f"Failed to launch installer: {e}")
+            else:
+                # Fallback to ZIP extraction (legacy behavior, likely to fail in Program Files)
+                import zipfile
+                import shutil
+                from pathlib import Path
                 
-            # Copy files to target_dir (overwriting)
-            # handle 'app' folder specifically or just copy everything?
-            # copytree with dirs_exist_ok=True (Python 3.8+)
-            shutil.copytree(source_dir, target_dir, dirs_exist_ok=True)
-            
-            # Cleanup
-            try:
-                os.remove(zip_path)
-                shutil.rmtree(extract_dir)
-            except:
-                pass
+                extract_dir = os.path.join(os.path.dirname(file_path), "update_extracted")
                 
-            # We can't really restart from here easily without knowing how it was launched.
-            # So we just finish.
-            self.install_complete.emit()
+                with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                    zip_ref.extractall(extract_dir)
+                
+                # Find the root folder inside the zip
+                source_dir = extract_dir
+                subdirs = [d for d in os.listdir(extract_dir) if os.path.isdir(os.path.join(extract_dir, d))]
+                if len(subdirs) == 1:
+                    source_dir = os.path.join(extract_dir, subdirs[0])
+                    
+                # Copy files using copytree
+                shutil.copytree(source_dir, target_dir, dirs_exist_ok=True)
+                
+                # Cleanup
+                try:
+                    os.remove(file_path)
+                    shutil.rmtree(extract_dir)
+                except:
+                    pass
+                    
+                self.install_complete.emit()
         except Exception as e:
             self.download_error.emit(f"Install Error: {e}")
 

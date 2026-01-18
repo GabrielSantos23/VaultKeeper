@@ -1,5 +1,7 @@
 #define MyAppName "VaultKeeper"
-#define MyAppVersion "1.0.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "1.0.0"
+#endif
 #define MyAppPublisher "VaultKeeper Password Manager"
 #define MyAppURL "https://github.com/GabrielSantos23/VaultKeeper"
 #define MyAppExeName "VaultKeeper.exe"
