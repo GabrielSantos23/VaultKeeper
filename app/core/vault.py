@@ -4,6 +4,7 @@ Business logic for credential management
 """
 
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -157,6 +158,46 @@ class VaultManager:
             if master_password:
                 self.crypto.derive_key(master_password)
     
+    def _trigger_auto_sync(self):
+        """Trigger Google Drive sync if auto-sync is enabled."""
+        try:
+            from .config import get_config
+            from .gdrive import get_gdrive_manager
+            
+            config = get_config()
+            gdrive = get_gdrive_manager()
+            
+            # Force auto-sync to ALWAYS be enabled as requested
+            auto_sync_enabled = True
+            
+            # Debug logging
+            print(f"[Auto-Sync] FORCED ENABLED. Connected: {gdrive.is_connected()}")
+            
+            if auto_sync_enabled and gdrive.is_connected():
+                # Run sync in background thread to avoid blocking UI
+                def sync_in_background():
+                    try:
+                        print("[Auto-Sync] Starting upload...")
+                        gdrive.upload_vault()
+                        print("[Auto-Sync] Vault synced to Google Drive successfully!")
+                    except Exception as e:
+                        print(f"[Auto-Sync] Failed to sync: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                thread = threading.Thread(target=sync_in_background, daemon=True)
+                thread.start()
+            else:
+                if not auto_sync_enabled:
+                    print("[Auto-Sync] Skipped - auto-sync is disabled")
+                if not gdrive.is_connected():
+                    print("[Auto-Sync] Skipped - not connected to Google Drive")
+        except Exception as e:
+            # Don't let sync errors break vault operations
+            print(f"[Auto-Sync] Error: {e}")
+            import traceback
+            traceback.print_exc()
+    
     def add_credential(self, domain: str, username: str, password: str, 
                        notes: Optional[str] = None, totp_secret: Optional[str] = None,
                        backup_codes: Optional[str] = None) -> int:
@@ -190,7 +231,12 @@ class VaultManager:
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (domain, username, encrypted_password, encrypted_notes, encrypted_totp, encrypted_backup))
             conn.commit()
-            return cursor.lastrowid
+            credential_id = cursor.lastrowid
+        
+        # Trigger auto-sync
+        self._trigger_auto_sync()
+        
+        return credential_id
     
     def get_credential(self, credential_id: int) -> Optional[Credential]:
         """
@@ -340,7 +386,13 @@ class VaultManager:
                 UPDATE vault SET {', '.join(updates)} WHERE id = ?
             ''', params)
             conn.commit()
-            return cursor.rowcount > 0
+            updated = cursor.rowcount > 0
+        
+        # Trigger auto-sync if updated
+        if updated:
+            self._trigger_auto_sync()
+        
+        return updated
     
     def delete_credential(self, credential_id: int) -> bool:
         """
@@ -359,7 +411,13 @@ class VaultManager:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM vault WHERE id = ?', (credential_id,))
             conn.commit()
-            return cursor.rowcount > 0
+            deleted = cursor.rowcount > 0
+        
+        # Trigger auto-sync if deleted
+        if deleted:
+            self._trigger_auto_sync()
+        
+        return deleted
     
     def search_credentials(self, query: str) -> List[Credential]:
         """

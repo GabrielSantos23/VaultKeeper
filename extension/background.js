@@ -186,6 +186,12 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
           break;
 
+        case "get_totp":
+          response = await sendNativeMessage("get_totp", {
+            id: request.id,
+          });
+          break;
+
         case "fill_credentials":
           browserAPI.tabs.sendMessage(sender.tab?.id || request.tabId, {
             action: "fill",

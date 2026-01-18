@@ -1,0 +1,218 @@
+### 1. High-Level Architecture
+
+The system operates as a **Hub-and-Spoke** model where the Python Desktop Application is the "Hub" (holding the encryption keys in memory) and the Browser Extension is a "Spoke" (untrusted UI).
+
+```mermaid
+graph TD
+    subgraph "User Environment (Local Machine)"
+        A[Vault File (.enc)] <-->|File I/O| B[Python Desktop App / Core Logic]
+        
+        B -->|Argon2id + AES-GCM| A
+        B <-->|Native Messaging API| C[Native Host Script]
+        
+        C <-->|Stdin / Stdout| D[Browser Extension]
+        
+        subgraph "Memory Safe Zone"
+            B
+            C
+        end
+        
+        subgraph "Untrusted Zone"
+            D
+        end
+    end
+    
+    subgraph "Sync Layer (OS Level)"
+        A -.->|Synced by Dropbox/OneDrive/Syncthing Client| E[Cloud Storage / USB]
+    end
+
+```
+
+### 2. Encryption & Key-Derivation Flow
+
+We will use the **`cryptography`** library (specifically the `hazmat` primitives) or **`PyNaCl`**.
+
+**A. Key Derivation (KDF)**
+We do not use the Master Password directly as the encryption key. We derive a Key Encryption Key (KEK).
+
+* **Algorithm:** Argon2id (Resistant to GPU/ASIC cracking).
+* **Parameters:**
+* Memory: 64 MB (min)
+* Iterations: 3+
+* Parallelism: 4
+
+
+* **Salt:** 32 bytes random (generated once per vault creation, stored in cleartext in the file header).
+
+**B. Encryption (AEAD)**
+
+* **Algorithm:** XChaCha20-Poly1305 or AES-256-GCM.
+* **Why:** They provide Authenticated Encryption (confidentiality + integrity). If the file is corrupted or tampered with, decryption throws an error instantly.
+* **Process:**
+1. User enters Master Password.
+2. App reads Salt from file header.
+3. `Derived_Key = Argon2id(Password, Salt)`
+4. App reads Nonce (IV) from file.
+5. `Decrypted_Data = Decrypt(Ciphertext, Derived_Key, Nonce)`
+6. **Zeroize:** The Master Password is wiped from memory immediately after KDF. The `Derived_Key` is kept in protected memory (using `secrets` module or platform specific API where possible) only while unlocked.
+
+
+
+### 3. Vault File Format
+
+The file will be a binary blob structure to prevent easy tampering.
+
+| Section | Size | Description |
+| --- | --- | --- |
+| **Header** | 4 bytes | Magic Bytes (e.g., `PYPM`) |
+| **Version** | 1 byte | File format version (e.g., `0x01`) |
+| **KDF Params** | Variable | JSON containing Salt, Memory Cost, Iterations |
+| **Nonce** | 12/24 bytes | Random nonce for the encryption cipher |
+| **Payload** | Variable | The encrypted JSON blob containing all passwords |
+| **Auth Tag** | 16 bytes | GCM/Poly1305 tag (usually appended to payload) |
+
+**Inside the Encrypted Payload (JSON):**
+
+```json
+{
+  "metadata": {
+    "last_modified": 1709392000,
+    "device_id": "uuid-v4",
+    "schema_version": 1
+  },
+  "entries": [
+    {
+      "id": "uuid",
+      "title": "Google",
+      "username": "me@gmail.com",
+      "password": "...",
+      "url": "https://google.com",
+      "totp_secret": "..."
+    }
+  ],
+  "permissions": {
+    "extensions": {
+      "chrome-extension://id": ["google.com", "youtube.com"]
+    }
+  }
+}
+
+```
+
+### 4. Browser Extension ↔ Native Host Communication
+
+This is the hardest part to get right. Browsers cannot talk to local files or arbitrary TCP ports easily. They use **Native Messaging**.
+
+1. **Manifest:** The extension declares a `nativeMessaging` permission.
+2. **Host Manifest:** A JSON file placed in a specific OS registry/folder tells the browser: "If extension X asks to talk, launch `python_host_script.py`".
+3. **Protocol:** Standard Input/Output (stdin/stdout).
+* Messages are JSON.
+* Preceded by 4 bytes (little-endian) indicating message length.
+
+
+4. **Security Constraint:** The Native Host script acts as a **Gatekeeper**. It connects to the running Desktop App (via named pipe or local socket) to ask "Is the vault unlocked?". It does *not* open the vault file itself to avoid concurrency issues.
+
+### 5. Secure Permission Model
+
+The extension is "untrusted" because if the browser is compromised (XSS), the extension can be tricked.
+
+**The "Ask on Desktop" Flow:**
+
+1. User visits `bank.com`.
+2. Extension sends `{"cmd": "query", "domain": "bank.com"}` to Native Host.
+3. Native Host forwards to Desktop App.
+4. Desktop App checks internal `permissions` list.
+* *If allowed:* Returns credentials.
+* *If unknown:* Desktop App pops a **System Dialog** (outside the browser window): *"Browser requests access to Bank.com. Allow?"*
+
+
+5. If User clicks Allow, the domain is whitelisted for this session (or permanently, based on settings) and credentials returned.
+
+### 6. Sync Strategy (File-Based)
+
+Since you require **no cloud auth inside the app**, the app effectively ignores *how* the file gets there.
+
+**Conflict Detection:**
+
+* **Hash Check:** When saving, calculate the hash of the file on disk. If it differs from the hash loaded into memory (and we haven't written yet), someone else (another PC via Dropbox) modified it.
+* **Resolution:**
+* *Auto:* Reject save, prompt user to "Reload from Disk" (losing local changes) or "Save as Copy".
+* *Merge:* Decrypt the disk version, decrypt the memory version, merge JSON entries, re-encrypt. (Best UX, hardest to implement).
+
+
+
+**Supported Paths:**
+
+* Windows: `C:\Users\You\Dropbox\MyVault.enc`
+* Linux: `/home/you/Dropbox/MyVault.enc`
+* Dual-Boot: Mount the Windows NTFS partition in Linux (`/mnt/windows/...`). Point the Linux app instance to that path.
+
+### 7. MVP Feature List (Phase 1)
+
+1. **Crypto Core:** Argon2id + AES-GCM implementation.
+2. **Vault IO:** Load/Save encrypted JSON blobs.
+3. **UI:** Simple CRUD (Create, Read, Update, Delete) for passwords using `Tkinter` or `PyQt`.
+4. **Auto-Lock:** Timer that clears the decrypted data from memory after X minutes.
+5. **Clipboard:** Copy password to clipboard, clear clipboard after 10s.
+6. **Pass Generator:** Configurable random string generator.
+
+### 8. Advanced Features (Phase 2)
+
+1. **Browser Integration:** Native messaging host + Chrome/Firefox extension.
+2. **TOTP Generator:** Implement RFC 6238 to generate 2FA codes.
+3. **Hibernation Protection:** Clear memory hooks when OS sleeps.
+4. **Database Merging:** Smart sync that merges JSONs rather than overwriting files.
+5. **Steganography:** (Optional) Hide vault inside a `.jpg` or `.dll` to mask its existence.
+
+### 9. Python Project Folder Structure
+
+```text
+my_vault/
+├── app/
+│   ├── __init__.py
+│   ├── core/
+│   │   ├── crypto.py      # Encryption/Decryption logic
+│   │   ├── vault.py       # JSON handling, Locking/Unlocking
+│   │   └── config.py      # Paths and settings
+│   ├── ui/
+│   │   ├── main_window.py # Tkinter/PyQt classes
+│   │   └── dialogs.py
+│   └── host/
+│       └── native_msg.py  # The script called by the browser
+├── extension/             # Javascript/HTML for browser
+│   ├── manifest.json
+│   ├── background.js
+│   └── popup.html
+├── tests/
+├── install_host.bat       # Registers Native Host on Windows
+├── install_host.sh        # Registers Native Host on Linux
+├── requirements.txt
+└── main.py                # Entry point
+
+```
+
+### 10. Threat Model
+
+| Threat | Risk Level | Mitigation |
+| --- | --- | --- |
+| **Remote Server Compromise** | Zero | Architecture is serverless. No vendor to hack. |
+| **Cloud Storage Breach** | Low | File is encrypted with AES-256. Attackers only see a blob. |
+| **Local Malware (Keylogger)** | High | Use Virtual Keyboard or OS-level "Secure Entry" fields (hard in Python). Main risk. |
+| **Memory Dump** | Medium | Use `ctypes` to overwrite variables in memory; don't rely on Python GC. |
+| **Browser XSS** | Medium | Extension never sees Master Key. Explicit approval for every domain access. |
+
+### How to Start (Next Step)
+
+The most critical component is the **Crypto Core**. Do not write the UI until the encryption is rock solid.
+
+**Step 1: Create the encryption prototype.**
+Install `cryptography`:
+
+```bash
+pip install cryptography
+
+```
+
+Write a script that takes a password and data, encrypts it to a file using the format defined in Section 3, and successfully decrypts it back.
+
+**Would you like me to generate the `crypto.py` boilerplate code using `cryptography.hazmat` to handle the Argon2id and AES-GCM logic securely?**

@@ -32,6 +32,7 @@ from ..core.totp import TOTPManager, get_totp_code, is_valid_totp_secret
 from .theme import get_theme, get_stylesheet, ThemeMode, set_theme
 from .settings_dialog import SettingsDialog
 from .ui_utils import load_svg_icon, create_icon_button, get_icon_path, ICONS_DIR
+from .gdrive_dialog import GoogleDriveDialog
 
 
 
@@ -2040,9 +2041,9 @@ class FolderDialog(QDialog):
                 color: {theme.colors.foreground};
             }}
             QLineEdit {{
-                background-color: {theme.colors.input_background};
+                background-color: {theme.colors.secondary};
                 color: {theme.colors.foreground};
-                border: 1px solid {theme.colors.input_border};
+                border: 1px solid {theme.colors.border};
                 border-radius: 6px;
                 padding: 8px;
                 font-size: 14px;
@@ -2299,6 +2300,31 @@ class Sidebar(QFrame):
         
         theme = get_theme()
 
+        # Sync status indicator (hidden by default)
+        self.sync_status_widget = QWidget()
+        self.sync_status_widget.setVisible(False)
+        sync_status_layout = QHBoxLayout(self.sync_status_widget)
+        sync_status_layout.setContentsMargins(12, 8, 12, 8)
+        sync_status_layout.setSpacing(8)
+        
+        # Sync icon/spinner
+        self.sync_icon_label = QLabel()
+        self.sync_icon_label.setPixmap(load_svg_icon("cloud_sync", 14, "#3b82f6"))
+        self.sync_icon_label.setFixedSize(16, 16)
+        sync_status_layout.addWidget(self.sync_icon_label)
+        
+        # Sync text
+        self.sync_status_label = QLabel("Syncing...")
+        self.sync_status_label.setStyleSheet("""
+            color: #3b82f6;
+            font-size: 12px;
+            font-weight: 500;
+        """)
+        sync_status_layout.addWidget(self.sync_status_label)
+        sync_status_layout.addStretch()
+        
+        bottom_layout.addWidget(self.sync_status_widget)
+
         # Google Drive sync button
         self.drive_btn = QPushButton()
         self.drive_btn.setIcon(QIcon(load_svg_icon("google_drive", 18, theme.colors.sidebar_foreground)))
@@ -2348,6 +2374,78 @@ class Sidebar(QFrame):
         bottom_layout.addWidget(self.settings_btn)
         
         self.layout.addLayout(bottom_layout)
+        
+        # Register for Google Drive sync callbacks
+        self._setup_gdrive_callbacks()
+    
+    def _setup_gdrive_callbacks(self):
+        """Setup callbacks for Google Drive sync status."""
+        from app.core.gdrive import GoogleDriveManager
+        
+        GoogleDriveManager.on_sync_start(self._on_sync_start)
+        GoogleDriveManager.on_sync_end(self._on_sync_end)
+    
+    def _on_sync_start(self):
+        """Handle sync start - show indicator."""
+        print("[UI] Sync start signal received")
+        from PySide6.QtCore import QTimer
+        # Use QTimer to ensure this runs on the main thread
+        QTimer.singleShot(0, self._show_sync_indicator)
+    
+    def _on_sync_end(self, success: bool, error: str = None):
+        """Handle sync end - update and hide indicator."""
+        print(f"[UI] Sync end signal received. Success: {success}")
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(0, lambda: self._hide_sync_indicator(success, error))
+    
+    def _show_sync_indicator(self):
+        """Show the sync indicator."""
+        print("[UI] Showing sync indicator widget")
+        self.sync_status_label.setText("Syncing...")
+        self.sync_status_label.setStyleSheet("""
+            color: #3b82f6;
+            font-size: 12px;
+            font-weight: 500;
+        """)
+        self.sync_status_widget.setVisible(True)
+        # Force update layout
+        self.sync_status_widget.update()
+        self.update()
+    
+    def _hide_sync_indicator(self, success: bool, error: str = None):
+        """Hide the sync indicator after showing result."""
+        if success:
+            self.sync_status_label.setText("✓ Synced")
+            self.sync_status_label.setStyleSheet("""
+                color: #22c55e;
+                font-size: 12px;
+                font-weight: 500;
+            """)
+        else:
+            self.sync_status_label.setText("✗ Sync failed")
+            self.sync_status_label.setStyleSheet("""
+                color: #ef4444;
+                font-size: 12px;
+                font-weight: 500;
+            """)
+        
+        # Hide after 2 seconds
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(2000, lambda: self.sync_status_widget.setVisible(False))
+    
+    def update_gdrive_status(self):
+        """Update Google Drive button based on connection status."""
+        from app.core.gdrive import get_gdrive_manager
+        gdrive = get_gdrive_manager()
+        
+        theme = get_theme()
+        
+        if gdrive.is_connected():
+            self.drive_btn.setIcon(QIcon(load_svg_icon("google_drive", 18, "#22c55e")))
+            self.drive_btn.setText("  Google Drive ✓")
+        else:
+            self.drive_btn.setIcon(QIcon(load_svg_icon("google_drive", 18, theme.colors.sidebar_foreground)))
+            self.drive_btn.setText("  Google Drive Sync")
     
     def set_folders(self, folders: List[Folder]):
         """Update the list of folders in the sidebar."""
@@ -2820,15 +2918,22 @@ class VaultWidget(QWidget):
     
     def on_google_drive_clicked(self):
         """Handle Google Drive sync button click."""
-        # TODO: Implement Google Drive sync
-        QMessageBox.information(self, "Google Drive Sync", "Google Drive sync coming soon!")
+        dialog = GoogleDriveDialog(self)
+        dialog.connection_successful.connect(self._on_gdrive_connected)
+        dialog.exec()
+    
+    def _on_gdrive_connected(self):
+        """Handle successful Google Drive connection."""
+        self.show_status("Connected to Google Drive")
     
     def add_credential(self):
         dialog = CredentialDialog(parent=self)
         if dialog.exec():
             data = dialog.get_data()
             if data['domain'] and data['username'] and data['password']:
-                self.vault.add_credential(**data)
+                # Remove keys that are only valid for update_credential
+                add_data = {k: v for k, v in data.items() if k not in ('clear_totp', 'clear_backup')}
+                self.vault.add_credential(**add_data)
                 self.load_credentials()
     
     def edit_credential(self, credential: Credential):
@@ -2954,6 +3059,8 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("VaultKeeper")
+    app.setOrganizationName("VaultKeeper")
+    app.setOrganizationDomain("vaultkeeper.com")
     
     window = MainWindow()
     window.show()

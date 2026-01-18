@@ -30,6 +30,10 @@ class ConfigManager(QObject):
         self.settings.setValue(key, value)
         self.settings.sync() # Force write to disk
         self.settings_changed.emit(key, value)
+    
+    def get_bool(self, key: str, default: bool = False) -> bool:
+        """Get a boolean setting value robustly."""
+        return self.settings.value(key, default, type=bool)
         
     def get_auto_lock_timeout(self) -> int:
         """Get auto-lock timeout in seconds. 0 means never."""
