@@ -52,6 +52,7 @@ class UpdateManager(QObject):
                 assets = data.get("assets", [])
                 
                 setup_exe = None
+                app_image = None
                 portable_zip = None
                 
                 for asset in assets:
@@ -59,11 +60,17 @@ class UpdateManager(QObject):
                     url = asset["browser_download_url"]
                     if name.endswith(".exe") and "setup" in name:
                         setup_exe = url
+                    elif name.endswith(".appimage"):
+                        app_image = url
                     elif name.endswith(".zip") and "windows" in name:
                         portable_zip = url
                 
-                # Prefer Setup EXE -> Windows Zip -> Source Zip
-                download_url = setup_exe or portable_zip or download_url
+                # Platform specific preference
+                import sys
+                if sys.platform == "win32":
+                    download_url = setup_exe or portable_zip or download_url
+                elif sys.platform == "linux":
+                    download_url = app_image or download_url
                 
                 if not latest_tag:
                     self.check_failed.emit("Could not parse version tag.")
@@ -93,7 +100,10 @@ class UpdateManager(QObject):
             path = urlparse(url).path
             ext = os.path.splitext(path)[1]
             if not ext:
-                ext = ".zip" # default fallback
+                if "appimage" in url.lower():
+                    ext = ".AppImage"
+                else:
+                    ext = ".zip"
             
             # Create temp file with correct extension
             fd, path = tempfile.mkstemp(suffix=ext)
@@ -111,7 +121,7 @@ class UpdateManager(QObject):
             self.download_error.emit(str(e))
 
     def install_update(self, file_path: str, target_dir: str):
-        """Installs the update (runs EXE or extracts ZIP)."""
+        """Installs the update (runs EXE/AppImage or extracts ZIP)."""
         thread = threading.Thread(target=self._install_worker, args=(file_path, target_dir))
         thread.daemon = True
         thread.start()
@@ -122,17 +132,28 @@ class UpdateManager(QObject):
             import subprocess
             import sys
             
-            if file_path.endswith(".exe"):
+            if file_path.lower().endswith(".exe"):
                 # Run the installer and exit
                 try:
                     # Run detached
                     subprocess.Popen([file_path], shell=True)
                     self.install_complete.emit()
-                    # We should probably exit the app here, but let the UI handle it via the signal
                 except Exception as e:
                     self.download_error.emit(f"Failed to launch installer: {e}")
+            
+            elif file_path.lower().endswith(".appimage"):
+                # Linux AppImage
+                try:
+                    # Make executable
+                    os.chmod(file_path, 0o755)
+                    # Run detached
+                    subprocess.Popen([file_path])
+                    self.install_complete.emit()
+                except Exception as e:
+                    self.download_error.emit(f"Failed to launch AppImage: {e}")
+            
             else:
-                # Fallback to ZIP extraction (legacy behavior, likely to fail in Program Files)
+                # Fallback to ZIP extraction (legacy behavior)
                 import zipfile
                 import shutil
                 from pathlib import Path
