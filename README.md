@@ -6,7 +6,7 @@ Um gerenciador de senhas desktop seguro com integração de extensão de navegad
 
 ```
 ┌────────────────┐      Native Messaging      ┌────────────────────┐
-│ Browser        │◀──────────────────────▶  │ App Desktop Python │
+│ Browser        │ ◀──────────────────────▶  │ App Desktop Python │
 │ Extension      │                            │ (Password Manager) │
 └────────────────┘                            └────────────────────┘
 ```
