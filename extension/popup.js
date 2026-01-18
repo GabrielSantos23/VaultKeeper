@@ -196,18 +196,40 @@ function renderCredentials(filter = "") {
   );
 
   if (filtered.length === 0) {
-    credentialsList.innerHTML = `
-            <div class="empty-list">
-                <div class="empty-list-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M21 8v13H3V8"/>
-                        <path d="M1 3h22v5H1z"/>
-                        <path d="M10 12h4"/>
-                    </svg>
-                </div>
-                <p>${filter ? "No results" : "No credentials yet"}</p>
-            </div>
-        `;
+    credentialsList.innerHTML = "";
+
+    const emptyList = document.createElement("div");
+    emptyList.className = "empty-list";
+
+    const iconDiv = document.createElement("div");
+    iconDiv.className = "empty-list-icon";
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.5");
+
+    const paths = ["M21 8v13H3V8", "M1 3h22v5H1z", "M10 12h4"];
+
+    paths.forEach((d) => {
+      const path = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "path",
+      );
+      path.setAttribute("d", d);
+      svg.appendChild(path);
+    });
+
+    iconDiv.appendChild(svg);
+
+    const p = document.createElement("p");
+    p.textContent = filter ? "No results" : "No credentials yet";
+
+    emptyList.appendChild(iconDiv);
+    emptyList.appendChild(p);
+
+    credentialsList.appendChild(emptyList);
     return;
   }
 
@@ -245,10 +267,16 @@ function createCredentialItem(cred) {
 
   const infoDiv = document.createElement("div");
   infoDiv.className = "credential-info";
-  infoDiv.innerHTML = `
-        <div class="credential-domain">${escapeHtml(getDomainDisplay(cred.domain))}</div>
-        <div class="credential-username">${escapeHtml(cred.username)}</div>
-    `;
+  const domainDiv = document.createElement("div");
+  domainDiv.className = "credential-domain";
+  domainDiv.textContent = getDomainDisplay(cred.domain);
+
+  const usernameDiv = document.createElement("div");
+  usernameDiv.className = "credential-username";
+  usernameDiv.textContent = cred.username;
+
+  infoDiv.appendChild(domainDiv);
+  infoDiv.appendChild(usernameDiv);
 
   item.appendChild(faviconDiv);
   item.appendChild(infoDiv);
@@ -412,7 +440,7 @@ async function copyToClipboard(type) {
     const btn = document.querySelector(`[data-copy="${type}"]`);
     if (btn) {
       const originalHTML = btn.innerHTML;
-      btn.innerHTML = "✓";
+      btn.textContent = "✓";
       setTimeout(() => (btn.innerHTML = originalHTML), 1500);
     }
 
@@ -808,16 +836,40 @@ function showPopupNotification(message, type = "success") {
 
   const notification = document.createElement("div");
   notification.className = `popup-notification ${type}`;
-  notification.innerHTML = `
-        <span class="popup-notification-icon">
-            ${
-              type === "success"
-                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>'
-                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>'
-            }
-        </span>
-        <span>${escapeHtml(message)}</span>
-    `;
+  const iconSpan = document.createElement("span");
+  iconSpan.className = "popup-notification-icon";
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+
+  if (type === "success") {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M20 6L9 17l-5-5");
+    svg.appendChild(path);
+  } else {
+    const circle = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "circle",
+    );
+    circle.setAttribute("cx", "12");
+    circle.setAttribute("cy", "12");
+    circle.setAttribute("r", "10");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M15 9l-6 6M9 9l6 6");
+    svg.appendChild(circle);
+    svg.appendChild(path);
+  }
+
+  iconSpan.appendChild(svg);
+
+  const msgSpan = document.createElement("span");
+  msgSpan.textContent = message;
+
+  notification.appendChild(iconSpan);
+  notification.appendChild(msgSpan);
 
   document.body.appendChild(notification);
 

@@ -386,83 +386,226 @@ function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
   const existing = document.getElementById("vaultkeeper-save-prompt");
   if (existing) existing.remove();
 
-  const lockSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-
-  const title = showUnlockForm
-    ? "Unlock VaultKeeper"
-    : isUpdateMode
-      ? "Update password?"
-      : "Save this password?";
-  const buttonText = isUpdateMode ? "Update Password" : "Save Password";
-  const showNeverButton = !isUpdateMode && !showUnlockForm;
-
-  // Build the unlock form HTML if needed
-  const unlockFormHtml = showUnlockForm
-    ? `
-        <div class="vk-unlock-section" id="vk-unlock-section">
-            <p class="vk-unlock-message">Enter your master password to save credentials</p>
-            <div class="vk-input-group">
-                <input type="password" id="vk-master-password" class="vk-input" placeholder="Master Password" autofocus>
-            </div>
-            <p id="vk-unlock-error" class="vk-error hidden"></p>
-        </div>
-    `
-    : "";
-
-  // Build credential preview (hidden when showing unlock form)
-  const credentialPreviewHtml = !showUnlockForm
-    ? `
-        <div class="vk-credential-preview">
-            <div class="vk-cred-row">
-                <span class="vk-cred-label">Website</span>
-                <span class="vk-cred-value" id="vk-domain">${escapeHtml(currentDomain)}</span>
-            </div>
-            <div class="vk-cred-row">
-                <span class="vk-cred-label">Username</span>
-                <span class="vk-cred-value" id="vk-username">-</span>
-            </div>
-            <div class="vk-cred-row">
-                <span class="vk-cred-label">Password</span>
-                <span class="vk-cred-value">••••••••</span>
-            </div>
-        </div>
-    `
-    : "";
-
-  // Build action buttons
-  let actionsHtml = "";
-  if (showUnlockForm) {
-    actionsHtml = `
-            <button class="vk-btn vk-btn-secondary" id="vk-cancel">Cancel</button>
-            <button class="vk-btn vk-btn-primary" id="vk-unlock">Unlock & Save</button>
-        `;
-  } else {
-    actionsHtml = `
-            ${showNeverButton ? '<button class="vk-btn vk-btn-secondary" id="vk-never">Never for this site</button>' : '<button class="vk-btn vk-btn-secondary" id="vk-cancel">Cancel</button>'}
-            <button class="vk-btn vk-btn-primary" id="vk-save">${buttonText}</button>
-        `;
-  }
-
   const prompt = document.createElement("div");
   prompt.id = "vaultkeeper-save-prompt";
-  prompt.innerHTML = `
-        <div class="vk-prompt-overlay"></div>
-        <div class="vk-prompt-container">
-            <div class="vk-prompt-header">
-                <span class="vk-prompt-icon">${lockSvg}</span>
-                <span class="vk-prompt-title">VaultKeeper</span>
-                <button class="vk-close-btn" id="vk-close">&times;</button>
-            </div>
-            <div class="vk-prompt-body">
-                <p class="vk-prompt-message">${title}</p>
-                ${unlockFormHtml}
-                ${credentialPreviewHtml}
-            </div>
-            <div class="vk-prompt-actions">
-                ${actionsHtml}
-            </div>
-        </div>
-    `;
+
+  const overlay = document.createElement("div");
+  overlay.className = "vk-prompt-overlay";
+  prompt.appendChild(overlay);
+
+  const container = document.createElement("div");
+  container.className = "vk-prompt-container";
+
+  // Header
+  const header = document.createElement("div");
+  header.className = "vk-prompt-header";
+
+  const iconSpan = document.createElement("span");
+  iconSpan.className = "vk-prompt-icon";
+
+  const lockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  lockSvg.setAttribute("viewBox", "0 0 24 24");
+  lockSvg.setAttribute("width", "20");
+  lockSvg.setAttribute("height", "20");
+  lockSvg.setAttribute("fill", "none");
+  lockSvg.setAttribute("stroke", "currentColor");
+  lockSvg.setAttribute("stroke-width", "2");
+
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", "3");
+  rect.setAttribute("y", "11");
+  rect.setAttribute("width", "18");
+  rect.setAttribute("height", "11");
+  rect.setAttribute("rx", "2");
+  lockSvg.appendChild(rect);
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M7 11V7a5 5 0 0 1 10 0v4");
+  lockSvg.appendChild(path);
+
+  iconSpan.appendChild(lockSvg);
+  header.appendChild(iconSpan);
+
+  const titleSpan = document.createElement("span");
+  titleSpan.className = "vk-prompt-title";
+  titleSpan.textContent = "VaultKeeper";
+  header.appendChild(titleSpan);
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "vk-close-btn";
+  closeBtn.id = "vk-close";
+  closeBtn.textContent = "×";
+  header.appendChild(closeBtn);
+
+  container.appendChild(header);
+
+  // Body
+  const body = document.createElement("div");
+  body.className = "vk-prompt-body";
+
+  const messageP = document.createElement("p");
+  messageP.className = "vk-prompt-message";
+  if (showUnlockForm) {
+    messageP.textContent = "Unlock VaultKeeper";
+  } else if (isUpdateMode) {
+    messageP.textContent = "Update password?";
+  } else {
+    messageP.textContent = "Save this password?";
+  }
+  body.appendChild(messageP);
+
+  if (showUnlockForm) {
+    const unlockSection = document.createElement("div");
+    unlockSection.className = "vk-unlock-section";
+    unlockSection.id = "vk-unlock-section";
+
+    const pUnlock = document.createElement("p");
+    pUnlock.className = "vk-unlock-message";
+    pUnlock.textContent = "Enter your master password to save credentials";
+    unlockSection.appendChild(pUnlock);
+
+    const inputGroup = document.createElement("div");
+    inputGroup.className = "vk-input-group";
+    const pwInput = document.createElement("input");
+    pwInput.type = "password";
+    pwInput.id = "vk-master-password";
+    pwInput.className = "vk-input";
+    pwInput.placeholder = "Master Password";
+    pwInput.autofocus = true;
+    inputGroup.appendChild(pwInput);
+    unlockSection.appendChild(inputGroup);
+
+    const errorP = document.createElement("p");
+    errorP.id = "vk-unlock-error";
+    errorP.className = "vk-error hidden";
+    unlockSection.appendChild(errorP);
+
+    body.appendChild(unlockSection);
+  } else {
+    const preview = document.createElement("div");
+    preview.className = "vk-credential-preview";
+
+    const createRow = (label, id, value) => {
+      const row = document.createElement("div");
+      row.className = "vk-cred-row";
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "vk-cred-label";
+      labelSpan.textContent = label;
+      const valueSpan = document.createElement("span");
+      valueSpan.className = "vk-cred-value";
+      if (id) valueSpan.id = id;
+      valueSpan.textContent = value;
+      row.appendChild(labelSpan);
+      row.appendChild(valueSpan);
+      return row;
+    };
+
+    preview.appendChild(createRow("Website", "vk-domain", currentDomain));
+    preview.appendChild(createRow("Username", "vk-username", "-"));
+    preview.appendChild(createRow("Password", null, "••••••••"));
+
+    body.appendChild(preview);
+  }
+
+  container.appendChild(body);
+
+  // Actions
+  const actions = document.createElement("div");
+  actions.className = "vk-prompt-actions";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.className = "vk-btn vk-btn-secondary";
+
+  if (showUnlockForm) {
+    cancelBtn.id = "vk-cancel";
+    cancelBtn.textContent = "Cancel";
+    actions.appendChild(cancelBtn);
+
+    const unlockActionBtn = document.createElement("button");
+    unlockActionBtn.className = "vk-btn vk-btn-primary";
+    unlockActionBtn.id = "vk-unlock";
+    unlockActionBtn.textContent = "Unlock & Save";
+    actions.appendChild(unlockActionBtn);
+  } else {
+    if (!isUpdateMode) {
+      const neverBtn = document.createElement("button");
+      neverBtn.className = "vk-btn vk-btn-secondary";
+      neverBtn.id = "vk-never";
+      neverBtn.textContent = "Never for this site";
+      actions.appendChild(neverBtn);
+    } else {
+      cancelBtn.id = "vk-cancel";
+      cancelBtn.textContent = "Cancel";
+      actions.appendChild(cancelBtn);
+    }
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "vk-btn vk-btn-primary";
+    saveBtn.id = "vk-save";
+    saveBtn.textContent = isUpdateMode ? "Update Password" : "Save Password";
+    actions.appendChild(saveBtn);
+  }
+
+  actions.appendChild(cancelBtn);
+  // Wait, I appended cancelBtn twice above in the logic, or correctly?
+  // Logic:
+  // if showUnlockForm: append cancel, append unlock.
+  // else: if !update: append never. else: append cancel. THEN append save.
+  // Wait, if !update, I append never, but where is cancel?
+  // looking at original code:
+  // ${showNeverButton ? '<button...never...' : '<button...cancel...'}
+  // So if not update and not unlock (save mode), it shows "Never", no Cancel?
+  // Or "Never" IS the secondary action.
+  // Let's re-read original actionsHtml logic:
+  // if (showUnlockForm) { ... cancel, unlock ... }
+  // else { ... (showNever ? never : cancel) ... save ... }
+  // showNeverButton = !isUpdateMode && !showUnlockForm.
+  // So:
+  // 1. showUnlockForm: Cancel, Unlock.
+  // 2. !showUnlockForm && !isUpdateMode (Save new): Never, Save.
+  // 3. !showUnlockForm && isUpdateMode (Update): Cancel, Save.
+
+  // My Logic above:
+  // if showUnlockForm: cancel, unlock. Correct.
+  // else:
+  //    if !isUpdateMode: never. (Missing Cancel?) Original didn't have Cancel if Never was shown.
+  //    else: cancel.
+  //    save.
+  // Correct.
+
+  // Correction in my manual trace above: "actions.appendChild(cancelBtn);" at the end is WRONG.
+  // It's already appended inside the blocks.
+
+  // Let me fix the logic in the replacement string.
+
+  // Re-verify logic.
+  // ...
+  //   if (showUnlockForm) {
+  //       cancelBtn.id = "vk-cancel";
+  //       cancelBtn.textContent = "Cancel";
+  //       actions.appendChild(cancelBtn);
+  //
+  //       const unlockActionBtn = ...
+  //       actions.appendChild(unlockActionBtn);
+  //   } else {
+  //       if (!isUpdateMode) { // Save mode
+  //           const neverBtn = document.createElement("button");
+  //           neverBtn.className = "vk-btn vk-btn-secondary";
+  //           neverBtn.id = "vk-never";
+  //           neverBtn.textContent = "Never for this site";
+  //           actions.appendChild(neverBtn);
+  //       } else { // Update mode
+  //           cancelBtn.id = "vk-cancel";
+  //           cancelBtn.textContent = "Cancel";
+  //           actions.appendChild(cancelBtn);
+  //       }
+  //
+  //       const saveBtn = ...
+  //       actions.appendChild(saveBtn);
+  //   }
+
+  container.appendChild(actions);
+  prompt.appendChild(container);
 
   document.body.appendChild(prompt);
 
@@ -733,16 +876,56 @@ function showNotification(message, type = "success") {
   const existing = document.getElementById("vaultkeeper-notification");
   if (existing) existing.remove();
 
-  const checkSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
-  const xSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-
   const notification = document.createElement("div");
   notification.id = "vaultkeeper-notification";
   notification.className = type;
-  notification.innerHTML = `
-        <span class="vk-notif-icon">${type === "success" ? checkSvg : xSvg}</span>
-        <span class="vk-notif-message">${escapeHtml(message)}</span>
-    `;
+
+  const iconSpan = document.createElement("span");
+  iconSpan.className = "vk-notif-icon";
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "18");
+  svg.setAttribute("height", "18");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "3");
+
+  if (type === "success") {
+    const polyline = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "polyline",
+    );
+    polyline.setAttribute("points", "20 6 9 17 4 12");
+    svg.appendChild(polyline);
+  } else {
+    const line1 = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "line",
+    );
+    line1.setAttribute("x1", "18");
+    line1.setAttribute("y1", "6");
+    line1.setAttribute("x2", "6");
+    line1.setAttribute("y2", "18");
+    const line2 = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "line",
+    );
+    line2.setAttribute("x1", "6");
+    line2.setAttribute("y1", "6");
+    line2.setAttribute("x2", "18");
+    line2.setAttribute("y2", "18");
+    svg.appendChild(line1);
+    svg.appendChild(line2);
+  }
+
+  iconSpan.appendChild(svg);
+  notification.appendChild(iconSpan);
+
+  const messageSpan = document.createElement("span");
+  messageSpan.className = "vk-notif-message";
+  messageSpan.textContent = message;
+  notification.appendChild(messageSpan);
 
   document.body.appendChild(notification);
 
@@ -827,11 +1010,30 @@ function addVaultKeeperIcon(field) {
   if (field.dataset.vaultkeeperIcon) return;
   field.dataset.vaultkeeperIcon = "true";
 
-  const lockSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-
   const icon = document.createElement("div");
   icon.className = "vaultkeeper-field-icon";
-  icon.innerHTML = lockSvg;
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", "3");
+  rect.setAttribute("y", "11");
+  rect.setAttribute("width", "18");
+  rect.setAttribute("height", "11");
+  rect.setAttribute("rx", "2");
+  svg.appendChild(rect);
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M7 11V7a5 5 0 0 1 10 0v4");
+  svg.appendChild(path);
+
+  icon.appendChild(svg);
   icon.title = "VaultKeeper - Fill credential";
 
   icon.addEventListener("click", (e) => {
@@ -941,11 +1143,30 @@ function addVaultKeeperIconToUsername(field) {
   if (field.dataset.vaultkeeperIcon) return;
   field.dataset.vaultkeeperIcon = "true";
 
-  const lockSvg = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-
   const icon = document.createElement("div");
   icon.className = "vaultkeeper-field-icon";
-  icon.innerHTML = lockSvg;
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", "3");
+  rect.setAttribute("y", "11");
+  rect.setAttribute("width", "18");
+  rect.setAttribute("height", "11");
+  rect.setAttribute("rx", "2");
+  svg.appendChild(rect);
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M7 11V7a5 5 0 0 1 10 0v4");
+  svg.appendChild(path);
+
+  icon.appendChild(svg);
   icon.title = "VaultKeeper - Fill credential";
 
   icon.addEventListener("click", (e) => {
