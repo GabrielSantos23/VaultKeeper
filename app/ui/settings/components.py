@@ -114,6 +114,8 @@ def create_toggle_setting(title: str, subtitle: str, checked: bool) -> tuple[QWi
         color: {theme.colors.foreground};
         font-size: 14px;
         font-weight: 500;
+        border: none;
+        background: transparent;
     """)
     text_layout.addWidget(label_title)
     
@@ -121,6 +123,8 @@ def create_toggle_setting(title: str, subtitle: str, checked: bool) -> tuple[QWi
     label_sub.setStyleSheet(f"""
         color: {theme.colors.muted_foreground};
         font-size: 12px;
+        border: none;
+        background: transparent;
     """)
     text_layout.addWidget(label_sub)
     

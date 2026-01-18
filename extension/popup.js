@@ -439,9 +439,17 @@ async function copyToClipboard(type) {
 
     const btn = document.querySelector(`[data-copy="${type}"]`);
     if (btn) {
-      const originalHTML = btn.innerHTML;
+      // Clone original children deeply to restore later
+      const originalChildren = Array.from(btn.childNodes).map((node) =>
+        node.cloneNode(true),
+      );
+
       btn.textContent = "✓";
-      setTimeout(() => (btn.innerHTML = originalHTML), 1500);
+
+      setTimeout(() => {
+        btn.textContent = "";
+        originalChildren.forEach((child) => btn.appendChild(child));
+      }, 1500);
     }
 
     if (type === "password" || type === "totp" || type === "backup") {

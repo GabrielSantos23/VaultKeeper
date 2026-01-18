@@ -121,10 +121,13 @@ class SettingsDialog(QDialog):
         content_layout.addWidget(self.stack)
         
         # Add Pages
-        self.stack.addWidget(GeneralTab())
-        self.stack.addWidget(SecurityTab())
-        self.stack.addWidget(PrivacyTab())
-        self.stack.addWidget(CloudStorageTab())
+        # We use a placeholder approach for lazy loading if needed, or just add them.
+        # Since we optimized CloudStorageTab, adding them here should be fast now.
+        self.pages = {}
+        self.stack.addWidget(GeneralTab()) # Index 0
+        self.stack.addWidget(SecurityTab()) # Index 1
+        self.stack.addWidget(PrivacyTab())  # Index 2
+        self.stack.addWidget(CloudStorageTab()) # Index 3
         
         layout.addWidget(content)
         

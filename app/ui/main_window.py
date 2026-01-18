@@ -2026,74 +2026,132 @@ class CredentialDialog(QDialog):
 class FolderDialog(QDialog):
     """Custom dialog for creating/renaming folders."""
     
-    def __init__(self, parent=None, title="Create Folder", current_name=""):
+    
+    def __init__(self, parent=None, title="Create New Folder", current_name=""):
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.setFixedSize(400, 200)
+        self.setFixedSize(440, 320)
         self.folder_name = None
+        self.selected_vault = "Personal"
         
         theme = get_theme()
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {theme.colors.background};
+                background-color: #16191D;
             }}
             QLabel {{
-                color: {theme.colors.foreground};
+                background: transparent;
+                border: none;
             }}
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setSpacing(24)
+        layout.setContentsMargins(32, 32, 32, 32)
+        
+        # Title
+        lbl_title = QLabel(title)
+        lbl_title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: #ffffff;")
+        layout.addWidget(lbl_title)
+        
+        # Form layout
+        form = QVBoxLayout()
+        form.setSpacing(16)
+        
+        # Folder Name Field
+        name_group = QVBoxLayout()
+        name_group.setSpacing(8)
+        lbl_name = QLabel("Folder Name")
+        lbl_name.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 13px; font-weight: 500;")
+        name_group.addWidget(lbl_name)
+        
+        self.input = QLineEdit(current_name)
+        self.input.setPlaceholderText("Enter folder name...")
+        self.input.setStyleSheet(f"""
             QLineEdit {{
-                background-color: {theme.colors.secondary};
-                color: {theme.colors.foreground};
+                background-color: #0f1115;
+                color: #ffffff;
                 border: 1px solid {theme.colors.border};
-                border-radius: 6px;
-                padding: 8px;
+                border-radius: 8px;
+                padding: 12px;
                 font-size: 14px;
             }}
             QLineEdit:focus {{
                 border: 1px solid {theme.colors.primary};
             }}
-            QPushButton {{
-                padding: 8px 16px;
-                border-radius: 6px;
+        """)
+        self.input.setFocus()
+        name_group.addWidget(self.input)
+        form.addLayout(name_group)
+        
+        # Vault Selection Field (Dropdown)
+        vault_group = QVBoxLayout()
+        vault_group.setSpacing(8)
+        lbl_vault = QLabel("Select Vault")
+        lbl_vault.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 13px; font-weight: 500;")
+        vault_group.addWidget(lbl_vault)
+        
+        from PySide6.QtWidgets import QComboBox
+        self.vault_combo = QComboBox()
+        self.vault_combo.addItems(["Personal"]) # Currently only Personal supported in UI logic
+        self.vault_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: #0f1115;
+                color: #ffffff;
+                border: 1px solid {theme.colors.border};
+                border-radius: 8px;
+                padding: 12px;
                 font-size: 14px;
-                font-weight: 500;
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 30px;
+            }}
+            QComboBox::down-arrow {{
+                image: url({get_icon_path("chevron-down").replace('\\', '/')});
+                width: 16px;
+                height: 16px; 
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: #0f1115;
+                color: #ffffff;
+                selection-background-color: {theme.colors.accent};
+                border: 1px solid {theme.colors.border};
             }}
         """)
+        vault_group.addWidget(self.vault_combo)
+        form.addLayout(vault_group)
         
-        layout = QVBoxLayout(self)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.addLayout(form)
         
-        # Title
-        lbl_title = QLabel(title)
-        lbl_title.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {theme.colors.foreground};")
-        layout.addWidget(lbl_title)
-        
-        # Input
-        self.input = QLineEdit(current_name)
-        self.input.setPlaceholderText("Enter folder name")
-        self.input.setFocus()
-        layout.addWidget(self.input)
+        layout.addStretch()
         
         # Buttons
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(12)
         btn_layout.addStretch()
         
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setCursor(Qt.PointingHandCursor)
+        cancel_btn.setFixedWidth(100)
         cancel_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 color: {theme.colors.muted_foreground};
-                border: 1px solid {theme.colors.border};
+                border: none;
+                font-size: 14px;
+                font-weight: 500;
             }}
             QPushButton:hover {{
-                background-color: {theme.colors.secondary};
+                color: #ffffff;
             }}
         """)
         cancel_btn.clicked.connect(self.reject)
         
-        save_btn = QPushButton("Save")
+        save_btn = QPushButton("Create Folder")
         save_btn.setCursor(Qt.PointingHandCursor)
+        save_btn.setFixedWidth(140)
+        save_btn.setFixedHeight(40)
         self._setup_save_btn_style(save_btn, theme)
         save_btn.clicked.connect(self.accept_folder)
         
@@ -2104,12 +2162,15 @@ class FolderDialog(QDialog):
     def _setup_save_btn_style(self, btn, theme):
         btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {theme.colors.primary};
-                color: {theme.colors.primary_foreground};
+                background-color: #3b82f6;
+                color: #ffffff;
                 border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
             }}
             QPushButton:hover {{
-                background-color: {theme.colors.accent};
+                background-color: #2563eb;
             }}
         """)
 
@@ -2554,7 +2615,10 @@ class CredentialsList(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.credentials = []
-        self.cards = []
+        self.card_map = {}  # Map credential.id -> CredentialCard
+        self.current_category = "all"
+        self.current_folder_id = None
+        self.search_query = ""
         self.setup_ui()
     
     def setup_ui(self):
@@ -2700,30 +2764,79 @@ class CredentialsList(QWidget):
     
     def set_credentials(self, credentials: List[Credential]):
         self.credentials = credentials
-        self.refresh_list()
-    
-    def refresh_list(self):
-        self.cards = []
-        while self.list_layout.count() > 1:
-            child = self.list_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
         
-        for cred in self.credentials:
-            card = CredentialCard(cred)
-            card.clicked.connect(self.on_card_clicked)
-            self.list_layout.insertWidget(self.list_layout.count() - 1, card)
-            self.cards.append(card)
-    
+        # Optimize updates by reusing existing widgets
+        new_ids = {c.id for c in credentials}
+        existing_ids = set(self.card_map.keys())
+        
+        self.list_container.setUpdatesEnabled(False)
+        try:
+            # Remove deleted credentials
+            for cid in existing_ids - new_ids:
+                if cid in self.card_map:
+                    card = self.card_map.pop(cid)
+                    self.list_layout.removeWidget(card)
+                    card.deleteLater()
+            
+            # Add new or update existing credentials
+            # Note: We insert before the stretch item (last item)
+            spacer_index = self.list_layout.count() - 1
+            
+            for cred in credentials:
+                if cred.id in self.card_map:
+                    # Update existing card
+                    self.card_map[cred.id].update_credential(cred)
+                else:
+                    # Create new card
+                    card = CredentialCard(cred)
+                    card.clicked.connect(self.on_card_clicked)
+                    self.list_layout.insertWidget(spacer_index, card)
+                    self.card_map[cred.id] = card
+                    
+            self.apply_filters()
+            
+        finally:
+            self.list_container.setUpdatesEnabled(True)
+            
+    def set_filter(self, category: str, folder_id: Optional[int] = None):
+        self.current_category = category
+        self.current_folder_id = folder_id
+        self.apply_filters()
+        
     def filter_credentials(self, query: str):
-        query = query.lower()
-        for card in self.cards:
-            visible = query in card.credential.domain.lower() or query in card.credential.username.lower()
-            card.setVisible(visible)
+        self.search_query = query.lower()
+        self.apply_filters()
+        
+    def apply_filters(self):
+        """Show/hide cards based on current filters."""
+        self.list_container.setUpdatesEnabled(False)
+        try:
+            for card in self.card_map.values():
+                cred = card.credential
+                visible = True
+                
+                # Category filter logic
+                if self.current_category == "favorites":
+                    if not cred.is_favorite:
+                        visible = False
+                elif self.current_category == "folder":
+                    if cred.folder_id != self.current_folder_id:
+                        visible = False
+                # "all" category shows everything
+                
+                # Search filter logic (AND)
+                if visible and self.search_query:
+                    if (self.search_query not in cred.domain.lower() and 
+                        self.search_query not in cred.username.lower()):
+                        visible = False
+                        
+                card.setVisible(visible)
+        finally:
+            self.list_container.setUpdatesEnabled(True)
     
     def on_card_clicked(self, credential: Credential):
-        for card in self.cards:
-            card.set_selected(card.credential == credential)
+        for card in self.card_map.values():
+            card.set_selected(card.credential.id == credential.id)
         self.credential_selected.emit(credential)
     
     def set_sidebar_toggle_visible(self, visible: bool):
@@ -2742,8 +2855,15 @@ class VaultWidget(QWidget):
         self.sidebar_visible = True
         self.current_category = "all"
         self.setup_ui()
-        self.load_credentials()
+        
+        # Defer loading to allow UI to render first
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(50, self.load_data)
+        
+    def load_data(self):
+        """Load initial data."""
         self.load_folders()
+        self.load_credentials()
     
     def setup_ui(self):
         theme = get_theme()
@@ -2757,7 +2877,7 @@ class VaultWidget(QWidget):
         self.sidebar.category_changed.connect(self.on_category_changed)
         self.sidebar.toggle_sidebar.connect(self.toggle_sidebar)
         self.sidebar.add_folder_clicked.connect(self.add_folder)
-        self.sidebar.folder_selected.connect(self.on_folder_selected)
+        # We don't need folder_selected as category_changed handles it via "folder_ID"
         self.sidebar.folder_edit_requested.connect(self.on_folder_edit)
         self.sidebar.folder_delete_requested.connect(self.on_folder_delete)
         self.sidebar.settings_clicked.connect(self.on_settings_clicked)
@@ -2799,15 +2919,11 @@ class VaultWidget(QWidget):
             print(f"Error loading folders: {e}")
     
     def load_credentials(self):
-        """Load credentials based on current category."""
+        """Load all credentials and update list."""
         try:
-            if self.current_category == "favorites":
-                credentials = self.vault.get_favorites()
-            elif self.current_category.startswith("folder_"):
-                folder_id = int(self.current_category.split("_")[1])
-                credentials = self.vault.get_credentials_by_folder(folder_id)
-            else:
-                credentials = self.vault.get_all_credentials()
+            # We load ALL credentials now and let the list handle filtering
+            # This improves performance when switching categories
+            credentials = self.vault.get_all_credentials()
             self.credentials_list.set_credentials(credentials)
         except Exception as e:
             print(f"Error loading credentials: {e}")
@@ -2815,15 +2931,20 @@ class VaultWidget(QWidget):
     def on_category_changed(self, category: str):
         """Handle category change from sidebar."""
         self.current_category = category
-        self.load_credentials()
+        
+        # Update list filter instead of reloading everything
+        if category == "all":
+            self.credentials_list.set_filter("all")
+        elif category == "favorites":
+            self.credentials_list.set_filter("favorites")
+        elif category.startswith("folder_"):
+            try:
+                folder_id = int(category.split("_")[1])
+                self.credentials_list.set_filter("folder", folder_id)
+            except (IndexError, ValueError):
+                self.credentials_list.set_filter("all")
+        
         # Clear the detail panel when changing categories
-        self.detail_panel.show_empty_state()
-    
-    def on_folder_selected(self, folder_id: int):
-        """Handle folder selection from sidebar."""
-        self.current_category = f"folder_{folder_id}"
-        self.load_credentials()
-        # Clear the detail panel when changing folders
         self.detail_panel.show_empty_state()
     
     def on_credential_selected(self, credential: Credential):

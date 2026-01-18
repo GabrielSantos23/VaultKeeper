@@ -99,6 +99,7 @@ class GoogleDriveDialog(QDialog):
             font-size: 20px;
             font-weight: 600;
             background: transparent;
+            border: none;
         """)
         card_layout.addWidget(self.title_label)
         
@@ -111,6 +112,7 @@ class GoogleDriveDialog(QDialog):
             font-size: 14px;
             line-height: 1.5;
             background: transparent;
+            border: none;
         """)
         card_layout.addWidget(self.description_label)
         

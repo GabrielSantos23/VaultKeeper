@@ -88,8 +88,15 @@ class CloudStorageTab(QWidget):
         
         layout.addStretch()
         
-        # Update UI state
-        self._refresh_state()
+        layout.addStretch()
+        
+        # Initial UI state (Active/Not active) without blocking network calls
+        # self._refresh_state() will be called on showEvent
+        if self.gdrive.is_connected():
+            user_info = self.gdrive.get_user_info()
+            self.gdrive_email_label.setText((user_info.get("email") if user_info else None) or "Connected")
+        else:
+            self.gdrive_email_label.setText("Not connected")
     
     def _create_gdrive_card(self, layout, theme):
         """Create the Google Drive connection card."""
@@ -131,11 +138,11 @@ class CloudStorageTab(QWidget):
         gdrive_text_layout.setSpacing(2)
         
         gdrive_title = QLabel("Google Drive")
-        gdrive_title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
+        gdrive_title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500; border: none; background: transparent;")
         gdrive_text_layout.addWidget(gdrive_title)
         
         self.gdrive_email_label = QLabel("Not connected")
-        self.gdrive_email_label.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+        self.gdrive_email_label.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px; border: none; background: transparent;")
         gdrive_text_layout.addWidget(self.gdrive_email_label)
         
         gdrive_layout.addLayout(gdrive_text_layout)
@@ -179,7 +186,7 @@ class CloudStorageTab(QWidget):
         usage_header.addStretch()
         
         self.usage_amount_label = QLabel("-- OF 15 GB USED")
-        self.usage_amount_label.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 11px;")
+        self.usage_amount_label.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 11px; border: none; background: transparent;")
         usage_header.addWidget(self.usage_amount_label)
         
         layout.addLayout(usage_header)
@@ -190,6 +197,7 @@ class CloudStorageTab(QWidget):
         self.usage_bar_container.setStyleSheet(f"""
             background-color: {theme.colors.border};
             border-radius: 3px;
+            border: none;
         """)
         
         # Progress bar fill
@@ -200,12 +208,13 @@ class CloudStorageTab(QWidget):
         self.usage_bar_fill.setStyleSheet("""
             background-color: #3b82f6;
             border-radius: 3px;
+            border: none;
         """)
         
         layout.addWidget(self.usage_bar_container)
         
         self.usage_desc_label = QLabel("Connect to Google Drive to see storage usage.")
-        self.usage_desc_label.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+        self.usage_desc_label.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px; border: none; background: transparent;")
         layout.addWidget(self.usage_desc_label)
     
     def _create_storage_options_section(self, layout, theme):
@@ -317,11 +326,18 @@ class CloudStorageTab(QWidget):
             self.usage_desc_label.setText("Connect to Google Drive to see storage usage.")
     
     def _update_storage_usage(self):
-        """Update storage usage display with actual Google Drive quota."""
-        try:
-            # Get storage info from Google Drive API
-            storage_info = self.gdrive.get_storage_info()
+        """Update storage usage display asynchronously."""
+        # Avoid creating multiple workers
+        if hasattr(self, "_storage_worker") and self._storage_worker.isRunning():
+            return
             
+        self._storage_worker = StorageWorker(self.gdrive)
+        self._storage_worker.finished.connect(self._on_storage_info_ready)
+        self._storage_worker.start()
+        
+    def _on_storage_info_ready(self, storage_info):
+        """Handle storage info update on main thread."""
+        try:
             if storage_info:
                 used_bytes = storage_info.get("used", 0)
                 total_bytes = storage_info.get("total", 0)
@@ -341,15 +357,16 @@ class CloudStorageTab(QWidget):
                     self.usage_amount_label.setText(f"{used_str} OF {total_str} USED")
                     
                     # Update progress bar
-                    bar_width = int((self.usage_bar_container.width() * percent) / 100)
-                    bar_width = max(bar_width, 3 if used_bytes > 0 else 0)
-                    self.usage_bar_fill.setFixedWidth(bar_width)
+                    if self.usage_bar_container.width() > 0:
+                        bar_width = int((self.usage_bar_container.width() * percent) / 100)
+                        bar_width = max(bar_width, 3 if used_bytes > 0 else 0)
+                        self.usage_bar_fill.setFixedWidth(bar_width)
             else:
                 # Fallback to vault file size if API fails
                 self._update_storage_usage_fallback()
                 
         except Exception as e:
-            print(f"Error getting storage usage: {e}")
+            print(f"Error processing storage usage: {e}")
             self._update_storage_usage_fallback()
     
     def _update_storage_usage_fallback(self):
@@ -416,3 +433,24 @@ class CloudStorageTab(QWidget):
     def hideEvent(self, event):
         """Stop refreshing when tab is hidden."""
         super().hideEvent(event)
+
+
+from PySide6.QtCore import QThread, Signal
+
+class StorageWorker(QThread):
+    """Worker thread for fetching storage info."""
+    finished = Signal(dict)
+    
+    def __init__(self, gdrive):
+        super().__init__()
+        self.gdrive = gdrive
+        
+    def run(self):
+        try:
+            # This blocks, so we run it in a thread
+            info = self.gdrive.get_storage_info()
+            self.finished.emit(info or {})
+        except Exception as e:
+            print(f"Storage fetch error: {e}")
+            self.finished.emit({})
+

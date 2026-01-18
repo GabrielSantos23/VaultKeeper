@@ -79,44 +79,71 @@ class SecurityTab(QWidget):
         danger_container = QFrame()
         danger_container.setStyleSheet(f"""
             QFrame {{
-                background-color: rgba(239, 68, 68, 0.1);
-                border: 1px solid rgba(239, 68, 68, 0.3);
+                background-color: rgba(20, 20, 25, 0.6);
+                border: 1px solid rgba(239, 68, 68, 0.2);
                 border-radius: 12px;
-                padding: 16px;
             }}
         """)
-        danger_layout = QVBoxLayout(danger_container)
-        danger_layout.setSpacing(16)
+        danger_layout = QHBoxLayout(danger_container)
+        danger_layout.setContentsMargins(24, 24, 24, 24)
+        danger_layout.setSpacing(24)
         
-        # Reset Application Row
-        reset_row = QHBoxLayout()
+        # Icon
+        icon_container = QFrame()
+        icon_container.setFixedSize(48, 48)
+        icon_container.setStyleSheet("""
+            background-color: rgba(239, 68, 68, 0.1);
+            border-radius: 24px;
+        """)
+        icon_layout = QVBoxLayout(icon_container)
+        icon_layout.setContentsMargins(0, 0, 0, 0)
+        icon_layout.setAlignment(Qt.AlignCenter)
         
-        reset_text_layout = QVBoxLayout()
-        reset_text_layout.setSpacing(4)
+        # We need to load the icon dynamically or use a primitive if load_svg_icon isn't available in this scope easily
+        # But looking at imports, we don't have load_svg_icon imported in security_tab.py?
+        # Let's check imports. Line 12 has `from ..theme import get_theme`.
+        # I need to check if `load_svg_icon` is available. It is NOT imported in the original file.
+        # So I will skip the icon or use a text label/unicode if I can't import it safely without checking top of file.
+        # Actually I can't easily add imports with replace_file_content if they are far away.
+        # So I'll stick to a text-based or css-based warning symbol or just skip the icon to avoid import errors.
+        # I'll use a simple styled label "⚠️"
+        
+        warning_icon = QLabel("⚠️")
+        warning_icon.setStyleSheet("font-size: 20px; color: #ef4444; background: transparent; border: none;")
+        warning_icon.setAlignment(Qt.AlignCenter)
+        icon_layout.addWidget(warning_icon)
+        
+        danger_layout.addWidget(icon_container)
+        
+        # Text
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
         
         reset_title = QLabel("Reset Application")
-        reset_title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
-        reset_text_layout.addWidget(reset_title)
+        reset_title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 16px; font-weight: 600; background: transparent; border: none;")
+        text_layout.addWidget(reset_title)
         
-        reset_subtitle = QLabel("Delete all credentials, remove native host, and reset to initial state.")
-        reset_subtitle.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
-        reset_text_layout.addWidget(reset_subtitle)
+        reset_subtitle = QLabel("Permanently delete all data, credentials, and reset configuration.")
+        reset_subtitle.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 13px; background: transparent; border: none;")
+        reset_subtitle.setWordWrap(True)
+        text_layout.addWidget(reset_subtitle)
         
-        reset_row.addLayout(reset_text_layout)
+        danger_layout.addLayout(text_layout, stretch=1)
         
         # Reset Button
         reset_btn = QPushButton("Reset Everything")
         reset_btn.setCursor(Qt.PointingHandCursor)
-        reset_btn.setFixedWidth(140)
-        reset_btn.setFixedHeight(36)
+        reset_btn.setFixedHeight(40)
+        reset_btn.setFixedWidth(160)
         reset_btn.setStyleSheet("""
             QPushButton {
                 background-color: #dc2626;
-                border: none;
                 color: white;
+                border: none;
                 border-radius: 8px;
                 font-size: 13px;
-                font-weight: 500;
+                font-weight: 600;
+                padding: 0 16px;
             }
             QPushButton:hover {
                 background-color: #b91c1c;
@@ -126,9 +153,8 @@ class SecurityTab(QWidget):
             }
         """)
         reset_btn.clicked.connect(self._confirm_reset)
-        reset_row.addWidget(reset_btn)
+        danger_layout.addWidget(reset_btn)
         
-        danger_layout.addLayout(reset_row)
         layout.addWidget(danger_container)
     
     def _confirm_reset(self):

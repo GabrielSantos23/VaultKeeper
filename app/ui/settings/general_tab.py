@@ -188,7 +188,7 @@ class GeneralTab(QWidget):
                 background-color: #18181b;
             }}
             QComboBox::down-arrow {{
-                image: url({get_icon_path("chevron-down").replace('\\\\', '/')});
+                image: url({get_icon_path("chevron-down").replace('\\', '/')});
                 width: 16px;
                 height: 16px;
                 margin-right: 10px;
@@ -234,7 +234,7 @@ class GeneralTab(QWidget):
         
         self.btn_update = QPushButton("Check for Updates")
         self.btn_update.setCursor(Qt.PointingHandCursor)
-        self.btn_update.setFixedWidth(140)
+        self.btn_update.setFixedWidth(180)
         self.btn_update.setFixedHeight(32)
         self.btn_update.setStyleSheet(f"""
             QPushButton {{
