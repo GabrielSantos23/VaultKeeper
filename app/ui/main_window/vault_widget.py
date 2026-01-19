@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
 
 )
 
-from PySide6.QtCore import Signal, QTimer, Qt
+from PySide6.QtCore import Signal, QTimer, Qt, QFileSystemWatcher
 
 from app.core.vault import VaultManager, Credential, SecureNote, CreditCard, Folder
 
@@ -31,6 +31,8 @@ from app.ui.settings_dialog import SettingsDialog
 
 from app.ui.gdrive_dialog import GoogleDriveDialog
 
+import os
+
 class VaultWidget(QWidget):
 
     lock_requested = Signal()
@@ -48,6 +50,22 @@ class VaultWidget(QWidget):
         self.setup_ui()
 
         QTimer.singleShot(50, self.load_data)
+        
+        # Setup file watcher for auto-reload
+        self.watcher = QFileSystemWatcher(self)
+        if hasattr(self.vault, 'db_path') and os.path.exists(self.vault.db_path):
+            self.watcher.addPath(str(self.vault.db_path))
+            self.watcher.fileChanged.connect(self._on_db_file_changed)
+            
+        # Debounce timer for file changes
+        self._reload_timer = QTimer(self)
+        self._reload_timer.setSingleShot(True)
+        self._reload_timer.setInterval(500) # Wait 500ms after last change
+        self._reload_timer.timeout.connect(self.load_data)
+
+    def _on_db_file_changed(self, path):
+        # Restart the timer on every change signal
+        self._reload_timer.start()
 
     def load_data(self):
 

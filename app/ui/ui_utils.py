@@ -3,6 +3,8 @@ import os
 
 from pathlib import Path
 
+from datetime import datetime, timezone
+
 from PySide6.QtCore import Qt, QSize
 
 from PySide6.QtGui import QPixmap, QPainter, QIcon
@@ -12,6 +14,27 @@ from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QPushButton
 
 from .theme import get_theme
+
+
+def format_timestamp(timestamp_str: str) -> str:
+    """Convert a UTC timestamp string from SQLite to local timezone and format it nicely."""
+    if not timestamp_str:
+        return ""
+    
+    try:
+        # SQLite CURRENT_TIMESTAMP format: 'YYYY-MM-DD HH:MM:SS'
+        # Parse as UTC
+        utc_dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+        
+        # Convert to local timezone
+        local_dt = utc_dt.astimezone()
+        
+        # Format nicely
+        return local_dt.strftime("%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        # If parsing fails, return the original string
+        return timestamp_str
 
 ICONS_DIR = Path(__file__).parent / "icons"
 

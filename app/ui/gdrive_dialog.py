@@ -1,4 +1,6 @@
 
+from pathlib import Path
+
 from typing import Optional
 
 from PySide6.QtWidgets import (
@@ -7,7 +9,7 @@ from PySide6.QtWidgets import (
 
     QFrame, QWidget, QGraphicsDropShadowEffect, QApplication,
 
-    QMessageBox
+    QMessageBox, QProgressDialog
 
 )
 
@@ -349,7 +351,242 @@ class GoogleDriveDialog(QDialog):
 
         self._update_state()
 
+        # Check if there's a vault in Google Drive and offer to download
+        self._check_and_offer_vault_download()
+
         self.connection_successful.emit()
+
+    def _check_and_offer_vault_download(self):
+        """Check if there's a vault in Google Drive and offer to sync it."""
+        try:
+            vault_path = Path.home() / '.vaultkeeper' / 'vault.db'
+            local_vault_exists = vault_path.exists()
+            local_vault_size = vault_path.stat().st_size if local_vault_exists else 0
+            
+            # Check if vault exists in Google Drive
+            import requests
+            headers = self.gdrive._get_headers()
+            folder_id = self.gdrive._get_or_create_vault_folder()
+            
+            if not folder_id:
+                return
+            
+            query = f"name='vault.db' and '{folder_id}' in parents and trashed=false"
+            params = {"q": query, "fields": "files(id,name,size,modifiedTime)"}
+            response = requests.get(
+                "https://www.googleapis.com/drive/v3/files",
+                headers=headers,
+                params=params
+            )
+            
+            if response.status_code != 200:
+                return
+            
+            files = response.json().get("files", [])
+            cloud_exists = len(files) > 0
+            
+            if not cloud_exists and not local_vault_exists:
+                # No vault anywhere - nothing to do
+                return
+            
+            if not cloud_exists and local_vault_exists:
+                # Only local vault - offer to upload
+                reply = QMessageBox.question(
+                    self,
+                    "Upload Vault",
+                    "Nenhum vault encontrado no Google Drive.\n\n"
+                    "Deseja fazer upload do vault local para a nuvem?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes
+                )
+                if reply == QMessageBox.Yes:
+                    self._upload_vault_to_drive(vault_path)
+                return
+            
+            if cloud_exists and not local_vault_exists:
+                # Only cloud vault - must download
+                message = (
+                    "Vault encontrado no Google Drive!\n\n"
+                    "Nenhum vault local foi encontrado neste dispositivo.\n"
+                    "Deseja baixar o vault do Google Drive?"
+                )
+                reply = QMessageBox.question(
+                    self,
+                    "Vault Encontrado",
+                    message,
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes
+                )
+                if reply == QMessageBox.Yes:
+                    self._download_vault_from_drive(vault_path)
+                return
+            
+            # Both exist - offer smart sync
+            cloud_file = files[0]
+            cloud_size = int(cloud_file.get("size", 0))
+            
+            message = (
+                "Vault encontrado no Google Drive!\n\n"
+                f"• Vault local: {self._format_size(local_vault_size)}\n"
+                f"• Vault na nuvem: {self._format_size(cloud_size)}\n\n"
+                "Deseja fazer Smart Sync para mesclar as credenciais?\n"
+                "(Isso manterá todas as credenciais de ambos os vaults)"
+            )
+            
+            reply = QMessageBox.question(
+                self,
+                "Smart Sync",
+                message,
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.Yes:
+                self._smart_sync_vaults(vault_path)
+                    
+        except Exception as e:
+            print(f"Error checking cloud vault: {e}")
+            # Don't show error to user, just log it
+    
+    def _format_size(self, size_bytes: int) -> str:
+        """Format bytes to human readable string."""
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size_bytes < 1024:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024
+        return f"{size_bytes:.1f} TB"
+    
+    def _download_vault_from_drive(self, vault_path: Path):
+        """Download vault from Google Drive."""
+        progress = QProgressDialog(
+            "Baixando vault do Google Drive...",
+            None,  # No cancel button
+            0, 100,
+            self
+        )
+        progress.setWindowTitle("Sincronizando")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(10)
+        progress.show()
+        QApplication.processEvents()
+        
+        try:
+            progress.setValue(30)
+            QApplication.processEvents()
+            
+            self.gdrive.download_vault(vault_path)
+            
+            progress.setValue(100)
+            QApplication.processEvents()
+            
+            QMessageBox.information(
+                self,
+                "Download Concluído",
+                "O vault foi baixado com sucesso do Google Drive!\n\n"
+                "Reinicie o aplicativo para carregar as credenciais."
+            )
+            
+        except Exception as e:
+            progress.close()
+            QMessageBox.critical(
+                self,
+                "Erro ao Baixar",
+                f"Não foi possível baixar o vault:\n\n{str(e)}"
+            )
+
+    def _upload_vault_to_drive(self, vault_path: Path):
+        """Upload vault to Google Drive."""
+        progress = QProgressDialog(
+            "Enviando vault para o Google Drive...",
+            None,
+            0, 100,
+            self
+        )
+        progress.setWindowTitle("Sincronizando")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(10)
+        progress.show()
+        QApplication.processEvents()
+        
+        try:
+            progress.setValue(30)
+            QApplication.processEvents()
+            
+            self.gdrive.upload_vault(vault_path)
+            
+            progress.setValue(100)
+            QApplication.processEvents()
+            
+            QMessageBox.information(
+                self,
+                "Upload Concluído",
+                "O vault foi enviado com sucesso para o Google Drive!"
+            )
+            
+        except Exception as e:
+            progress.close()
+            QMessageBox.critical(
+                self,
+                "Erro ao Enviar",
+                f"Não foi possível enviar o vault:\n\n{str(e)}"
+            )
+
+    def _smart_sync_vaults(self, vault_path: Path):
+        """Perform smart sync between local and cloud vaults."""
+        progress = QProgressDialog(
+            "Iniciando Smart Sync...",
+            None,
+            0, 100,
+            self
+        )
+        progress.setWindowTitle("Smart Sync")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        progress.show()
+        QApplication.processEvents()
+        
+        def on_progress(percent: int, message: str):
+            progress.setValue(percent)
+            progress.setLabelText(message)
+            QApplication.processEvents()
+        
+        try:
+            stats = self.gdrive.merge_vaults(
+                vault_path=vault_path,
+                progress_callback=on_progress
+            )
+            
+            progress.setValue(100)
+            QApplication.processEvents()
+            
+            # Build result message
+            message = (
+                f"Smart Sync concluído!\n\n"
+                f"📊 Resultados:\n"
+                f"• Apenas local: {stats.get('local_only', 0)} credenciais\n"
+                f"• Apenas nuvem: {stats.get('cloud_only', 0)} credenciais\n"
+                f"• Atualizadas da nuvem: {stats.get('updated_from_cloud', 0)}\n"
+                f"• Atualizadas do local: {stats.get('updated_from_local', 0)}\n"
+                f"• Total: {stats.get('total_after_merge', 0)} credenciais\n\n"
+                f"Reinicie o aplicativo para ver as alterações."
+            )
+            
+            QMessageBox.information(
+                self,
+                "Sync Concluído",
+                message
+            )
+            
+        except Exception as e:
+            progress.close()
+            QMessageBox.critical(
+                self,
+                "Erro no Sync",
+                f"Não foi possível sincronizar:\n\n{str(e)}"
+            )
 
     def _on_auth_error(self, error: str):
 

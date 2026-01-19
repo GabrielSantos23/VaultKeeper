@@ -1,37 +1,23 @@
-# Changelog - Secure Note & UI Overhaul
+# Changelog - VaultKeeper
 
-## New Features
-### Secure Note Editor (`app/ui/secure_note_dialog.py`)
-- **Rich Text Support:** Implemented a full rich text editor supports:
-  - **Bold** (Ctrl+B), *Italic* (Ctrl+I), _Underline_ (Ctrl+U)
-  - `Inline Code` (Ctrl+`) with syntax highlighting
-  - Headings (H1, H2, H3) via shortcuts (Ctrl+1/2/3) or markdown syntax (#)
-  - Bullet (-) and Numbered (1.) lists
-- **Markdown-like Editing:** Auto-formatting for markdown symbols while typing.
-- **Link Insertion:** New dialog for inserting hyperlinks with custom text and URLs.
-- **Attachments:** Added UI support for attaching files to notes.
-- **Folder Selection:** Integrated folder selection dropdown.
-- **Validation:** Added validation to ensure Title and Content are present before saving.
+## 1.0.5 - 2026-01-19
 
-## UI/UX Improvements
-### General
-- **Dialogs:** Standardized modern layout for "Add New Item", "Credit Card", and "Secure Note" dialogs.
-- **Icons:** Switched to SVG icons for better scalability and styling control.
-- **Theme:** Improved dark mode consistency across dialogs and menus.
+### Added
+- **App-Extension Auto-Sync**: Implemented database file monitoring (`vault.db`) using `QFileSystemWatcher` in the Desktop App. Changes made by the extension (like saving a new password) are now automatically reflected in the app without restarting.
+- **Smart Domain Matching**: Enhanced credential search logic (`get_credentials_by_domain`) to support hierarchical matching.
+    - The system now finds parent domain credentials when on a subdomain (e.g., accessing `accounts.google.com` finds `google.com` credentials).
+    - Maintains the ability to match specific subdomain credentials.
+- **Timezone Conversion**: Added `format_timestamp` utility function to convert stored UTC timestamps to the user's local timezone in Credential, Secure Note, and Credit Card detail views.
 
-### Specific Components
-- **Secure Note Dialog:**
-  - Redesigned with a 2-column layout (Editor on left, Properties on right).
-  - Custom toolbar with centralized formatting buttons.
-  - Interactive styling for active format states (buttons highlight when active).
-- **Google Drive Sync:** Updated sync icon to `cloud_lock` and improved spacing.
-- **Credit Card Dialog:** Refined card preview styling (removed borders from transparent fields).
-- **Context Menus:** Added icons and improved styling for item detail actions (e.g., Favorites).
-- **Settings:** Fixed ComboBox arrow icon color for dark mode.
+### Fixed
+- **Extension Connection (Native Host)**: 
+    - Fixed incorrect path in the Native Messaging Host manifest pointing to a non-existent directory (`VaultKeeper-v2`).
+    - Corrected Firefox extension ID in the installation script (`installer.py`).
+    - Resolved syntax error in the bash wrapper generator script (`installer.py`).
+    - Reinstalled host manifests for Chrome, Chromium, Firefox, and Zen Browser.
+- **Credit Card UI**: Fixed layout issue where very long cardholder names broke the view. Implemented `ElidedLabel` with a stretch factor to automatically add ellipsis and fill available space elegantly.
+- **HTML Rendering in Secure Notes**: Fixed rendering of notes containing HTML by using `QTextBrowser` instead of `QPlainTextEdit` to display formatted content correctly.
 
-## Bug Fixes
-- **Crashes:** Fixed application crash when toggling formatting (Code/Bold) or typing rapidly in the rich text editor.
-- **Formatting:** Fixed issue where formatting wasn't applied when typing in a new/empty line.
-- **Layout:** Fixed Link Dialog height and Toolbar alignment issues.
-- **Code Highlighting:** Fixed crash related to font family lookups in code blocks.
-- **Recursion:** Prevented recursive signal loops during text formatting.
+### Changed
+- **Text Rendering**: Replaced `QLabel` with `QTextBrowser`/`QPlainTextEdit` in various detail panel sections for better text selection, link support, and content expansion.
+- **Detail Layout**: Layout adjustments in detail panels (Secure Notes) to allow text content to expand vertically and fill the available window space.

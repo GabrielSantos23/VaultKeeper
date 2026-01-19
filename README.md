@@ -51,12 +51,23 @@ VaultKeeper-v2/
 
 ### 1. Dependências Python
 
-#### Linux / macOS
+#### Linux / macOS (Bash/Zsh)
 
 ```bash
 # Criar ambiente virtual (recomendado)
 python3 -m venv .venv
 source .venv/bin/activate
+
+# Instalar dependências
+pip install -r requirements.txt
+```
+
+#### Linux (Fish Shell)
+
+```fish
+# Criar ambiente virtual (recomendado)
+python3 -m venv .venv
+source .venv/bin/activate.fish
 
 # Instalar dependências
 pip install -r requirements.txt
@@ -76,15 +87,33 @@ pip install -r requirements.txt
 
 ### 2. Executar o App Desktop
 
-#### Linux / macOS
+#### Linux / macOS (Bash/Zsh)
 
 ```bash
+# Ative o ambiente virtual primeiro (se não estiver ativo)
+source .venv/bin/activate
+
+# Execute o app
+python3 app/main.py
+```
+
+#### Linux (Fish Shell)
+
+```fish
+# Ative o ambiente virtual primeiro (se não estiver ativo)
+source .venv/bin/activate.fish
+
+# Execute o app
 python3 app/main.py
 ```
 
 #### Windows
 
 ```powershell
+# Ative o ambiente virtual primeiro (se não estiver ativo)
+.\.venv\Scripts\Activate
+
+# Execute o app
 python app\main.py
 ```
 
@@ -101,7 +130,7 @@ Na primeira execução, você criará sua **senha mestra**.
 
 ### 4. Usar
 
-1. Execute o app desktop: `python app/main.py`
+1. Execute o app desktop (veja comandos acima para seu shell)
 2. Na primeira execução, o Native Host será configurado automaticamente
 3. Clique no ícone da extensão VaultKeeper no navegador
 4. A extensão deve mostrar que está conectada!
@@ -111,13 +140,21 @@ Na primeira execução, você criará sua **senha mestra**.
 Se precisar reinstalar manualmente o Native Host:
 
 ```bash
-python -m app.native.installer install
+# Bash/Zsh
+source .venv/bin/activate && python -m app.native.installer install
+
+# Fish Shell
+source .venv/bin/activate.fish && python -m app.native.installer install
 ```
 
 Para verificar o status:
 
 ```bash
-python -m app.native.installer check
+# Bash/Zsh
+source .venv/bin/activate && python -m app.native.installer check
+
+# Fish Shell
+source .venv/bin/activate.fish && python -m app.native.installer check
 ```
 
 ## 🔐 Funcionalidades

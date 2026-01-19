@@ -1,15 +1,17 @@
-
 from typing import Optional, List
 
 from PySide6.QtWidgets import (
 
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
 
-    QFrame, QScrollArea, QApplication, QMenu
+    QFrame, QScrollArea, QApplication, QMenu, QPlainTextEdit, QTextBrowser
 
 )
 
-from PySide6.QtCore import Qt, Signal
+from app.ui.components.elided_label import ElidedLabel
+
+
+from PySide6.QtCore import Qt, Signal, QTimer
 
 from PySide6.QtGui import QIcon, QClipboard
 
@@ -17,7 +19,7 @@ from ..core.vault import SecureNote, CreditCard
 
 from .theme import get_theme
 
-from .ui_utils import load_svg_icon
+from .ui_utils import load_svg_icon, format_timestamp
 
 class CopyableField(QFrame):
 
@@ -261,6 +263,7 @@ class CreditCardPreview(QFrame):
             letter-spacing: 2px;
             font-family: 'Consolas', 'Monaco', monospace;
             background: transparent;
+            border: none;
         """)
 
         card_layout.addWidget(number_label)
@@ -269,7 +272,7 @@ class CreditCardPreview(QFrame):
 
         bottom_row = QHBoxLayout()
 
-        name_label = QLabel(self.card.cardholder_name.upper())
+        name_label = ElidedLabel(self.card.cardholder_name.upper())
 
         name_label.setStyleSheet("""
             color: white;
@@ -277,11 +280,10 @@ class CreditCardPreview(QFrame):
             font-weight: 500;
             letter-spacing: 1px;
             background: transparent;
+            border: none;
         """)
 
-        bottom_row.addWidget(name_label)
-
-        bottom_row.addStretch()
+        bottom_row.addWidget(name_label, 1)
 
         expiry_col = QVBoxLayout()
 
@@ -294,6 +296,7 @@ class CreditCardPreview(QFrame):
             font-size: 8px;
             letter-spacing: 0.5px;
             background: transparent;
+            border: none;
         """)
 
         expiry_col.addWidget(expiry_title)
@@ -305,6 +308,7 @@ class CreditCardPreview(QFrame):
             font-size: 12px;
             font-weight: 500;
             background: transparent;
+            border: none;
         """)
 
         expiry_col.addWidget(expiry_value)
@@ -323,11 +327,16 @@ class SecureNoteDetailPanel(QWidget):
 
     favorite_toggled = Signal(object)
 
+    # Threshold for using async loading (in characters)
+    LARGE_CONTENT_THRESHOLD = 5000
+
     def __init__(self, note: SecureNote, parent=None):
 
         super().__init__(parent)
 
         self.note = note
+
+        self._content_loaded = False
 
         self.setup_ui()
 
@@ -357,25 +366,26 @@ class SecureNoteDetailPanel(QWidget):
 
         content.setStyleSheet(f"background-color: {theme.colors.background};")
 
-        content_layout = QVBoxLayout(content)
+        self.content_layout = QVBoxLayout(content)
 
-        content_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
 
-        content_layout.setSpacing(1)
+        self.content_layout.setSpacing(1)
 
         header = self._create_header(theme)
 
-        content_layout.addWidget(header)
+        self.content_layout.addWidget(header)
 
-        content_frame = QFrame()
+        # Content frame
+        self.content_frame = QFrame()
 
-        content_frame.setStyleSheet(f"background-color: {theme.colors.card}; border: none;")
+        self.content_frame.setStyleSheet(f"background-color: {theme.colors.card}; border: none;")
 
-        cf_layout = QVBoxLayout(content_frame)
+        self.cf_layout = QVBoxLayout(self.content_frame)
 
-        cf_layout.setContentsMargins(24, 20, 24, 20)
+        self.cf_layout.setContentsMargins(24, 20, 24, 20)
 
-        cf_layout.setSpacing(12)
+        self.cf_layout.setSpacing(12)
 
         content_label = QLabel("CONTENT")
 
@@ -386,27 +396,32 @@ class SecureNoteDetailPanel(QWidget):
             letter-spacing: 0.5px;
         """)
 
-        cf_layout.addWidget(content_label)
+        self.cf_layout.addWidget(content_label)
 
-        note_text = QLabel(self.note.content)
+        # Check if content is large
+        is_large_content = len(self.note.content) > self.LARGE_CONTENT_THRESHOLD
 
-        note_text.setWordWrap(True)
+        if is_large_content:
+            # Show loading placeholder first
+            self.loading_label = QLabel("Loading content...")
+            self.loading_label.setStyleSheet(f"""
+                color: {theme.colors.muted_foreground};
+                font-size: 14px;
+                padding: 12px;
+                background-color: {theme.colors.input};
+                border-radius: 8px;
+            """)
+            self.cf_layout.addWidget(self.loading_label)
 
-        note_text.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            # Schedule async content loading
+            QTimer.singleShot(50, self._load_content_async)
+        else:
+            # Load content immediately for small notes
+            self._create_note_text_widget(theme)
 
-        note_text.setStyleSheet(f"""
-            color: {theme.colors.foreground};
-            font-size: 14px;
-            line-height: 1.6;
-            padding: 12px;
-            background-color: {theme.colors.input};
-            border-radius: 8px;
-        """)
+        self.content_layout.addWidget(self.content_frame, 1)  # stretch factor to expand
 
-        cf_layout.addWidget(note_text)
-
-        content_layout.addWidget(content_frame)
-
+        # Meta frame
         meta_frame = QFrame()
 
         meta_frame.setStyleSheet(f"background-color: {theme.colors.card}; border: none;")
@@ -419,7 +434,7 @@ class SecureNoteDetailPanel(QWidget):
 
         if self.note.updated_at:
 
-            modified = QLabel(f"MODIFIED: {self.note.updated_at}")
+            modified = QLabel(f"MODIFIED: {format_timestamp(self.note.updated_at)}")
 
             modified.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 10px; letter-spacing: 0.5px;")
 
@@ -429,7 +444,7 @@ class SecureNoteDetailPanel(QWidget):
 
         if self.note.created_at:
 
-            created = QLabel(f"CREATED: {self.note.created_at}")
+            created = QLabel(f"CREATED: {format_timestamp(self.note.created_at)}")
 
             created.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 10px; letter-spacing: 0.5px;")
 
@@ -437,13 +452,99 @@ class SecureNoteDetailPanel(QWidget):
 
             meta_layout.addWidget(created)
 
-        content_layout.addWidget(meta_frame)
-
-        content_layout.addStretch()
+        self.content_layout.addWidget(meta_frame)
 
         scroll.setWidget(content)
 
         layout.addWidget(scroll)
+
+    def _load_content_async(self):
+        """Load content asynchronously for large notes."""
+        if self._content_loaded:
+            return
+
+        theme = get_theme()
+
+        # Remove loading label
+        if hasattr(self, 'loading_label'):
+            self.loading_label.deleteLater()
+
+        # Create the actual content widget
+        self._create_note_text_widget(theme)
+        self._content_loaded = True
+
+    def _create_note_text_widget(self, theme):
+        """Create the note text widget - handles both plain text and HTML content."""
+        from PySide6.QtWidgets import QSizePolicy
+
+        content = self.note.content
+        is_html = content.strip().startswith('<!DOCTYPE') or content.strip().startswith('<html')
+        is_large_content = len(content) > self.LARGE_CONTENT_THRESHOLD
+
+        if is_html:
+            # Use QTextBrowser for HTML content - renders HTML properly
+            note_text = QTextBrowser()
+            note_text.setHtml(content)
+            note_text.setReadOnly(True)
+            note_text.setOpenExternalLinks(True)
+            note_text.setStyleSheet(f"""
+                QTextBrowser {{
+                    color: {theme.colors.foreground};
+                    font-size: 14px;
+                    padding: 12px;
+                    background-color: {theme.colors.input};
+                    border-radius: 8px;
+                    border: none;
+                }}
+                QTextBrowser:focus {{
+                    border: none;
+                    outline: none;
+                }}
+            """)
+            note_text.setMinimumHeight(200)
+            # Allow it to expand to fill available space
+            note_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        elif is_large_content:
+            # Use QPlainTextEdit for large plain text content - better performance
+            note_text = QPlainTextEdit()
+            note_text.setPlainText(content)
+            note_text.setReadOnly(True)
+            note_text.setStyleSheet(f"""
+                QPlainTextEdit {{
+                    color: {theme.colors.foreground};
+                    font-size: 14px;
+                    padding: 12px;
+                    background-color: {theme.colors.input};
+                    border-radius: 8px;
+                    border: none;
+                }}
+                QPlainTextEdit:focus {{
+                    border: none;
+                    outline: none;
+                }}
+            """)
+            note_text.setMinimumHeight(200)
+            # Allow it to expand to fill available space
+            note_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        else:
+            # Use QTextBrowser for small content too - better for expansion
+            note_text = QTextBrowser()
+            note_text.setPlainText(content)
+            note_text.setReadOnly(True)
+            note_text.setStyleSheet(f"""
+                QTextBrowser {{
+                    color: {theme.colors.foreground};
+                    font-size: 14px;
+                    padding: 12px;
+                    background-color: {theme.colors.input};
+                    border-radius: 8px;
+                    border: none;
+                }}
+            """)
+            note_text.setMinimumHeight(150)
+            note_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        self.cf_layout.addWidget(note_text, 1)  # stretch factor of 1
 
     def _create_header(self, theme) -> QFrame:
 
@@ -748,7 +849,7 @@ class CreditCardDetailPanel(QWidget):
 
         if self.card.updated_at:
 
-            modified = QLabel(f"MODIFIED: {self.card.updated_at}")
+            modified = QLabel(f"MODIFIED: {format_timestamp(self.card.updated_at)}")
 
             modified.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 10px; letter-spacing: 0.5px;")
 
@@ -758,7 +859,7 @@ class CreditCardDetailPanel(QWidget):
 
         if self.card.created_at:
 
-            created = QLabel(f"CREATED: {self.card.created_at}")
+            created = QLabel(f"CREATED: {format_timestamp(self.card.created_at)}")
 
             created.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 10px; letter-spacing: 0.5px;")
 

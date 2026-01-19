@@ -256,76 +256,87 @@ class CredentialsList(QWidget):
 
         new_keys = set()
 
-        for c in credentials:
+        # Build maps for quick lookup
+        cred_map = {}
+        note_map = {}
+        card_data_map = {}
 
-            new_keys.add(("credential", c.id))
+        for c in credentials:
+            key = ("credential", c.id)
+            new_keys.add(key)
+            cred_map[key] = c
 
         for n in secure_notes:
-
-            new_keys.add(("note", n.id))
+            key = ("note", n.id)
+            new_keys.add(key)
+            note_map[key] = n
 
         for card in credit_cards:
-
-            new_keys.add(("card", card.id))
+            key = ("card", card.id)
+            new_keys.add(key)
+            card_data_map[key] = card
 
         existing_keys = set(self.card_map.keys())
 
         self.list_container.setUpdatesEnabled(False)
 
         try:
-
+            # Remove cards that no longer exist
             for key in existing_keys - new_keys:
-
                 if key in self.card_map:
-
                     widget = self.card_map.pop(key)
-
                     self.list_layout.removeWidget(widget)
-
                     widget.deleteLater()
 
+            # Update existing cards or create new ones
             spacer_index = self.list_layout.count() - 1
 
             for cred in credentials:
-
                 key = ("credential", cred.id)
-
-                if key not in self.card_map:
-
+                if key in self.card_map:
+                    # Update existing card with new data
+                    old_card = self.card_map[key]
+                    old_card.credential = cred
+                    old_card.title.setText(cred.domain)
+                    old_card.subtitle.setText(cred.username)
+                else:
+                    # Create new card
                     card = CredentialCard(cred)
-
                     card.clicked.connect(self.on_card_clicked)
-
                     self.list_layout.insertWidget(spacer_index, card)
-
                     self.card_map[key] = card
 
             for note in secure_notes:
-
                 key = ("note", note.id)
-
-                if key not in self.card_map:
-
+                if key in self.card_map:
+                    # Update existing card with new data
+                    old_card = self.card_map[key]
+                    old_card.note = note
+                    old_card.title.setText(note.title)
+                    preview = note.content[:50] + "..." if len(note.content) > 50 else note.content
+                    preview = preview.split('\n')[0]
+                    old_card.subtitle.setText(preview)
+                else:
+                    # Create new card
                     card = SecureNoteCard(note)
-
                     card.clicked.connect(self.on_card_clicked)
-
                     self.list_layout.insertWidget(spacer_index, card)
-
                     self.card_map[key] = card
 
             for cc in credit_cards:
-
                 key = ("card", cc.id)
-
-                if key not in self.card_map:
-
+                if key in self.card_map:
+                    # Update existing card with new data
+                    old_card = self.card_map[key]
+                    old_card.card = cc
+                    old_card.title.setText(cc.title)
+                    last_four = cc.card_number[-4:] if len(cc.card_number) >= 4 else "****"
+                    old_card.subtitle.setText(f"•••• {last_four}")
+                else:
+                    # Create new card
                     card = CreditCardCard(cc)
-
                     card.clicked.connect(self.on_card_clicked)
-
                     self.list_layout.insertWidget(spacer_index, card)
-
                     self.card_map[key] = card
 
             self.apply_filters()

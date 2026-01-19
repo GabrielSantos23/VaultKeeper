@@ -380,23 +380,50 @@ class VaultManager:
     def get_credentials_by_domain(self, domain: str) -> List[Credential]:
 
         self._ensure_unlocked()
-
         self.auth.touch()
 
+        # Generate parent domain variations
+        # e.g. "accounts.google.com" -> ["accounts.google.com", "google.com"]
+        parts = domain.split('.')
+        variations = []
+        
+        # Add exact match and parents
+        current = domain
+        while '.' in current:
+            variations.append(current)
+            try:
+                _, rest = current.split('.', 1)
+                current = rest
+            except ValueError:
+                break
+                
+        # Filter out likely TLDs
+        valid_variations = [v for v in variations if '.' in v]
+        if not valid_variations and variations: 
+            valid_variations = variations
+
+        placeholders = ','.join(['?'] * len(valid_variations))
+        
         with sqlite3.connect(self.db_path) as conn:
-
             conn.row_factory = sqlite3.Row
-
             cursor = conn.cursor()
-
-            cursor.execute('''
+            
+            # Query Logic:
+            # 1. Stored domain is one of the variations (exact match or parent of input)
+            # 2. OR Stored domain is a subdomain of input (stored LIKE '%.input')
+            
+            query = f'''
                 SELECT * FROM vault
-                WHERE domain = ? OR domain LIKE ?
-                ORDER BY updated_at DESC
-            ''', (domain, f'%.{domain}'))
-
+                WHERE domain IN ({placeholders})
+                OR domain LIKE ?
+                ORDER BY length(domain) DESC
+            '''
+            
+            params = valid_variations + [f'%.{domain}']
+            
+            cursor.execute(query, params)
             rows = cursor.fetchall()
-
+            
             return [self._row_to_credential(dict(row)) for row in rows]
 
     def get_all_credentials(self) -> List[Credential]:
@@ -990,7 +1017,9 @@ class VaultManager:
 
     def update_secure_note(self, note_id: int, title: Optional[str] = None,
 
-                           content: Optional[str] = None) -> bool:
+                           content: Optional[str] = None,
+
+                           folder_id: Optional[int] = None) -> bool:
 
         self._ensure_unlocked()
 
@@ -1011,6 +1040,12 @@ class VaultManager:
             updates.append('content = ?')
 
             params.append(self.crypto.encrypt(content))
+
+        if folder_id is not None:
+
+            updates.append('folder_id = ?')
+
+            params.append(folder_id if folder_id != 0 else None)
 
         if not updates:
 

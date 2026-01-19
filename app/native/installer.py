@@ -15,7 +15,7 @@ from pathlib import Path
 
 from typing import Optional, List, Tuple
 
-FIREFOX_EXTENSION_ID = "vaultkeeper@example.com"
+FIREFOX_EXTENSION_ID = "gabriel.gs605@gmail.com"
 
 CHROME_EXTENSION_ID = "bklgfpmbbpfboanbdjakcgmlldhmlkco"
 
@@ -237,11 +237,11 @@ if exist "%PROJECT_DIR%\.venv\Scripts\python.exe" (
 
             wrapper_path = self.wrapper_script
 
-            content = f'''#!/bin/bash
+            content = '''#!/bin/bash
 # VaultKeeper Native Host Wrapper
 # Activates virtual environment and runs the host
 
-SCRIPT_DIR="$(cd "$(dirname "${ BASH_SOURCE[0]} ")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Try different venv locations

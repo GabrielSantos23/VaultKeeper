@@ -23,7 +23,7 @@ from app.core.config import get_config
 
 from app.ui.theme import get_theme
 
-from app.ui.ui_utils import load_svg_icon, create_icon_button
+from app.ui.ui_utils import load_svg_icon, create_icon_button, format_timestamp
 
 from app.ui.components.favicon import FaviconLabel
 
@@ -475,7 +475,7 @@ class DetailPanel(QScrollArea):
 
         if hasattr(credential, 'updated_at') and credential.updated_at:
 
-            modified = QLabel(f"MODIFIED: {credential.updated_at}")
+            modified = QLabel(f"MODIFIED: {format_timestamp(credential.updated_at)}")
 
             modified.setStyleSheet(f"""
                 color: {theme.colors.muted_foreground};
@@ -490,7 +490,7 @@ class DetailPanel(QScrollArea):
 
         if hasattr(credential, 'created_at') and credential.created_at:
 
-            created = QLabel(f"CREATED: {credential.created_at}")
+            created = QLabel(f"CREATED: {format_timestamp(credential.created_at)}")
 
             created.setStyleSheet(f"""
                 color: {theme.colors.muted_foreground};

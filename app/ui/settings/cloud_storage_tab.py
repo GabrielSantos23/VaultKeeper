@@ -5,7 +5,9 @@ from PySide6.QtWidgets import (
 
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
 
-    QFrame, QMessageBox, QProgressBar
+    QFrame, QMessageBox, QProgressBar, QProgressDialog, QApplication,
+
+    QScrollArea
 
 )
 
@@ -43,11 +45,23 @@ class CloudStorageTab(QWidget):
 
     def setup_ui(self):
 
-        layout = QVBoxLayout(self)
+        # Main layout with scroll area
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        layout.setContentsMargins(0, 0, 0, 0)
+        # Create scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.NoFrame)
+        scroll_area.setStyleSheet("QScrollArea { background: transparent; border: none; }")
 
-        layout.setSpacing(24)
+        # Content widget inside scroll area
+        content_widget = QWidget()
+        content_widget.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(content_widget)
+        layout.setContentsMargins(0, 0, 8, 0)  # Right margin for scrollbar
+        layout.setSpacing(12)
 
         theme = get_theme()
 
@@ -57,7 +71,7 @@ class CloudStorageTab(QWidget):
 
         header_layout.setContentsMargins(0, 0, 0, 0)
 
-        header_layout.setSpacing(6)
+        header_layout.setSpacing(4)
 
         page_title = QLabel("Cloud Storage")
 
@@ -73,7 +87,7 @@ class CloudStorageTab(QWidget):
 
         page_subtitle.setStyleSheet(f"""
             color: {theme.colors.muted_foreground};
-            font-size: 14px;
+            font-size: 13px;
         """)
 
         header_layout.addWidget(page_subtitle)
@@ -93,17 +107,19 @@ class CloudStorageTab(QWidget):
 
         self._create_gdrive_card(layout, theme)
 
-        layout.addSpacing(8)
+        layout.addSpacing(4)
 
         self._create_storage_usage_section(layout, theme)
 
-        layout.addSpacing(16)
+        layout.addSpacing(4)
 
         self._create_storage_options_section(layout, theme)
 
         layout.addStretch()
 
-        layout.addStretch()
+        # Set scroll area content
+        scroll_area.setWidget(content_widget)
+        main_layout.addWidget(scroll_area)
 
         if self.gdrive.is_connected():
 
@@ -315,6 +331,140 @@ class CloudStorageTab(QWidget):
 
         layout.addWidget(options_container)
 
+        # Manual sync section
+        sync_label = QLabel("MANUAL SYNC")
+
+        sync_label.setStyleSheet("""
+            color: #3b82f6;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-top: 16px;
+        """)
+
+        layout.addWidget(sync_label)
+
+        sync_container = QFrame()
+
+        sync_container.setStyleSheet(f"""
+            QFrame {{
+                background-color: {theme.colors.card};
+                border: 1px solid {theme.colors.border};
+                border-radius: 12px;
+            }}
+        """)
+
+        sync_buttons_layout = QHBoxLayout(sync_container)
+
+        sync_buttons_layout.setContentsMargins(16, 12, 16, 12)
+
+        sync_buttons_layout.setSpacing(12)
+
+        # Download button
+        self.download_btn = QPushButton("⬇ Download from Cloud")
+
+        self.download_btn.setCursor(Qt.PointingHandCursor)
+
+        self.download_btn.setFixedHeight(36)
+
+        self.download_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: 1px solid #6b7280;
+                color: #9ca3af;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: rgba(107, 114, 128, 0.1);
+                border-color: #9ca3af;
+                color: #d1d5db;
+            }
+            QPushButton:disabled {
+                background-color: #1f2937;
+                border-color: #374151;
+                color: #4b5563;
+            }
+        """)
+
+        self.download_btn.clicked.connect(self._on_download_clicked)
+
+        sync_buttons_layout.addWidget(self.download_btn)
+
+        # Smart Sync button (main action)
+        self.smart_sync_btn = QPushButton("🔄 Smart Sync")
+
+        self.smart_sync_btn.setCursor(Qt.PointingHandCursor)
+
+        self.smart_sync_btn.setFixedHeight(36)
+
+        self.smart_sync_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #22c55e;
+                border: none;
+                color: white;
+                border-radius: 6px;
+                padding: 6px 20px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #16a34a;
+            }
+            QPushButton:disabled {
+                background-color: #4b5563;
+                color: #9ca3af;
+            }
+        """)
+
+        self.smart_sync_btn.clicked.connect(self._on_smart_sync_clicked)
+
+        sync_buttons_layout.addWidget(self.smart_sync_btn)
+
+        # Upload button
+        self.upload_btn = QPushButton("⬆ Upload")
+
+        self.upload_btn.setCursor(Qt.PointingHandCursor)
+
+        self.upload_btn.setFixedHeight(36)
+
+        self.upload_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: 1px solid #6b7280;
+                color: #9ca3af;
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: rgba(107, 114, 128, 0.1);
+                border-color: #9ca3af;
+                color: #d1d5db;
+            }
+            QPushButton:disabled {
+                border-color: #374151;
+                color: #4b5563;
+            }
+        """)
+
+        self.upload_btn.clicked.connect(self._on_upload_clicked)
+
+        sync_buttons_layout.addWidget(self.upload_btn)
+
+        layout.addWidget(sync_container)
+
+        # Sync description
+        sync_desc = QLabel("Smart Sync merges local and cloud credentials, keeping all unique entries.")
+        sync_desc.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 11px; margin-top: 4px;")
+        layout.addWidget(sync_desc)
+
+        # Update button states based on connection
+        self._update_sync_buttons()
+
     def _on_auto_sync_changed(self, state):
 
         is_checked = state == Qt.Checked
@@ -392,6 +542,9 @@ class CloudStorageTab(QWidget):
             self.usage_bar_fill.setFixedWidth(0)
 
             self.usage_desc_label.setText("Connect to Google Drive to see storage usage.")
+
+        # Update sync buttons
+        self._update_sync_buttons()
 
     def _update_storage_usage(self):
 
@@ -538,6 +691,241 @@ class CloudStorageTab(QWidget):
             dialog.exec()
 
             self._refresh_state()
+
+    def _update_sync_buttons(self):
+        """Update sync buttons based on connection state."""
+        is_connected = self.gdrive.is_connected()
+        if hasattr(self, 'download_btn'):
+            self.download_btn.setEnabled(is_connected)
+        if hasattr(self, 'upload_btn'):
+            self.upload_btn.setEnabled(is_connected)
+        if hasattr(self, 'smart_sync_btn'):
+            self.smart_sync_btn.setEnabled(is_connected)
+
+    def _on_smart_sync_clicked(self):
+        """Perform smart sync that merges local and cloud vaults."""
+        if not self.gdrive.is_connected():
+            QMessageBox.warning(
+                self,
+                "Not Connected",
+                "Please connect to Google Drive first."
+            )
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Smart Sync",
+            "This will merge your local vault with the cloud vault:\n\n"
+            "• Credentials only on this device will be kept\n"
+            "• Credentials only in cloud will be added locally\n"
+            "• Duplicates will keep the most recent version\n"
+            "• The merged result will be uploaded to cloud\n\n"
+            "Continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes
+        )
+
+        if reply != QMessageBox.Yes:
+            return
+
+        progress = QProgressDialog(
+            "Starting Smart Sync...",
+            None,
+            0, 100,
+            self
+        )
+        progress.setWindowTitle("Smart Sync")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        progress.show()
+        QApplication.processEvents()
+
+        def on_progress(percent: int, message: str):
+            progress.setValue(percent)
+            progress.setLabelText(message)
+            QApplication.processEvents()
+
+        try:
+            vault_path = Path.home() / '.vaultkeeper' / 'vault.db'
+            
+            stats = self.gdrive.merge_vaults(
+                vault_path=vault_path,
+                progress_callback=on_progress
+            )
+            
+            progress.setValue(100)
+            QApplication.processEvents()
+
+            # Build result message
+            if stats.get("local_only") == -1:
+                message = "No cloud vault found.\nYour local vault was uploaded."
+            elif stats.get("cloud_only") == -1:
+                message = "No local vault found.\nCloud vault was downloaded."
+            else:
+                message = (
+                    f"Sync completed successfully!\n\n"
+                    f"📊 Results:\n"
+                    f"• Only local: {stats.get('local_only', 0)} credentials\n"
+                    f"• Only cloud: {stats.get('cloud_only', 0)} credentials\n"
+                    f"• Updated from cloud: {stats.get('updated_from_cloud', 0)}\n"
+                    f"• Updated from local: {stats.get('updated_from_local', 0)}\n"
+                    f"• Unchanged: {stats.get('unchanged', 0)}\n"
+                    f"• Total: {stats.get('total_after_merge', 0)} credentials\n\n"
+                    f"Please restart the app to see changes."
+                )
+
+            QMessageBox.information(
+                self,
+                "Sync Complete",
+                message
+            )
+
+        except Exception as e:
+            progress.close()
+            QMessageBox.critical(
+                self,
+                "Sync Failed",
+                f"Smart sync failed:\n\n{str(e)}"
+            )
+
+    def _on_download_clicked(self):
+        """Download vault from Google Drive."""
+        if not self.gdrive.is_connected():
+            QMessageBox.warning(
+                self,
+                "Not Connected",
+                "Please connect to Google Drive first."
+            )
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Download Vault",
+            "This will replace your local vault with the version from Google Drive.\n\n"
+            "A backup of your current vault will be saved.\n\n"
+            "Are you sure you want to continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply != QMessageBox.Yes:
+            return
+
+        progress = QProgressDialog(
+            "Downloading vault from Google Drive...",
+            None,
+            0, 100,
+            self
+        )
+        progress.setWindowTitle("Syncing")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(10)
+        progress.show()
+        QApplication.processEvents()
+
+        try:
+            vault_path = Path.home() / '.vaultkeeper' / 'vault.db'
+            
+            progress.setValue(30)
+            QApplication.processEvents()
+            
+            self.gdrive.download_vault(vault_path)
+            
+            progress.setValue(100)
+            QApplication.processEvents()
+
+            QMessageBox.information(
+                self,
+                "Download Complete",
+                "Vault downloaded successfully from Google Drive!\n\n"
+                "Please restart the application to load the updated credentials."
+            )
+
+        except FileNotFoundError:
+            progress.close()
+            QMessageBox.warning(
+                self,
+                "No Vault Found",
+                "No vault file was found in your Google Drive.\n\n"
+                "You may need to upload your vault first."
+            )
+        except Exception as e:
+            progress.close()
+            QMessageBox.critical(
+                self,
+                "Download Failed",
+                f"Failed to download vault:\n\n{str(e)}"
+            )
+
+    def _on_upload_clicked(self):
+        """Upload vault to Google Drive."""
+        if not self.gdrive.is_connected():
+            QMessageBox.warning(
+                self,
+                "Not Connected",
+                "Please connect to Google Drive first."
+            )
+            return
+
+        vault_path = Path.home() / '.vaultkeeper' / 'vault.db'
+        if not vault_path.exists():
+            QMessageBox.warning(
+                self,
+                "No Local Vault",
+                "No local vault found to upload."
+            )
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Upload Vault",
+            "This will upload your local vault to Google Drive,\n"
+            "replacing any existing version in the cloud.\n\n"
+            "Are you sure you want to continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes
+        )
+
+        if reply != QMessageBox.Yes:
+            return
+
+        progress = QProgressDialog(
+            "Uploading vault to Google Drive...",
+            None,
+            0, 100,
+            self
+        )
+        progress.setWindowTitle("Syncing")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(10)
+        progress.show()
+        QApplication.processEvents()
+
+        try:
+            progress.setValue(30)
+            QApplication.processEvents()
+            
+            self.gdrive.upload_vault(vault_path)
+            
+            progress.setValue(100)
+            QApplication.processEvents()
+
+            QMessageBox.information(
+                self,
+                "Upload Complete",
+                "Vault uploaded successfully to Google Drive!"
+            )
+
+        except Exception as e:
+            progress.close()
+            QMessageBox.critical(
+                self,
+                "Upload Failed",
+                f"Failed to upload vault:\n\n{str(e)}"
+            )
 
     def showEvent(self, event):
 
