@@ -1,7 +1,9 @@
 
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QLabel
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QLabel, QSizePolicy
 
 from PySide6.QtCore import Qt, Signal
+
+from PySide6.QtGui import QFontMetrics
 
 from app.core.vault import Credential, SecureNote, CreditCard
 
@@ -10,6 +12,28 @@ from app.ui.theme import get_theme
 from app.ui.ui_utils import load_svg_icon
 
 from app.ui.components.favicon import FaviconLabel
+
+
+class ElidedLabel(QLabel):
+    """A QLabel that elides text with ellipsis when it doesn't fit."""
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self._full_text = text
+        self.setMinimumWidth(0)
+
+    def setText(self, text):
+        self._full_text = text
+        self._update_elided_text()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_elided_text()
+
+    def _update_elided_text(self):
+        metrics = QFontMetrics(self.font())
+        elided = metrics.elidedText(self._full_text, Qt.ElideRight, self.width())
+        super().setText(elided)
 
 class CredentialCard(QFrame):
 
@@ -49,7 +73,8 @@ class CredentialCard(QFrame):
 
         text_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.title = QLabel(self.credential.domain)
+        self.title = ElidedLabel(self.credential.domain)
+        self.title.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         self.title.setStyleSheet(f"""
             color: {theme.colors.foreground};
@@ -59,7 +84,8 @@ class CredentialCard(QFrame):
 
         text_layout.addWidget(self.title)
 
-        self.subtitle = QLabel(self.credential.username)
+        self.subtitle = ElidedLabel(self.credential.username)
+        self.subtitle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         self.subtitle.setStyleSheet(f"""
             color: {theme.colors.muted_foreground};
@@ -68,9 +94,7 @@ class CredentialCard(QFrame):
 
         text_layout.addWidget(self.subtitle)
 
-        layout.addLayout(text_layout)
-
-        layout.addStretch()
+        layout.addLayout(text_layout, 1)
 
         self._update_style()
 
@@ -193,7 +217,8 @@ class SecureNoteCard(QFrame):
 
         text_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.title = QLabel(self.note.title)
+        self.title = ElidedLabel(self.note.title)
+        self.title.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         self.title.setStyleSheet(f"""
             color: {theme.colors.foreground};
@@ -207,7 +232,8 @@ class SecureNoteCard(QFrame):
 
         preview = preview.split('\n')[0]
 
-        self.subtitle = QLabel(preview)
+        self.subtitle = ElidedLabel(preview)
+        self.subtitle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         self.subtitle.setStyleSheet(f"""
             color: {theme.colors.muted_foreground};
@@ -216,9 +242,7 @@ class SecureNoteCard(QFrame):
 
         text_layout.addWidget(self.subtitle)
 
-        layout.addLayout(text_layout)
-
-        layout.addStretch()
+        layout.addLayout(text_layout, 1)
 
         self._update_style()
 
@@ -341,7 +365,8 @@ class CreditCardCard(QFrame):
 
         text_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.title = QLabel(self.card.title)
+        self.title = ElidedLabel(self.card.title)
+        self.title.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         self.title.setStyleSheet(f"""
             color: {theme.colors.foreground};
@@ -353,7 +378,8 @@ class CreditCardCard(QFrame):
 
         last_four = self.card.card_number[-4:] if len(self.card.card_number) >= 4 else "****"
 
-        self.subtitle = QLabel(f"•••• {last_four}")
+        self.subtitle = ElidedLabel(f"•••• {last_four}")
+        self.subtitle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         self.subtitle.setStyleSheet(f"""
             color: {theme.colors.muted_foreground};
@@ -362,9 +388,7 @@ class CreditCardCard(QFrame):
 
         text_layout.addWidget(self.subtitle)
 
-        layout.addLayout(text_layout)
-
-        layout.addStretch()
+        layout.addLayout(text_layout, 1)
 
         self._update_style()
 

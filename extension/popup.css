@@ -202,9 +202,11 @@ body {
   max-width: 320px;
 }
 
-.search-container::placeholder {
-  color: var(--vk-text-tertiary);
+.search-container input::placeholder {
+  color: var(--vk-text-primary);
+  opacity: 0.5;
 }
+
 
 .search-icon {
   position: absolute;

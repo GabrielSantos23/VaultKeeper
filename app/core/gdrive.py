@@ -910,6 +910,237 @@ class GoogleDriveManager:
 
         return True
 
+    def merge_vaults(self, vault_path: Path = None, master_password: str = None, 
+                     progress_callback: Optional[Callable[[int, str], None]] = None) -> dict:
+        """
+        Merge local vault with cloud vault intelligently.
+        
+        - Credentials that exist only locally are kept
+        - Credentials that exist only in cloud are added locally
+        - Credentials that exist in both are merged (most recent wins)
+        - After merge, uploads the combined vault to cloud
+        
+        Returns a dict with merge statistics.
+        """
+        import tempfile
+        import sqlite3
+        import shutil
+        from datetime import datetime
+        
+        if vault_path is None:
+            vault_path = Path.home() / '.vaultkeeper' / 'vault.db'
+        
+        stats = {
+            "local_only": 0,
+            "cloud_only": 0,
+            "updated_from_cloud": 0,
+            "updated_from_local": 0,
+            "unchanged": 0,
+            "total_after_merge": 0
+        }
+        
+        def report_progress(percent: int, message: str):
+            if progress_callback:
+                progress_callback(percent, message)
+            print(f"[Merge] {percent}% - {message}")
+        
+        report_progress(5, "Starting merge...")
+        
+        # Step 1: Download cloud vault to temp file
+        temp_dir = Path(tempfile.mkdtemp())
+        cloud_vault_path = temp_dir / "cloud_vault.db"
+        
+        try:
+            report_progress(10, "Downloading vault from cloud...")
+            
+            # Check if cloud vault exists
+            folder_id = self._get_or_create_vault_folder()
+            if not folder_id:
+                raise Exception("Could not access VaultKeeper folder in Google Drive")
+            
+            headers = self._get_headers()
+            query = f"name='vault.db' and '{folder_id}' in parents and trashed=false"
+            params = {"q": query}
+            
+            response = requests.get(f"{GOOGLE_DRIVE_API}/files", headers=headers, params=params)
+            response.raise_for_status()
+            files = response.json().get("files", [])
+            
+            cloud_exists = len(files) > 0
+            local_exists = vault_path.exists()
+            
+            if not cloud_exists and not local_exists:
+                raise Exception("No vault found locally or in cloud")
+            
+            if not cloud_exists:
+                # Only local vault exists - just upload it
+                report_progress(50, "No cloud vault found. Uploading local vault...")
+                self.upload_vault(vault_path)
+                stats["local_only"] = -1  # Signal that we only uploaded
+                report_progress(100, "Upload complete!")
+                return stats
+            
+            if not local_exists:
+                # Only cloud vault exists - just download it
+                report_progress(50, "No local vault found. Downloading cloud vault...")
+                self.download_vault(vault_path)
+                stats["cloud_only"] = -1  # Signal that we only downloaded
+                report_progress(100, "Download complete!")
+                return stats
+            
+            # Both exist - need to merge
+            report_progress(20, "Downloading cloud vault for merge...")
+            
+            file_id = files[0]["id"]
+            response = requests.get(
+                f"{GOOGLE_DRIVE_API}/files/{file_id}?alt=media",
+                headers=headers
+            )
+            response.raise_for_status()
+            
+            with open(cloud_vault_path, "wb") as f:
+                f.write(response.content)
+            
+            report_progress(30, "Reading credentials from both vaults...")
+            
+            # Step 2: Read credentials from both vaults
+            def read_credentials_raw(db_path: Path) -> list:
+                """Read raw encrypted credentials from database."""
+                with sqlite3.connect(db_path) as conn:
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+                    cursor.execute('SELECT * FROM vault ORDER BY id')
+                    return [dict(row) for row in cursor.fetchall()]
+            
+            def read_folders_raw(db_path: Path) -> list:
+                """Read folders from database."""
+                with sqlite3.connect(db_path) as conn:
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+                    try:
+                        cursor.execute('SELECT * FROM folders ORDER BY id')
+                        return [dict(row) for row in cursor.fetchall()]
+                    except sqlite3.OperationalError:
+                        return []
+            
+            local_creds = read_credentials_raw(vault_path)
+            cloud_creds = read_credentials_raw(cloud_vault_path)
+            local_folders = read_folders_raw(vault_path)
+            cloud_folders = read_folders_raw(cloud_vault_path)
+            
+            report_progress(40, f"Found {len(local_creds)} local and {len(cloud_creds)} cloud credentials...")
+            
+            # Step 3: Create merge key (domain + username + encrypted password as unique identifier)
+            # We'll use domain + username as the key since password is encrypted differently
+            def get_merge_key(cred: dict) -> str:
+                return f"{cred.get('domain', '')}|{cred.get('username', '')}"
+            
+            # Index credentials by merge key
+            local_by_key = {get_merge_key(c): c for c in local_creds}
+            cloud_by_key = {get_merge_key(c): c for c in cloud_creds}
+            
+            # Step 4: Merge credentials
+            merged_creds = []
+            
+            # Process all unique keys
+            all_keys = set(local_by_key.keys()) | set(cloud_by_key.keys())
+            
+            for key in all_keys:
+                local_cred = local_by_key.get(key)
+                cloud_cred = cloud_by_key.get(key)
+                
+                if local_cred and not cloud_cred:
+                    # Only in local
+                    merged_creds.append(local_cred)
+                    stats["local_only"] += 1
+                elif cloud_cred and not local_cred:
+                    # Only in cloud
+                    merged_creds.append(cloud_cred)
+                    stats["cloud_only"] += 1
+                else:
+                    # In both - compare updated_at timestamps
+                    local_time = local_cred.get('updated_at') or local_cred.get('created_at') or ''
+                    cloud_time = cloud_cred.get('updated_at') or cloud_cred.get('created_at') or ''
+                    
+                    if local_time >= cloud_time:
+                        merged_creds.append(local_cred)
+                        if local_time > cloud_time:
+                            stats["updated_from_local"] += 1
+                        else:
+                            stats["unchanged"] += 1
+                    else:
+                        merged_creds.append(cloud_cred)
+                        stats["updated_from_cloud"] += 1
+            
+            stats["total_after_merge"] = len(merged_creds)
+            
+            report_progress(60, f"Merged to {len(merged_creds)} credentials. Updating local vault...")
+            
+            # Step 5: Backup local vault
+            backup_path = vault_path.with_suffix('.pre_merge.backup')
+            shutil.copy2(vault_path, backup_path)
+            
+            # Step 6: Clear local vault and insert merged credentials
+            with sqlite3.connect(vault_path) as conn:
+                cursor = conn.cursor()
+                
+                # Clear existing credentials
+                cursor.execute('DELETE FROM vault')
+                
+                # Insert merged credentials
+                for cred in merged_creds:
+                    cursor.execute('''
+                        INSERT INTO vault (domain, username, password, notes, totp_secret, 
+                                          backup_codes, is_favorite, folder_id, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        cred.get('domain'),
+                        cred.get('username'),
+                        cred.get('password'),
+                        cred.get('notes'),
+                        cred.get('totp_secret'),
+                        cred.get('backup_codes'),
+                        cred.get('is_favorite', 0),
+                        cred.get('folder_id'),
+                        cred.get('created_at'),
+                        cred.get('updated_at')
+                    ))
+                
+                # Merge folders too
+                existing_folder_names = set()
+                cursor.execute('SELECT name FROM folders')
+                for row in cursor.fetchall():
+                    existing_folder_names.add(row[0])
+                
+                for folder in cloud_folders:
+                    if folder.get('name') not in existing_folder_names:
+                        cursor.execute('''
+                            INSERT INTO folders (name, icon, created_at)
+                            VALUES (?, ?, ?)
+                        ''', (
+                            folder.get('name'),
+                            folder.get('icon', 'folder'),
+                            folder.get('created_at')
+                        ))
+                
+                conn.commit()
+            
+            report_progress(80, "Uploading merged vault to cloud...")
+            
+            # Step 7: Upload merged vault to cloud
+            self.upload_vault(vault_path)
+            
+            report_progress(100, "Merge complete!")
+            
+            return stats
+            
+        finally:
+            # Cleanup temp directory
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
+
 _gdrive_manager: Optional[GoogleDriveManager] = None
 
 def get_gdrive_manager() -> GoogleDriveManager:
