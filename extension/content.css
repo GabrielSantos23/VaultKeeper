@@ -1,11 +1,3 @@
-/* VaultKeeper Content Script Styles
-   These styles are scoped to VaultKeeper elements only
-   Variables are defined in variables.css which is loaded before this file */
-
-/* ================================
-   Save Prompt
-   ================================ */
-
 #vaultkeeper-save-prompt {
   position: fixed;
   top: 0;
@@ -195,7 +187,6 @@
   background: var(--vk-bg-hover);
 }
 
-/* Unlock Form Section */
 #vaultkeeper-save-prompt .vk-unlock-section {
   margin-bottom: 16px;
 }
@@ -250,7 +241,6 @@
   display: none;
 }
 
-/* Legacy Unlock Form (keeping for backwards compatibility) */
 #vaultkeeper-save-prompt .vk-unlock-form {
   margin-top: 16px;
 }
@@ -285,10 +275,6 @@
   color: var(--vk-accent-red);
   font-size: 13px;
 }
-
-/* ================================
-   Notification
-   ================================ */
 
 #vaultkeeper-notification {
   position: fixed;
@@ -344,10 +330,6 @@
   filter: brightness(0) invert(1);
 }
 
-/* ================================
-   VaultKeeper Field Icon
-   ================================ */
-
 .vaultkeeper-field-icon {
   position: absolute;
   right: 8px;
@@ -381,14 +363,96 @@
   color: var(--vk-accent-blue);
 }
 
-/* Notification fade-out animation */
 #vaultkeeper-notification.fade-out {
   animation: vk-notif-out 0.3s ease forwards;
 }
 
-/* SVG icon styling in prompt header */
 #vaultkeeper-save-prompt .vk-prompt-icon svg {
   width: 20px;
   height: 20px;
   stroke: white;
+}
+
+.vk-autofill-dropdown {
+  position: absolute;
+  z-index: 2147483647;
+  width: 300px;
+  background: var(--vk-bg-primary);
+  border: 1px solid var(--vk-border-color);
+  border-radius: var(--vk-radius-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: vk-slide-in 0.2s ease;
+  margin-top: 8px;
+}
+
+.vk-autofill-header {
+  padding: 8px 12px;
+  background: var(--vk-bg-secondary);
+  border-bottom: 1px solid var(--vk-border-light);
+  font-size: 11px;
+  color: var(--vk-text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vk-autofill-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--vk-border-light);
+  transition: background 0.1s;
+}
+
+.vk-autofill-item:last-child {
+  border-bottom: none;
+}
+
+.vk-autofill-item:hover {
+  background: var(--vk-bg-hover);
+}
+
+.vk-autofill-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--vk-bg-tertiary);
+  border-radius: var(--vk-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.vk-autofill-icon span {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vk-text-primary);
+}
+
+.vk-autofill-text {
+  flex: 1;
+  overflow: hidden;
+}
+
+.vk-autofill-title {
+  font-size: 14px;
+  color: var(--vk-text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vk-autofill-subtitle {
+  font-size: 12px;
+  color: var(--vk-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
 }

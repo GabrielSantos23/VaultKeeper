@@ -1,0 +1,37 @@
+# Changelog - Secure Note & UI Overhaul
+
+## New Features
+### Secure Note Editor (`app/ui/secure_note_dialog.py`)
+- **Rich Text Support:** Implemented a full rich text editor supports:
+  - **Bold** (Ctrl+B), *Italic* (Ctrl+I), _Underline_ (Ctrl+U)
+  - `Inline Code` (Ctrl+`) with syntax highlighting
+  - Headings (H1, H2, H3) via shortcuts (Ctrl+1/2/3) or markdown syntax (#)
+  - Bullet (-) and Numbered (1.) lists
+- **Markdown-like Editing:** Auto-formatting for markdown symbols while typing.
+- **Link Insertion:** New dialog for inserting hyperlinks with custom text and URLs.
+- **Attachments:** Added UI support for attaching files to notes.
+- **Folder Selection:** Integrated folder selection dropdown.
+- **Validation:** Added validation to ensure Title and Content are present before saving.
+
+## UI/UX Improvements
+### General
+- **Dialogs:** Standardized modern layout for "Add New Item", "Credit Card", and "Secure Note" dialogs.
+- **Icons:** Switched to SVG icons for better scalability and styling control.
+- **Theme:** Improved dark mode consistency across dialogs and menus.
+
+### Specific Components
+- **Secure Note Dialog:**
+  - Redesigned with a 2-column layout (Editor on left, Properties on right).
+  - Custom toolbar with centralized formatting buttons.
+  - Interactive styling for active format states (buttons highlight when active).
+- **Google Drive Sync:** Updated sync icon to `cloud_lock` and improved spacing.
+- **Credit Card Dialog:** Refined card preview styling (removed borders from transparent fields).
+- **Context Menus:** Added icons and improved styling for item detail actions (e.g., Favorites).
+- **Settings:** Fixed ComboBox arrow icon color for dark mode.
+
+## Bug Fixes
+- **Crashes:** Fixed application crash when toggling formatting (Code/Bold) or typing rapidly in the rich text editor.
+- **Formatting:** Fixed issue where formatting wasn't applied when typing in a new/empty line.
+- **Layout:** Fixed Link Dialog height and Toolbar alignment issues.
+- **Code Highlighting:** Fixed crash related to font family lookups in code blocks.
+- **Recursion:** Prevented recursive signal loops during text formatting.

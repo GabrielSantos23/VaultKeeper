@@ -1,7 +1,3 @@
-/**
- * VaultKeeper - Password Strength Evaluator
- * JavaScript implementation of app/core/password_strength.py
- */
 
 const COMMON_PASSWORDS = new Set([
   "password",
@@ -133,8 +129,6 @@ function analyzePassword(password) {
 
   let score = 0;
   let feedback = [];
-
-  // Length scoring
   const length = password.length;
   if (length < 6) {
     score += 5;
@@ -150,8 +144,6 @@ function analyzePassword(password) {
   } else {
     score += 30;
   }
-
-  // Character variety
   const hasLower = hasLowercase(password);
   const hasUpper = hasUppercase(password);
   const hasDigit = hasDigits(password);
@@ -166,8 +158,6 @@ function analyzePassword(password) {
   if (!hasUpper) feedback.push("Add uppercase letters");
   if (!hasDigit) feedback.push("Add numbers");
   if (!hasSpecial) feedback.push("Add special characters");
-
-  // Penalties
   if (isCommonPassword(password)) {
     score -= 30;
     feedback.unshift("Avoid common passwords");
@@ -187,15 +177,9 @@ function analyzePassword(password) {
     score -= 10;
     feedback.push("Avoid keyboard patterns");
   }
-
-  // Entropy bonus
   const entropyBonus = calculateEntropyScore(password) * 0.2;
   score += Math.floor(entropyBonus);
-
-  // Clamp score
   score = Math.max(0, Math.min(100, score));
-
-  // Determine strength
   let strength, label, color;
 
   if (score < 30) {
@@ -205,11 +189,11 @@ function analyzePassword(password) {
   } else if (score < 50) {
     strength = PasswordStrength.FAIR;
     label = "Fair";
-    color = "var(--vk-accent-warning)"; // Orange equivalent
+    color = "var(--vk-accent-warning)";
   } else if (score < 75) {
     strength = PasswordStrength.GOOD;
     label = "Good";
-    color = "#eab308"; // Yellow equivalent, can use var if defined
+    color = "#eab308";
   } else {
     strength = PasswordStrength.STRONG;
     label = "Fantastic";

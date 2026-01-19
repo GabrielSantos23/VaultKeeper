@@ -43,16 +43,12 @@ const credUsername = document.getElementById("cred-username");
 const credPassword = document.getElementById("cred-password");
 const credNotes = document.getElementById("cred-notes");
 const strengthBadge = document.querySelector(".strength-badge");
-
-// TOTP elements and state
 const totpFieldGroup = document.getElementById("totp-field-group");
 const totpCodeElement = document.getElementById("detail-totp-code");
 const totpCountdownElement = document.getElementById("detail-totp-countdown");
 const totpProgressCircle = document.getElementById("totp-progress-circle");
 let totpUpdateInterval = null;
 let currentTotpCredentialId = null;
-
-// Backup codes elements and state
 const backupFieldGroup = document.getElementById("backup-field-group");
 const backupCodesElement = document.getElementById("detail-backup-codes");
 const toggleBackupBtn = document.getElementById("toggle-backup");
@@ -91,8 +87,6 @@ async function checkStatus() {
       showView("disconnected-view");
       return;
     }
-
-    // Stop checking if we are connected and good
     if (checkInterval && (response.unlocked || !response.first_run)) {
       clearInterval(checkInterval);
       checkInterval = null;
@@ -100,8 +94,6 @@ async function checkStatus() {
 
     if (response.first_run) {
       showView("setup-view");
-
-      // Start polling if not already polling
       if (!checkInterval) {
         checkInterval = setInterval(checkStatus, 2000);
       }
@@ -249,8 +241,6 @@ function createCredentialItem(cred) {
   }
 
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${cred.domain}&sz=32`;
-
-  // Create favicon with proper fallback
   const faviconDiv = document.createElement("div");
   faviconDiv.className = "credential-favicon";
   const faviconImg = document.createElement("img");
@@ -304,8 +294,6 @@ function selectCredential(cred) {
 
   emptyState.classList.add("hidden");
   detailContent.classList.remove("hidden");
-
-  // Create favicon with proper fallback
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${cred.domain}&sz=64`;
   detailFavicon.innerHTML = "";
   const faviconImg = document.createElement("img");
@@ -324,8 +312,6 @@ function selectCredential(cred) {
   detailTitle.textContent = getDomainDisplay(cred.domain);
   detailUsername.textContent = cred.username;
   detailPassword.textContent = "••••••••••";
-
-  // Update strength badge
   const password = actualPasswords[cred.id] || "";
   updateStrengthBadge(password);
   detailPassword.classList.add("password-masked");
@@ -337,8 +323,6 @@ function selectCredential(cred) {
   }
   detailUrl.textContent = url;
   detailUrl.href = url;
-
-  // Handle TOTP display
   if (cred.totp_secret && totpFieldGroup) {
     totpFieldGroup.classList.remove("hidden");
     currentTotpCredentialId = cred.id;
@@ -348,8 +332,6 @@ function selectCredential(cred) {
     stopTotpUpdates();
     currentTotpCredentialId = null;
   }
-
-  // Handle backup codes display
   if (cred.backup_codes && backupFieldGroup) {
     backupFieldGroup.classList.remove("hidden");
     backupCodesVisible = false;
@@ -411,7 +393,7 @@ async function copyToClipboard(type) {
       text = selectedCredential.domain;
       break;
     case "totp":
-      // Get fresh TOTP code from native host
+
       try {
         const response = await sendMessage({
           action: "get_totp",
@@ -439,7 +421,6 @@ async function copyToClipboard(type) {
 
     const btn = document.querySelector(`[data-copy="${type}"]`);
     if (btn) {
-      // Clone original children deeply to restore later
       const originalChildren = Array.from(btn.childNodes).map((node) =>
         node.cloneNode(true),
       );
@@ -464,15 +445,9 @@ async function copyToClipboard(type) {
     }
   } catch (error) {}
 }
-
-// TOTP Update Functions
 function startTotpUpdates(credentialId) {
   stopTotpUpdates();
-
-  // Update immediately
   updateTotpDisplay(credentialId);
-
-  // Then update every second
   totpUpdateInterval = setInterval(() => {
     updateTotpDisplay(credentialId);
   }, 1000);
@@ -497,21 +472,15 @@ async function updateTotpDisplay(credentialId) {
     if (response.success) {
       const code = response.code;
       const remaining = response.remaining_seconds;
-
-      // Format code with space in middle (e.g., "123 456")
       const formattedCode =
         code.length === 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
       totpCodeElement.textContent = formattedCode;
       totpCountdownElement.textContent = `${remaining}s`;
-
-      // Update progress ring
-      const circumference = 2 * Math.PI * 10; // r=10
+      const circumference = 2 * Math.PI * 10;
       const progress = remaining / 30;
       const offset = circumference * (1 - progress);
       totpProgressCircle.style.strokeDasharray = circumference;
       totpProgressCircle.style.strokeDashoffset = offset;
-
-      // Update classes based on time remaining
       if (remaining <= 5) {
         totpCodeElement.classList.add("expiring");
         totpCountdownElement.classList.add("expiring");
@@ -542,8 +511,6 @@ async function updateTotpDisplay(credentialId) {
 function updateCredentialCount() {
   credentialCount.textContent = currentCredentials.length;
 }
-
-// Toggle backup codes visibility
 function toggleBackupVisibility() {
   if (!selectedCredential || !backupCodesElement) return;
 
@@ -619,19 +586,17 @@ function updateStrengthBadge(password) {
   if (!password) {
     strengthBadge.textContent = "Empty";
     strengthBadge.className = "strength-badge";
-    strengthBadge.style.backgroundColor = "#d1d5db"; // gray-300
-    strengthBadge.style.color = "#374151"; // gray-700
+    strengthBadge.style.backgroundColor = "#d1d5db";
+    strengthBadge.style.color = "#374151";
     return;
   }
 
   const analysis = analyzePassword(password);
 
   strengthBadge.textContent = analysis.label;
-  strengthBadge.className = "strength-badge"; // reset classes
+  strengthBadge.className = "strength-badge";
   strengthBadge.style.backgroundColor = analysis.color;
-  strengthBadge.style.color = "#fff"; // White text for colored badges
-
-  // Add specific class based on label for potential CSS styling
+  strengthBadge.style.color = "#fff";
   strengthBadge.classList.add(analysis.label.toLowerCase());
 }
 
@@ -639,8 +604,6 @@ function generatePassword() {
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
   const length = 16;
-
-  // Use crypto.getRandomValues for cryptographically secure random numbers
   const randomValues = new Uint32Array(length);
   crypto.getRandomValues(randomValues);
 
@@ -705,13 +668,10 @@ generateBtn.addEventListener("click", generatePassword);
 toggleBtn.addEventListener("click", toggleModalPassword);
 
 modal.querySelector(".modal-backdrop").addEventListener("click", closeModal);
-
-// Menu button (3 dots) functionality
 const menuBtn = document.getElementById("menu-btn");
 let activeDropdown = null;
 
 function createDropdownMenu() {
-  // Remove existing dropdown if any
   const existing = document.querySelector(".vk-dropdown-menu");
   if (existing) existing.remove();
 
@@ -748,21 +708,15 @@ function showDropdownMenu(e) {
   e.stopPropagation();
 
   if (!selectedCredential) return;
-
-  // Close existing dropdown
   closeDropdownMenu();
 
   const dropdown = createDropdownMenu();
   document.body.appendChild(dropdown);
   activeDropdown = dropdown;
-
-  // Position dropdown
   const btnRect = menuBtn.getBoundingClientRect();
   dropdown.style.position = "fixed";
   dropdown.style.top = `${btnRect.bottom + 4}px`;
   dropdown.style.right = `${window.innerWidth - btnRect.right}px`;
-
-  // Add click handlers
   dropdown.querySelectorAll(".vk-dropdown-item").forEach((item) => {
     item.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -770,8 +724,6 @@ function showDropdownMenu(e) {
       closeDropdownMenu();
     });
   });
-
-  // Close on click outside
   setTimeout(() => {
     document.addEventListener("click", closeDropdownMenu, { once: true });
   }, 0);
@@ -808,8 +760,6 @@ function openEditModal(cred) {
   credNotes.value = cred.notes || "";
 
   updateStrengthBadge(credPassword.value);
-
-  // Store the editing credential ID
   credentialForm.dataset.editId = cred.id;
 
   modal.classList.remove("hidden");
@@ -819,11 +769,8 @@ async function toggleFavorite(id) {
   try {
     const response = await sendMessage({ action: "toggle_favorite", id });
     if (response.success) {
-      // Find the credential to check new state
       const cred = credentials.find((c) => c.id === id);
       const newState = cred ? !cred.is_favorite : true;
-
-      // Show feedback notification
       showPopupNotification(
         newState ? "Added to favorites" : "Removed from favorites",
         "success",
@@ -835,10 +782,7 @@ async function toggleFavorite(id) {
     showPopupNotification("Failed to update favorite", "error");
   }
 }
-
-// Show notification in popup
 function showPopupNotification(message, type = "success") {
-  // Remove existing notification
   const existing = document.querySelector(".popup-notification");
   if (existing) existing.remove();
 
@@ -880,8 +824,6 @@ function showPopupNotification(message, type = "success") {
   notification.appendChild(msgSpan);
 
   document.body.appendChild(notification);
-
-  // Auto remove after 2 seconds
   setTimeout(() => {
     notification.classList.add("fade-out");
     setTimeout(() => notification.remove(), 300);
@@ -904,8 +846,6 @@ async function deleteCredential(id) {
     showPopupNotification("Failed to delete credential", "error");
   }
 }
-
-// Update saveCredential to handle edit mode
 const originalSaveCredential = saveCredential;
 async function saveCredentialWithEdit(e) {
   e.preventDefault();
@@ -926,14 +866,12 @@ async function saveCredentialWithEdit(e) {
   try {
     let response;
     if (editId) {
-      // Update existing
       response = await sendMessage({
         action: "update_credentials",
         id: parseInt(editId),
         ...data,
       });
     } else {
-      // Create new
       response = await sendMessage({
         action: "save_credentials",
         ...data,
@@ -951,16 +889,12 @@ async function saveCredentialWithEdit(e) {
     alert("Error saving credential");
   }
 }
-
-// Override the form submit handler
 credentialForm.removeEventListener("submit", saveCredential);
 credentialForm.addEventListener("submit", saveCredentialWithEdit);
 
 credPassword.addEventListener("input", (e) => {
   updateStrengthBadge(e.target.value);
 });
-
-// Add menu button listener
 menuBtn.addEventListener("click", showDropdownMenu);
 
 document.addEventListener("DOMContentLoaded", checkStatus);

@@ -31,8 +31,6 @@ const PASSWORD_SELECTORS = [
   'input[autocomplete="current-password"]',
   'input[autocomplete="new-password"]',
 ];
-
-// Security: HTML escape function to prevent XSS
 function escapeHtml(text) {
   if (text === null || text === undefined) return "";
   const div = document.createElement("div");
@@ -40,23 +38,14 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// === MULTI-STEP LOGIN SUPPORT ===
-
-/**
- * Get the base domain for storage key (handles subdomains)
- */
 function getBaseDomain() {
   const parts = currentDomain.split(".");
   if (parts.length > 2) {
-    // Handle cases like accounts.firefox.com -> firefox.com
     return parts.slice(-2).join(".");
   }
   return currentDomain;
 }
 
-/**
- * Store username for multi-step login
- */
 function storeMultiStepUsername(username) {
   if (!username) return;
   const key = MULTISTEP_STORAGE_KEY + getBaseDomain();
@@ -68,9 +57,6 @@ function storeMultiStepUsername(username) {
   sessionStorage.setItem(key, JSON.stringify(data));
 }
 
-/**
- * Retrieve username from previous step (valid for 5 minutes)
- */
 function getMultiStepUsername() {
   const key = MULTISTEP_STORAGE_KEY + getBaseDomain();
   try {
@@ -79,8 +65,6 @@ function getMultiStepUsername() {
 
     const data = JSON.parse(stored);
     const age = Date.now() - data.timestamp;
-
-    // Valid for 5 minutes
     if (age > 5 * 60 * 1000) {
       sessionStorage.removeItem(key);
       return null;
@@ -92,17 +76,11 @@ function getMultiStepUsername() {
   }
 }
 
-/**
- * Clear stored multi-step username
- */
 function clearMultiStepUsername() {
   const key = MULTISTEP_STORAGE_KEY + getBaseDomain();
   sessionStorage.removeItem(key);
 }
 
-/**
- * Store pending credentials for persistence across navigations
- */
 function storePendingCredentials(
   credentials,
   isUpdate = false,
@@ -117,9 +95,6 @@ function storePendingCredentials(
   sessionStorage.setItem(PENDING_CREDENTIALS_KEY, JSON.stringify(data));
 }
 
-/**
- * Retrieve pending credentials (valid for 30 seconds)
- */
 function getPendingCredentials() {
   try {
     const stored = sessionStorage.getItem(PENDING_CREDENTIALS_KEY);
@@ -127,8 +102,6 @@ function getPendingCredentials() {
 
     const data = JSON.parse(stored);
     const age = Date.now() - data.timestamp;
-
-    // Valid for 30 seconds
     if (age > 30 * 1000) {
       clearPendingCredentials();
       return null;
@@ -140,16 +113,10 @@ function getPendingCredentials() {
   }
 }
 
-/**
- * Clear stored pending credentials
- */
 function clearPendingCredentials() {
   sessionStorage.removeItem(PENDING_CREDENTIALS_KEY);
 }
 
-/**
- * Check if a credential with the same username already exists for this domain
- */
 async function checkExistingCredential(domain, username) {
   return new Promise((resolve) => {
     browserAPI.runtime.sendMessage(
@@ -159,7 +126,6 @@ async function checkExistingCredential(domain, username) {
       },
       (response) => {
         if (response && response.success && response.credentials) {
-          // Find a credential with the same username
           const existing = response.credentials.find(
             (cred) => cred.username.toLowerCase() === username.toLowerCase(),
           );
@@ -172,10 +138,6 @@ async function checkExistingCredential(domain, username) {
   });
 }
 
-/**
- * Detect login fields - supports both full forms and multi-step login
- * Returns fields even if only username OR only password is found
- */
 function detectLoginFields() {
   const fields = {
     username: null,
@@ -183,8 +145,6 @@ function detectLoginFields() {
     form: null,
     isMultiStep: false,
   };
-
-  // First, try to find a password field
   for (const selector of PASSWORD_SELECTORS) {
     const passwordFields = document.querySelectorAll(selector);
     for (const field of passwordFields) {
@@ -196,8 +156,6 @@ function detectLoginFields() {
     }
     if (fields.password) break;
   }
-
-  // Search for username field
   const searchContainer = fields.form || document;
 
   for (const selector of USERNAME_SELECTORS) {
@@ -205,8 +163,6 @@ function detectLoginFields() {
     for (const candidate of candidates) {
       if (!isVisible(candidate)) continue;
       if (candidate === fields.password) continue;
-
-      // If we have a password field, prefer username that comes before it
       if (fields.password) {
         if (
           fields.password.compareDocumentPosition(candidate) &
@@ -223,18 +179,12 @@ function detectLoginFields() {
     }
     if (fields.username) break;
   }
-
-  // Determine if this is a multi-step login scenario
   if (fields.password && !fields.username) {
-    // Password field visible but no username - likely step 2 of multi-step login
     fields.isMultiStep = true;
   } else if (fields.username && !fields.password) {
-    // Only username visible - likely step 1 of multi-step login
     fields.isMultiStep = true;
     fields.form = fields.username.closest("form");
   }
-
-  // Return fields if we have at least one field
   if (fields.username || fields.password) {
     return fields;
   }
@@ -268,25 +218,18 @@ function fillCredentials(username, password) {
   }
 
   let filled = false;
-
-  // Multi-step login: only username field visible
   if (detectedFields.username && !detectedFields.password) {
     if (username) {
       setFieldValue(detectedFields.username, username);
-      // Store username for the password step
       storeMultiStepUsername(username);
       filled = true;
     }
-  }
-  // Multi-step login: only password field visible
-  else if (detectedFields.password && !detectedFields.username) {
+  } else if (detectedFields.password && !detectedFields.username) {
     if (password) {
       setFieldValue(detectedFields.password, password);
       filled = true;
     }
-  }
-  // Traditional login: both fields visible
-  else {
+  } else {
     if (detectedFields.username && username) {
       setFieldValue(detectedFields.username, username);
       filled = true;
@@ -323,8 +266,6 @@ function setFieldValue(field, value) {
 
 function captureCredentials(form) {
   const passwordField = form.querySelector('input[type="password"]');
-
-  // Try to find username in the current form
   let username = "";
   for (const selector of USERNAME_SELECTORS) {
     const field = form.querySelector(selector);
@@ -333,23 +274,18 @@ function captureCredentials(form) {
       break;
     }
   }
-
-  // CASE 1: Standard login - both username and password in the form
   if (passwordField && passwordField.value && username) {
-    clearMultiStepUsername(); // Clear any stored username
+    clearMultiStepUsername();
     return {
       domain: currentDomain,
       username: username,
       password: passwordField.value,
     };
   }
-
-  // CASE 2: Multi-step login - password step (no username in form)
   if (passwordField && passwordField.value && !username) {
-    // Try to get username from previous step
     const storedUsername = getMultiStepUsername();
     if (storedUsername) {
-      clearMultiStepUsername(); // Clear after use
+      clearMultiStepUsername();
       return {
         domain: currentDomain,
         username: storedUsername,
@@ -357,19 +293,14 @@ function captureCredentials(form) {
       };
     }
   }
-
-  // CASE 3: Multi-step login - username step (store for later)
   if (!passwordField && username) {
     storeMultiStepUsername(username);
-    return null; // Don't prompt yet, wait for password
+    return null;
   }
 
   return null;
 }
 
-/**
- * Capture username from any visible input field (for multi-step detection)
- */
 function captureVisibleUsername() {
   for (const selector of USERNAME_SELECTORS) {
     const fields = document.querySelectorAll(selector);
@@ -382,7 +313,11 @@ function captureVisibleUsername() {
   return null;
 }
 
-function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
+function createSavePrompt(
+  isUpdateMode = false,
+  showUnlockForm = false,
+  unlockContext = "save",
+) {
   const existing = document.getElementById("vaultkeeper-save-prompt");
   if (existing) existing.remove();
 
@@ -395,8 +330,6 @@ function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
 
   const container = document.createElement("div");
   container.className = "vk-prompt-container";
-
-  // Header
   const header = document.createElement("div");
   header.className = "vk-prompt-header";
 
@@ -438,8 +371,6 @@ function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
   header.appendChild(closeBtn);
 
   container.appendChild(header);
-
-  // Body
   const body = document.createElement("div");
   body.className = "vk-prompt-body";
 
@@ -461,7 +392,10 @@ function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
 
     const pUnlock = document.createElement("p");
     pUnlock.className = "vk-unlock-message";
-    pUnlock.textContent = "Enter your master password to save credentials";
+    pUnlock.textContent =
+      unlockContext === "fill"
+        ? "Enter your master password to access credentials"
+        : "Enter your master password to save credentials";
     unlockSection.appendChild(pUnlock);
 
     const inputGroup = document.createElement("div");
@@ -508,8 +442,6 @@ function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
   }
 
   container.appendChild(body);
-
-  // Actions
   const actions = document.createElement("div");
   actions.className = "vk-prompt-actions";
 
@@ -524,7 +456,8 @@ function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
     const unlockActionBtn = document.createElement("button");
     unlockActionBtn.className = "vk-btn vk-btn-primary";
     unlockActionBtn.id = "vk-unlock";
-    unlockActionBtn.textContent = "Unlock & Save";
+    unlockActionBtn.textContent =
+      unlockContext === "fill" ? "Unlock & Fill" : "Unlock & Save";
     actions.appendChild(unlockActionBtn);
   } else {
     if (!isUpdateMode) {
@@ -546,64 +479,6 @@ function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
     actions.appendChild(saveBtn);
   }
 
-  actions.appendChild(cancelBtn);
-  // Wait, I appended cancelBtn twice above in the logic, or correctly?
-  // Logic:
-  // if showUnlockForm: append cancel, append unlock.
-  // else: if !update: append never. else: append cancel. THEN append save.
-  // Wait, if !update, I append never, but where is cancel?
-  // looking at original code:
-  // ${showNeverButton ? '<button...never...' : '<button...cancel...'}
-  // So if not update and not unlock (save mode), it shows "Never", no Cancel?
-  // Or "Never" IS the secondary action.
-  // Let's re-read original actionsHtml logic:
-  // if (showUnlockForm) { ... cancel, unlock ... }
-  // else { ... (showNever ? never : cancel) ... save ... }
-  // showNeverButton = !isUpdateMode && !showUnlockForm.
-  // So:
-  // 1. showUnlockForm: Cancel, Unlock.
-  // 2. !showUnlockForm && !isUpdateMode (Save new): Never, Save.
-  // 3. !showUnlockForm && isUpdateMode (Update): Cancel, Save.
-
-  // My Logic above:
-  // if showUnlockForm: cancel, unlock. Correct.
-  // else:
-  //    if !isUpdateMode: never. (Missing Cancel?) Original didn't have Cancel if Never was shown.
-  //    else: cancel.
-  //    save.
-  // Correct.
-
-  // Correction in my manual trace above: "actions.appendChild(cancelBtn);" at the end is WRONG.
-  // It's already appended inside the blocks.
-
-  // Let me fix the logic in the replacement string.
-
-  // Re-verify logic.
-  // ...
-  //   if (showUnlockForm) {
-  //       cancelBtn.id = "vk-cancel";
-  //       cancelBtn.textContent = "Cancel";
-  //       actions.appendChild(cancelBtn);
-  //
-  //       const unlockActionBtn = ...
-  //       actions.appendChild(unlockActionBtn);
-  //   } else {
-  //       if (!isUpdateMode) { // Save mode
-  //           const neverBtn = document.createElement("button");
-  //           neverBtn.className = "vk-btn vk-btn-secondary";
-  //           neverBtn.id = "vk-never";
-  //           neverBtn.textContent = "Never for this site";
-  //           actions.appendChild(neverBtn);
-  //       } else { // Update mode
-  //           cancelBtn.id = "vk-cancel";
-  //           cancelBtn.textContent = "Cancel";
-  //           actions.appendChild(cancelBtn);
-  //       }
-  //
-  //       const saveBtn = ...
-  //       actions.appendChild(saveBtn);
-  //   }
-
   container.appendChild(actions);
   prompt.appendChild(container);
 
@@ -614,8 +489,6 @@ function createSavePrompt(isUpdateMode = false, showUnlockForm = false) {
 
 async function showSavePrompt(credentials) {
   if (savePromptShown) return;
-
-  // Check if a credential with the same username already exists for this domain
   const existingCred = await checkExistingCredential(
     credentials.domain,
     credentials.username,
@@ -624,20 +497,15 @@ async function showSavePrompt(credentials) {
   let isUpdateMode = false;
 
   if (existingCred) {
-    // Check if password is different
     if (existingCred.password === credentials.password) {
-      // Same password, no need to prompt
       return;
     }
-    // Different password, prompt to update
     isUpdateMode = true;
     existingCredentialId = existingCred.id;
   }
 
   savePromptShown = true;
   pendingCredentials = credentials;
-
-  // Store for persistence across navigations
   storePendingCredentials(credentials, isUpdateMode, existingCredentialId);
 
   displaySavePrompt(credentials, isUpdateMode);
@@ -648,8 +516,6 @@ function displaySavePrompt(credentials, isUpdateMode = false) {
 
   document.getElementById("vk-domain").textContent = credentials.domain;
   document.getElementById("vk-username").textContent = credentials.username;
-
-  // Set up 30-second auto-dismiss timeout
   if (promptTimeoutId) {
     clearTimeout(promptTimeoutId);
   }
@@ -684,13 +550,9 @@ function displaySavePrompt(credentials, isUpdateMode = false) {
   }
 
   document.getElementById("vk-close").addEventListener("click", hidePrompt);
-
-  // Note: Overlay click no longer closes the prompt
-  // This prevents accidental dismissal during page navigation
 }
 
 function hidePrompt() {
-  // Clear the timeout
   if (promptTimeoutId) {
     clearTimeout(promptTimeoutId);
     promptTimeoutId = null;
@@ -704,8 +566,6 @@ function hidePrompt() {
   savePromptShown = false;
   pendingCredentials = null;
   existingCredentialId = null;
-
-  // Clear stored pending credentials
   clearPendingCredentials();
 }
 
@@ -717,8 +577,6 @@ async function saveCredentials(credentials) {
       username: credentials.username,
       password: credentials.password,
     });
-
-    // Check for success - handle various response formats
     if (response && response.success === true) {
       showNotification("Password saved!", "success");
     } else if (
@@ -727,17 +585,13 @@ async function saveCredentials(credentials) {
         response.error?.includes("locked") ||
         response.error?.includes("Vault"))
     ) {
-      // Vault is locked - show unlock form
       showUnlockPrompt(credentials, false);
     } else if (!response) {
-      // No response - could be a connection issue
       showNotification("Connection error", "error");
     } else {
-      // Explicit failure
       showNotification(response.error || "Failed to save password", "error");
     }
   } catch (error) {
-    // Check if it's a locked vault error
     if (error.message?.includes("locked") || error.message?.includes("Vault")) {
       showUnlockPrompt(credentials, false);
     } else {
@@ -764,13 +618,11 @@ async function updateCredentials(credentials, id) {
         response.error?.includes("locked") ||
         response.error?.includes("Vault"))
     ) {
-      // Vault is locked - show unlock form
       showUnlockPrompt(credentials, true, id);
     } else {
       showNotification("Failed to update password", "error");
     }
   } catch (error) {
-    // Check if it's a locked vault error
     if (error.message?.includes("locked") || error.message?.includes("Vault")) {
       showUnlockPrompt(credentials, true, id);
     } else {
@@ -779,32 +631,22 @@ async function updateCredentials(credentials, id) {
   }
 }
 
-/**
- * Show unlock prompt when vault is locked during save/update attempt
- */
 function showUnlockPrompt(
   credentials,
   isUpdateMode = false,
   credentialId = null,
 ) {
-  // Store pending credentials for after unlock
   pendingCredentials = credentials;
   existingCredentialId = credentialId;
 
-  const prompt = createSavePrompt(isUpdateMode, true);
-
-  // Set up event listeners for unlock form
+  const prompt = createSavePrompt(isUpdateMode, true, "save");
   const unlockBtn = document.getElementById("vk-unlock");
   const cancelBtn = document.getElementById("vk-cancel");
   const closeBtn = document.getElementById("vk-close");
   const passwordInput = document.getElementById("vk-master-password");
-
-  // Clear any existing timeout
   if (promptTimeoutId) {
     clearTimeout(promptTimeoutId);
   }
-
-  // Set up 60-second timeout for unlock form (longer than regular save prompt)
   promptTimeoutId = setTimeout(() => {
     hidePrompt();
   }, 60000);
@@ -826,7 +668,6 @@ function showUnlockPrompt(
       });
 
       if (unlockResponse && unlockResponse.success) {
-        // Vault unlocked successfully - now save/update credentials
         hidePrompt();
 
         if (isUpdateMode && credentialId) {
@@ -845,8 +686,6 @@ function showUnlockPrompt(
       unlockBtn.textContent = "Unlock & Save";
     }
   });
-
-  // Handle Enter key in password field
   passwordInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -856,14 +695,67 @@ function showUnlockPrompt(
 
   cancelBtn?.addEventListener("click", hidePrompt);
   closeBtn?.addEventListener("click", hidePrompt);
-
-  // Focus the password input
   setTimeout(() => passwordInput?.focus(), 100);
 }
 
-/**
- * Show error message in unlock form
- */
+function showUnlockAndFillPrompt(targetField) {
+  const prompt = createSavePrompt(false, true, "fill");
+  const unlockBtn = document.getElementById("vk-unlock");
+  const cancelBtn = document.getElementById("vk-cancel");
+  const closeBtn = document.getElementById("vk-close");
+  const passwordInput = document.getElementById("vk-master-password");
+
+  if (promptTimeoutId) {
+    clearTimeout(promptTimeoutId);
+  }
+  promptTimeoutId = setTimeout(() => {
+    hidePrompt();
+  }, 60000);
+
+  unlockBtn?.addEventListener("click", async () => {
+    const masterPassword = passwordInput?.value;
+    if (!masterPassword) {
+      showUnlockError("Please enter your master password");
+      return;
+    }
+
+    unlockBtn.disabled = true;
+    unlockBtn.textContent = "Unlocking...";
+
+    try {
+      const unlockResponse = await browserAPI.runtime.sendMessage({
+        action: "unlock",
+        password: masterPassword,
+      });
+
+      if (unlockResponse && unlockResponse.success) {
+        hidePrompt();
+        // Retry the request
+        requestCredentials(targetField);
+      } else {
+        showUnlockError("Invalid master password");
+        unlockBtn.disabled = false;
+        unlockBtn.textContent = "Unlock & Fill";
+      }
+    } catch (error) {
+      showUnlockError("Failed to unlock vault");
+      unlockBtn.disabled = false;
+      unlockBtn.textContent = "Unlock & Fill";
+    }
+  });
+
+  passwordInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      unlockBtn?.click();
+    }
+  });
+
+  cancelBtn?.addEventListener("click", hidePrompt);
+  closeBtn?.addEventListener("click", hidePrompt);
+  setTimeout(() => passwordInput?.focus(), 100);
+}
+
 function showUnlockError(message) {
   const errorEl = document.getElementById("vk-unlock-error");
   if (errorEl) {
@@ -943,7 +835,6 @@ function shouldNeverSave() {
 }
 
 function setupFormInterception() {
-  // Track if interception is already set up
   if (document._vaultKeeperInterceptionSetup) return;
   document._vaultKeeperInterceptionSetup = true;
 
@@ -971,8 +862,6 @@ function setupFormInterception() {
 
       const form = button.closest("form");
       if (!form) return;
-
-      // Capture credentials (handles both single and multi-step)
       const credentials = captureCredentials(form);
 
       if (credentials && !shouldNeverSave()) {
@@ -990,8 +879,6 @@ function setupFormInterception() {
       const field = e.target;
       const form = field.closest("form");
       if (!form) return;
-
-      // Handle Enter key for both username and password fields
       if (
         field.type === "password" ||
         USERNAME_SELECTORS.some((s) => field.matches(s))
@@ -1039,7 +926,12 @@ function addVaultKeeperIcon(field) {
   icon.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    requestCredentials();
+    requestCredentials(field);
+  });
+  field.addEventListener("focus", () => {
+    if (document.activeElement === field) {
+      requestCredentials(field, true);
+    }
   });
 
   if (field.parentElement) {
@@ -1048,7 +940,75 @@ function addVaultKeeperIcon(field) {
   }
 }
 
-function requestCredentials() {
+let activeAutofillDropdown = null;
+
+function showAutofillDropdown(credentials, targetField) {
+  if (activeAutofillDropdown) {
+    activeAutofillDropdown.remove();
+    activeAutofillDropdown = null;
+  }
+
+  if (!targetField) return;
+
+  const dropdown = document.createElement("div");
+  dropdown.className = "vk-autofill-dropdown";
+  const header = document.createElement("div");
+  header.className = "vk-autofill-header";
+  header.textContent = "VaultKeeper";
+  dropdown.appendChild(header);
+  credentials.forEach((cred) => {
+    const item = document.createElement("div");
+    item.className = "vk-autofill-item";
+    const icon = document.createElement("div");
+    icon.className = "vk-autofill-icon";
+    const letter = document.createElement("span");
+    letter.textContent = (cred.domain || "?").charAt(0).toUpperCase();
+    icon.appendChild(letter);
+    item.appendChild(icon);
+    const text = document.createElement("div");
+    text.className = "vk-autofill-text";
+
+    const title = document.createElement("div");
+    title.className = "vk-autofill-title";
+    title.textContent = cred.domain;
+    text.appendChild(title);
+
+    const sub = document.createElement("div");
+    sub.className = "vk-autofill-subtitle";
+    sub.textContent = cred.username;
+    text.appendChild(sub);
+
+    item.appendChild(text);
+
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      fillCredentials(cred.username, cred.password);
+      dropdown.remove();
+      activeAutofillDropdown = null;
+      showNotification("Credentials filled!", "success");
+    });
+
+    dropdown.appendChild(item);
+  });
+  const rect = targetField.getBoundingClientRect();
+  dropdown.style.top = rect.bottom + window.scrollY + 5 + "px";
+  dropdown.style.left = rect.left + window.scrollX + "px";
+
+  document.body.appendChild(dropdown);
+  activeAutofillDropdown = dropdown;
+  const closeListener = (e) => {
+    if (!dropdown.contains(e.target) && e.target !== targetField) {
+      dropdown.remove();
+      activeAutofillDropdown = null;
+      document.removeEventListener("click", closeListener);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener("click", closeListener);
+  }, 100);
+}
+
+function requestCredentials(targetField = null, isFocus = false) {
   browserAPI.runtime.sendMessage(
     {
       action: "get_credentials",
@@ -1061,52 +1021,56 @@ function requestCredentials() {
         response.credentials &&
         response.credentials.length > 0
       ) {
-        const cred = response.credentials[0];
-        const filled = fillCredentials(cred.username, cred.password);
+        const credentials = response.credentials;
+        const count = credentials.length;
 
-        if (filled) {
-          // Provide appropriate feedback based on what was filled
-          if (detectedFields?.isMultiStep) {
-            if (detectedFields.username && !detectedFields.password) {
-              showNotification("Email/username filled!", "success");
-            } else if (detectedFields.password && !detectedFields.username) {
-              showNotification("Password filled!", "success");
+        if ((count > 1 || isFocus) && targetField) {
+          showAutofillDropdown(credentials, targetField);
+        } else {
+          const cred = credentials[0];
+          const filled = fillCredentials(cred.username, cred.password);
+
+          if (filled) {
+            if (detectedFields?.isMultiStep) {
+              if (detectedFields.username && !detectedFields.password) {
+                showNotification("Email/username filled!", "success");
+              } else if (detectedFields.password && !detectedFields.username) {
+                showNotification("Password filled!", "success");
+              } else {
+                showNotification("Credentials filled!", "success");
+              }
             } else {
               showNotification("Credentials filled!", "success");
             }
           } else {
-            showNotification("Credentials filled!", "success");
+            showNotification("Could not fill credentials", "error");
           }
-        } else {
-          showNotification("Could not fill credentials", "error");
         }
       } else if (response && response.locked) {
-        showNotification("Vault is locked", "error");
+        if (!isFocus) {
+          showUnlockAndFillPrompt(targetField);
+        } else {
+          // Optional: show a small tooltip or nothing on focus if locked
+        }
       } else {
-        showNotification("No credentials found", "error");
+        if (!isFocus) showNotification("No credentials found", "error");
       }
     },
   );
 }
 
 function init() {
-  // Check for pending credentials from a previous navigation
   const pendingData = getPendingCredentials();
   if (pendingData && pendingData.credentials) {
-    // Restore the state
     pendingCredentials = pendingData.credentials;
     existingCredentialId = pendingData.credentialId;
     savePromptShown = true;
-
-    // Re-display the prompt
     setTimeout(() => {
       displaySavePrompt(pendingData.credentials, pendingData.isUpdate);
     }, 300);
   }
 
   detectedFields = detectLoginFields();
-
-  // Check for any login fields (username OR password)
   if (detectedFields && (detectedFields.username || detectedFields.password)) {
     const fieldType =
       detectedFields.password && detectedFields.username
@@ -1114,21 +1078,16 @@ function init() {
         : detectedFields.password
           ? "password-only"
           : "username-only";
-
-    // Add icon to password fields if present
     if (detectedFields.password) {
       document
         .querySelectorAll('input[type="password"]')
         .forEach(addVaultKeeperIcon);
     }
-
-    // Add icon to username fields in multi-step scenarios
     if (
       detectedFields.isMultiStep &&
       detectedFields.username &&
       !detectedFields.password
     ) {
-      // Add icon to username field for multi-step login
       addVaultKeeperIconToUsername(detectedFields.username);
     }
 
@@ -1136,9 +1095,6 @@ function init() {
   }
 }
 
-/**
- * Add VaultKeeper icon to username field (for multi-step login first step)
- */
 function addVaultKeeperIconToUsername(field) {
   if (field.dataset.vaultkeeperIcon) return;
   field.dataset.vaultkeeperIcon = "true";
@@ -1172,7 +1128,12 @@ function addVaultKeeperIconToUsername(field) {
   icon.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    requestCredentials();
+    requestCredentials(field);
+  });
+  field.addEventListener("focus", () => {
+    if (document.activeElement === field) {
+      requestCredentials(field, true);
+    }
   });
 
   if (field.parentElement) {
@@ -1184,7 +1145,6 @@ function addVaultKeeperIconToUsername(field) {
 browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.action) {
     case "fill":
-      // Re-detect fields to ensure we have the latest state
       detectedFields = detectLoginFields();
       const success = fillCredentials(request.username, request.password);
       sendResponse({
@@ -1211,12 +1171,8 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-// MutationObserver to detect dynamically added login fields
 const observer = new MutationObserver(() => {
   const newFields = detectLoginFields();
-
-  // React to new fields being added
   if (newFields) {
     const hasNewPassword = newFields.password && !detectedFields?.password;
     const hasNewUsername = newFields.username && !detectedFields?.username;

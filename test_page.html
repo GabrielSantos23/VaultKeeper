@@ -73,7 +73,7 @@
             </div>
             <button type="submit">Entrar</button>
         </form>
-        
+
         <div class="info">
             <strong>Como testar:</strong><br>
             1. Adicione uma senha no VaultKeeper com URL: <code>file://</code><br>
@@ -88,7 +88,7 @@
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            
+
             alert(`Login simulado!\nUsuário: ${username}\nSenha: ${password.replace(/./g, '•')}\n\nA extensão deve ter detectado e perguntado se quer salvar!`);
         });
     </script>

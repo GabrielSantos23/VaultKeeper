@@ -4,8 +4,6 @@
   box-sizing: border-box;
 }
 
-/* Variables are defined in variables.css which is loaded before this file */
-
 body {
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
@@ -26,7 +24,6 @@ body {
   flex-direction: column;
 }
 
-/* Views */
 .view {
   width: 100%;
   height: 100%;
@@ -726,7 +723,6 @@ body {
   stroke: var(--vk-text-tertiary);
 }
 
-/* Fallback Icon for favicons */
 .fallback-icon {
   width: 100%;
   height: 100%;
@@ -746,7 +742,6 @@ body {
   height: 32px;
 }
 
-/* Dropdown Menu */
 .vk-dropdown-menu {
   position: absolute;
   top: 100%;
@@ -812,7 +807,6 @@ body {
   margin: 4px 0;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -830,7 +824,6 @@ body {
   background: var(--vk-text-tertiary);
 }
 
-/* Popup Notification */
 .popup-notification {
   position: fixed;
   bottom: 16px;
@@ -888,7 +881,6 @@ body {
   }
 }
 
-/* Setup View Styles */
 .setup-view {
   display: flex;
   flex-direction: column;
@@ -1046,7 +1038,6 @@ body {
   text-transform: uppercase;
 }
 
-/* TOTP Styles */
 .totp-value {
   display: flex;
   align-items: center;
@@ -1113,7 +1104,6 @@ body {
   stroke: var(--vk-accent-orange);
 }
 
-/* Backup 2FA Code Styles */
 .backup-codes-masked {
   font-family: "Consolas", "Monaco", "Courier New", monospace;
   font-size: 14px;
