@@ -40,11 +40,16 @@ REM Build
 echo.
 echo [4/5] Building executable...
 pyinstaller vaultkeeper.spec --clean --noconfirm
+if errorlevel 1 (
+    echo Error: PyInstaller failed!
+    pause
+    exit /b 1
+)
 
 REM Create distribution package
 echo.
 echo [5/5] Creating distribution package...
-set VERSION=1.0.4
+set VERSION=1.0.5
 set DIST_NAME=VaultKeeper-%VERSION%-windows-x64
 
 REM In OneDir mode, the output is a folder "dist\VaultKeeper"
