@@ -6,7 +6,7 @@ Um gerenciador de senhas desktop seguro com integração de extensão de navegad
 
 ```
 ┌────────────────┐      Native Messaging      ┌────────────────────┐
-│ Browser        │◀──────────────────────▶  │ App Desktop Python │
+│ Browser        │ ◀──────────────────────▶  │ App Desktop Python │
 │ Extension      │                            │ (Password Manager) │
 └────────────────┘                            └────────────────────┘
 ```
@@ -222,7 +222,7 @@ sqlite3 ~/.vaultkeeper/vault.db "SELECT id, domain, username FROM vault;"
 ## 📈 Roadmap
 
 - [ ] Biometria (fingerprint)
-- [ ] Backup criptografado para cloud
+- [x] Backup criptografado para cloud
 - [ ] Importação de CSV
 - [ ] Detecção de senhas vazadas (HIBP)
 - [x] Suporte a TOTP (2FA)
