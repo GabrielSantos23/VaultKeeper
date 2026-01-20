@@ -21,7 +21,9 @@ from .settings import (
 
     PrivacyTab,
 
-    CloudStorageTab
+    CloudStorageTab,
+
+    DataManagementTab
 
 )
 
@@ -30,6 +32,8 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None):
 
         super().__init__(parent)
+
+        self.vault = parent.vault if parent and hasattr(parent, 'vault') else None
 
         self.setWindowTitle("Settings")
 
@@ -108,6 +112,14 @@ class SettingsDialog(QDialog):
 
         self.nav_group.append(self.btn_cloud)
 
+        self.btn_data = SettingsSidebarButton("grid", "Data Management")
+
+        self.btn_data.clicked.connect(lambda: self.switch_page(4))
+
+        sidebar_layout.addWidget(self.btn_data)
+
+        self.nav_group.append(self.btn_data)
+
         sidebar_layout.addStretch()
 
         close_btn = QPushButton("Close Settings")
@@ -159,6 +171,8 @@ class SettingsDialog(QDialog):
         self.stack.addWidget(PrivacyTab())
 
         self.stack.addWidget(CloudStorageTab())
+
+        self.stack.addWidget(DataManagementTab(self.vault))
 
         layout.addWidget(content)
 

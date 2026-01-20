@@ -339,6 +339,7 @@ class GeneralTab(QWidget):
                 color: {theme.colors.foreground};
                 border-radius: 6px;
                 font-size: 13px;
+                padding: 6px 12px;
             }}
             QPushButton:hover {{
 

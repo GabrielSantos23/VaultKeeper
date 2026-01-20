@@ -157,7 +157,7 @@ DARK_COLORS = ThemeColors(
 
     foreground="#e5e7eb",
 
-    card="#1C1F24",
+    card="#24282E",
 
     card_foreground="#e5e7eb",
 

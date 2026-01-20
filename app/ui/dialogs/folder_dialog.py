@@ -211,6 +211,7 @@ class FolderDialog(QDialog):
         if name:
 
             self.folder_name = name
+            self.selected_vault = self.vault_combo.currentText()
 
             self.accept()
 

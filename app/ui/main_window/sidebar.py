@@ -43,6 +43,8 @@ class Sidebar(QFrame):
 
     google_drive_clicked = Signal()
 
+    add_item_clicked = Signal()
+
     def __init__(self, parent=None):
 
         super().__init__(parent)
@@ -147,6 +149,10 @@ class Sidebar(QFrame):
 
         self.layout.addWidget(self.btn_favorites)
 
+        self.btn_watchtower = SidebarButton("view", "Watchtower")
+        self.btn_watchtower.clicked.connect(lambda: self.set_category("watchtower"))
+        self.layout.addWidget(self.btn_watchtower)
+
         self.btn_secure_notes = SidebarButton("note", "Secure Notes")
 
         self.btn_secure_notes.clicked.connect(lambda: self.set_category("secure_notes"))
@@ -158,6 +164,12 @@ class Sidebar(QFrame):
         self.btn_credit_cards.clicked.connect(lambda: self.set_category("credit_cards"))
 
         self.layout.addWidget(self.btn_credit_cards)
+
+        self.btn_generator = SidebarButton("key", "Generator")
+
+        self.btn_generator.clicked.connect(lambda: self.set_category("generator"))
+
+        self.layout.addWidget(self.btn_generator)
 
         vaults_header = QWidget()
 
@@ -240,17 +252,43 @@ class Sidebar(QFrame):
 
         self.folders_layout.addWidget(self.btn_team)
 
+        self.team_folders_container = QWidget()
+
+        self.team_folders_container.setStyleSheet("background-color: transparent;")
+
+        self.team_folders_layout = QVBoxLayout(self.team_folders_container)
+
+        self.team_folders_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.team_folders_layout.setSpacing(2)
+
+        self.folders_layout.addWidget(self.team_folders_container)
+
         self.btn_professional = SidebarButton("work", "Professional", font_size=16, is_selectable=False)
 
         self.folders_layout.addWidget(self.btn_professional)
 
+        self.professional_folders_container = QWidget()
+
+        self.professional_folders_container.setStyleSheet("background-color: transparent;")
+
+        self.professional_folders_layout = QVBoxLayout(self.professional_folders_container)
+
+        self.professional_folders_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.professional_folders_layout.setSpacing(2)
+
+        self.folders_layout.addWidget(self.professional_folders_container)
+
         self.static_buttons = [
 
-            self.btn_all, self.btn_favorites, self.btn_secure_notes, self.btn_credit_cards
+            self.btn_all, self.btn_favorites, self.btn_watchtower, self.btn_secure_notes, self.btn_credit_cards, self.btn_generator
 
         ]
 
         self.personal_folders_container.setVisible(False)
+        self.team_folders_container.setVisible(False)
+        self.professional_folders_container.setVisible(False)
 
         self.layout.addStretch()
 
@@ -358,6 +396,30 @@ class Sidebar(QFrame):
 
         bottom_layout.addWidget(self.settings_btn)
 
+        # New Item Button
+        self.add_btn = QPushButton()
+        self.add_btn.setIcon(QIcon(load_svg_icon("add", 18, "#ffffff")))
+        self.add_btn.setIconSize(QSize(18, 18))
+        self.add_btn.setText(" New Item")
+        self.add_btn.setCursor(Qt.PointingHandCursor)
+        self.add_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.colors.primary};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 24px;
+                font-weight: 600;
+                font-size: 14px;
+                text-align: center;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """)
+        self.add_btn.clicked.connect(self.add_item_clicked.emit)
+        bottom_layout.addWidget(self.add_btn)
+
         self.layout.addLayout(bottom_layout)
 
         self._setup_gdrive_callbacks()
@@ -450,7 +512,13 @@ class Sidebar(QFrame):
 
         theme = get_theme()
 
-        self.personal_folders_container.setVisible(bool(folders))
+        self.personal_folders_container.setVisible(False)
+        self.team_folders_container.setVisible(False)
+        self.professional_folders_container.setVisible(False)
+
+        has_personal = False
+        has_team = False
+        has_professional = False
 
         for folder in folders:
 
@@ -466,9 +534,23 @@ class Sidebar(QFrame):
 
             )
 
-            self.personal_folders_layout.addWidget(btn)
+            # Determine vault type (default to personal if not set)
+            v_type = getattr(folder, 'vault_type', 'personal')
+            if v_type == 'team':
+                self.team_folders_layout.addWidget(btn)
+                has_team = True
+            elif v_type == 'professional':
+                self.professional_folders_layout.addWidget(btn)
+                has_professional = True
+            else:
+                self.personal_folders_layout.addWidget(btn)
+                has_personal = True
 
             self.folder_buttons.append(btn)
+            
+        self.personal_folders_container.setVisible(has_personal)
+        self.team_folders_container.setVisible(has_team)
+        self.professional_folders_container.setVisible(has_professional)
 
     def _show_folder_context_menu(self, button, folder: Folder, pos):
 
@@ -538,9 +620,13 @@ class Sidebar(QFrame):
 
             "favorites": self.btn_favorites,
 
+            "watchtower": self.btn_watchtower,
+
             "secure_notes": self.btn_secure_notes,
 
             "credit_cards": self.btn_credit_cards,
+
+            "generator": self.btn_generator,
 
         }
 

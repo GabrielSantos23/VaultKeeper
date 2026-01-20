@@ -98,36 +98,53 @@ class VaultWidget(QWidget):
         self.sidebar.settings_clicked.connect(self.on_settings_clicked)
 
         self.sidebar.google_drive_clicked.connect(self.on_google_drive_clicked)
+        
+        self.sidebar.add_item_clicked.connect(self.add_credential)
 
         self.main_layout.addWidget(self.sidebar)
 
+        # Content Area (Stacked Widget)
+        from PySide6.QtWidgets import QStackedWidget
+        self.content_stack = QStackedWidget()
+        self.main_layout.addWidget(self.content_stack)
+
+        # View 0: Vault View (List + Detail)
+        self.vault_view = QWidget()
+        vault_layout = QHBoxLayout(self.vault_view)
+        vault_layout.setContentsMargins(0, 0, 0, 0)
+        vault_layout.setSpacing(0)
+
         self.credentials_list = CredentialsList()
-
         self.credentials_list.credential_selected.connect(self.on_credential_selected)
-
         self.credentials_list.add_clicked.connect(self.add_credential)
-
         self.credentials_list.toggle_sidebar_requested.connect(self.toggle_sidebar)
-
         self.credentials_list.setMinimumWidth(280)
-
         self.credentials_list.setMaximumWidth(350)
-
-        self.main_layout.addWidget(self.credentials_list)
+        vault_layout.addWidget(self.credentials_list)
 
         self.detail_panel = DetailPanel()
-
         self.detail_panel.edit_requested.connect(self.edit_credential)
-
         self.detail_panel.delete_requested.connect(self.delete_credential)
-
         self.detail_panel.favorite_toggled.connect(self.toggle_favorite)
-
         self.detail_panel.folder_move_requested.connect(self.move_credential_to_folder)
-
         self.detail_panel.status_message.connect(self.show_status)
+        vault_layout.addWidget(self.detail_panel, stretch=1)
 
-        self.main_layout.addWidget(self.detail_panel, stretch=1)
+        self.content_stack.addWidget(self.vault_view)
+
+        # View 1: Generator View
+        from .generator_view import GeneratorView
+        self.generator_view = GeneratorView()
+        self.generator_view.use_password_requested.connect(self._use_generated_password)
+        self.content_stack.addWidget(self.generator_view)
+
+        # View 2: Watchtower View
+        from .watchtower_view import WatchtowerView
+        self.watchtower_view = WatchtowerView(self.vault)
+        self.content_stack.addWidget(self.watchtower_view)
+
+    def set_category(self, category: str):
+        self.sidebar.set_category(category)
 
     def toggle_sidebar(self):
 
@@ -168,37 +185,33 @@ class VaultWidget(QWidget):
             print(f"Error loading items: {e}")
 
     def on_category_changed(self, category: str):
-
         self.current_category = category
+        
+        if category == "generator":
+            self.content_stack.setCurrentIndex(1)
+            return
+
+        if category == "watchtower":
+            self.content_stack.setCurrentIndex(2)
+            return
+            
+        self.content_stack.setCurrentIndex(0)
 
         if category == "all":
-
             self.credentials_list.set_filter("all")
-
         elif category == "favorites":
-
             self.credentials_list.set_filter("favorites")
-
         elif category == "secure_notes":
-
             self.credentials_list.set_filter("secure_notes")
-
         elif category == "credit_cards":
-
             self.credentials_list.set_filter("credit_cards")
-
         elif category.startswith("folder_"):
-
             try:
-
                 folder_id = int(category.split("_")[1])
-
                 self.credentials_list.set_filter("folder", folder_id)
-
             except (IndexError, ValueError):
-
                 self.credentials_list.set_filter("all")
-
+        
         self.detail_panel.show_empty_state()
 
     def on_credential_selected(self, item):
@@ -222,12 +235,20 @@ class VaultWidget(QWidget):
         if dialog.exec():
 
             name = dialog.folder_name
+            vault_display = dialog.selected_vault
+            
+            vault_map = {
+                "Personal": "personal",
+                "Team Vault": "team",
+                "Professional": "professional"
+            }
+            vault_type = vault_map.get(vault_display, "personal")
 
             if name:
 
                 try:
 
-                    self.vault.create_folder(name)
+                    self.vault.create_folder(name, vault_type=vault_type)
 
                     self.load_folders()
 
@@ -408,6 +429,20 @@ class VaultWidget(QWidget):
                 self.vault.add_credential(**add_data)
 
                 self.load_credentials()
+    
+    def _use_generated_password(self, password):
+        dialog = CredentialDialog(parent=self)
+        dialog.password_input.setText(password)
+        
+        if dialog.exec():
+            data = dialog.get_data()
+            if data['domain'] and data['username'] and data['password']:
+                add_data = {k: v for k, v in data.items() if k not in ('clear_totp', 'clear_backup')}
+                self.vault.add_credential(**add_data)
+                self.load_credentials()
+                
+                # Switch to vault view to show the new credential
+                self.set_category("all")
 
     def _add_credit_card(self):
 

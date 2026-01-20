@@ -197,46 +197,7 @@ class CredentialsList(QWidget):
 
         layout.addWidget(scroll)
 
-        add_container = QWidget()
 
-        add_container.setStyleSheet("background-color: #16191D;")
-
-        add_layout = QHBoxLayout(add_container)
-
-        add_layout.setContentsMargins(16, 12, 16, 16)
-
-        self.add_btn = QPushButton()
-
-        self.add_btn.setIcon(QIcon(load_svg_icon("add", 18, "#ffffff")))
-
-        self.add_btn.setIconSize(QSize(18, 18))
-
-        self.add_btn.setText(" New Item")
-
-        self.add_btn.setCursor(Qt.PointingHandCursor)
-
-        self.add_btn.setStyleSheet(f"""
-            QPushButton {{
-
-                background-color: #3B9EFF;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-weight: 600;
-                font-size: 14px;
-            }}
-            QPushButton:hover {{
-
-                background-color: #3B9EFF;
-            }}
-        """)
-
-        self.add_btn.clicked.connect(self.add_clicked.emit)
-
-        add_layout.addWidget(self.add_btn)
-
-        layout.addWidget(add_container)
 
     def set_credentials(self, credentials: List[Credential]):
 

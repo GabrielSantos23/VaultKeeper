@@ -9,6 +9,8 @@ from .privacy_tab import PrivacyTab
 
 from .cloud_storage_tab import CloudStorageTab
 
+from .data_management_tab import DataManagementTab
+
 __all__ = [
 
     'ToggleSwitch',
@@ -26,5 +28,7 @@ __all__ = [
     'PrivacyTab',
 
     'CloudStorageTab',
+
+    'DataManagementTab',
 
 ]

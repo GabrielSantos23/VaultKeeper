@@ -23,6 +23,8 @@ class Folder:
 
     name: str
 
+    vault_type: str = "personal"
+
     icon: str = "folder"
 
     created_at: Optional[str] = None
@@ -55,7 +57,11 @@ class Credential:
 
     created_at: Optional[str] = None
 
+
+
     updated_at: Optional[str] = None
+
+    leaked_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
 
@@ -141,10 +147,17 @@ class VaultManager:
                 CREATE TABLE IF NOT EXISTS folders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
+                    vault_type TEXT DEFAULT 'personal',
                     icon TEXT DEFAULT 'folder',
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+
+            try:
+                cursor.execute('ALTER TABLE folders ADD COLUMN vault_type TEXT DEFAULT "personal"')
+            except sqlite3.OperationalError:
+                pass
+
 
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS vault (
@@ -191,6 +204,11 @@ class VaultManager:
 
             except sqlite3.OperationalError:
 
+                pass
+
+            try:
+                cursor.execute('ALTER TABLE vault ADD COLUMN leaked_count INTEGER DEFAULT 0')
+            except sqlite3.OperationalError:
                 pass
 
             cursor.execute('''
@@ -550,6 +568,24 @@ class VaultManager:
 
         return updated
 
+    def update_credential_leak_status(self, credential_id: int, leaked_count: int) -> bool:
+        self._ensure_unlocked()
+        self.auth.touch()
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE vault 
+                SET leaked_count = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (leaked_count, credential_id))
+            conn.commit()
+            updated = cursor.rowcount > 0
+
+        if updated:
+            self._trigger_auto_sync()
+        return updated
+
     def delete_credential(self, credential_id: int) -> bool:
 
         self._ensure_unlocked()
@@ -656,9 +692,11 @@ class VaultManager:
 
             folder_id=row.get('folder_id'),
 
-            created_at=row.get('created_at'),
 
-            updated_at=row.get('updated_at')
+
+            updated_at=row.get('updated_at'),
+
+            leaked_count=row.get('leaked_count', 0)
 
         )
 
@@ -798,7 +836,120 @@ class VaultManager:
 
             return credentials
 
-    def create_folder(self, name: str, icon: str = "folder") -> int:
+    def export_to_csv(self) -> str:
+        import csv
+        import io
+
+        credentials = self.get_all_credentials()
+        output = io.StringIO()
+        fieldnames = ['url', 'username', 'password', 'otp', 'notes', 'name']
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+
+        writer.writeheader()
+        for cred in credentials:
+            writer.writerow({
+                'url': cred.domain,
+                'username': cred.username,
+                'password': cred.password,
+                'otp': cred.totp_secret or '',
+                'notes': cred.notes or '',
+                'name': cred.domain
+            })
+        
+        return output.getvalue()
+
+    def find_duplicate_credential(self, domain: str, username: str) -> Optional[Credential]:
+        self._ensure_unlocked()
+        self.auth.touch()
+        
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT * FROM vault WHERE domain = ? AND username = ?', (domain, username))
+            row = cursor.fetchone()
+            
+            if row:
+                return self._row_to_credential(dict(row))
+            return None
+
+    def parse_csv_content(self, csv_content: str) -> List[Dict[str, Any]]:
+        import csv
+        import io
+
+        # Handle potentially different CSV formats (Chrome, LastPass, etc)
+        # We look for common headers
+        input_file = io.StringIO(csv_content)
+        reader = csv.DictReader(input_file)
+        
+        parsed_items = []
+        field_map = {}
+        
+        # Heuristic to map headers
+        if reader.fieldnames:
+            headers = [h.lower() for h in reader.fieldnames]
+            
+            # Map URL
+            for h in ['url', 'login_uri', 'address', 'domain', 'website']:
+                if h in headers:
+                    field_map['domain'] = reader.fieldnames[headers.index(h)]
+                    break
+            
+            # Map Username
+            for h in ['username', 'user', 'login_username', 'login']:
+                if h in headers:
+                    field_map['username'] = reader.fieldnames[headers.index(h)]
+                    break
+                    
+            # Map Password
+            for h in ['password', 'login_password', 'pass']:
+                if h in headers:
+                    field_map['password'] = reader.fieldnames[headers.index(h)]
+                    break
+            
+            # Map Notes
+            for h in ['notes', 'comments', 'extra']:
+                if h in headers:
+                    field_map['notes'] = reader.fieldnames[headers.index(h)]
+                    break
+
+            # Map TOTP
+            for h in ['otp', 'totp', 'otpauth']:
+                if h in headers:
+                    field_map['totp_secret'] = reader.fieldnames[headers.index(h)]
+                    break
+        
+        # Require at least username and password, or domain and password
+        if 'password' not in field_map:
+            raise ValueError("CSV must contain a password column")
+
+        for row in reader:
+            try:
+                domain = row.get(field_map.get('domain', ''), 'Unknown')
+                username = row.get(field_map.get('username', ''), '')
+                password = row.get(field_map.get('password', ''), '')
+                notes = row.get(field_map.get('notes', ''), '')
+                totp = row.get(field_map.get('totp_secret', ''), '')
+                
+                if not domain and not username:
+                    continue # Skip empty rows
+
+                if not domain:
+                    domain = "Imported"
+
+                parsed_items.append({
+                    'domain': domain,
+                    'username': username,
+                    'password': password,
+                    'notes': notes,
+                    'totp_secret': totp if totp else None
+                })
+            except Exception as e:
+                print(f"Failed to parse row: {e}")
+                
+        return parsed_items
+
+    def create_folder(self, name: str, vault_type: str = "personal", icon: str = "folder") -> int:
 
         self._ensure_unlocked()
 
@@ -808,7 +959,7 @@ class VaultManager:
 
             cursor = conn.cursor()
 
-            cursor.execute('INSERT INTO folders (name, icon) VALUES (?, ?)', (name, icon))
+            cursor.execute('INSERT INTO folders (name, vault_type, icon) VALUES (?, ?, ?)', (name, vault_type, icon))
 
             conn.commit()
 
@@ -835,6 +986,8 @@ class VaultManager:
                 id=row['id'],
 
                 name=row['name'],
+
+                vault_type=row['vault_type'] if 'vault_type' in row.keys() else "personal",
 
                 icon=row['icon'],
 
