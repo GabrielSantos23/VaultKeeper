@@ -1,5 +1,6 @@
 
 import os
+import sys
 
 import json
 
@@ -31,12 +32,20 @@ from dotenv import load_dotenv
 
 env_path = Path(__file__).parent.parent.parent / ".env"
 
+if getattr(sys, 'frozen', False):
+    # Running in a PyInstaller bundle
+    # In OneDir mode, datas are often in _internal (sys._MEIPASS)
+    # Check sys._MEIPASS first, then executable directory as fallback
+    if hasattr(sys, '_MEIPASS'):
+        env_path = Path(sys._MEIPASS) / ".env"
+    
+    # Fallback: check executable directory if not found in _MEIPASS
+    if not env_path.exists():
+        env_path = Path(sys.executable).parent / ".env"
+
 if env_path.exists():
-
     load_dotenv(env_path)
-
 else:
-
     load_dotenv()
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"

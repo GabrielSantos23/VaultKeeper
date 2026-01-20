@@ -16,8 +16,12 @@ project_root = Path(SPECPATH)
 datas = [
     (str(project_root / 'app' / 'ui' / 'icons'), 'app/ui/icons'),
 ]
+if (project_root / '.env').exists():
+    datas.append((str(project_root / '.env'), '.'))
+
 if not (project_root / 'app' / 'ui' / 'icons').exists():
-    datas = []
+    # Remove icons from datas if they don't exist, but keep .env if added
+    datas = [d for d in datas if d[1] != 'app/ui/icons']
 
 hiddenimports = [
     'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets', 'PySide6.QtSvg',
