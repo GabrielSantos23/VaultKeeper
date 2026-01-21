@@ -1,23 +1,31 @@
-# Changelog - VaultKeeper
+# Changelog
 
-## 1.0.5 - 2026-01-19
+## [Current Version] - 2026-01-21
 
-### Added
-- **App-Extension Auto-Sync**: Implemented database file monitoring (`vault.db`) using `QFileSystemWatcher` in the Desktop App. Changes made by the extension (like saving a new password) are now automatically reflected in the app without restarting.
-- **Smart Domain Matching**: Enhanced credential search logic (`get_credentials_by_domain`) to support hierarchical matching.
-    - The system now finds parent domain credentials when on a subdomain (e.g., accessing `accounts.google.com` finds `google.com` credentials).
-    - Maintains the ability to match specific subdomain credentials.
-- **Timezone Conversion**: Added `format_timestamp` utility function to convert stored UTC timestamps to the user's local timezone in Credential, Secure Note, and Credit Card detail views.
+### Performance & Stability
+- **Smoother Loading Experience**: ADDED multithreading and multiprocessing support to handle heavy cryptographic operations (Argon2 key derivation) without freezing the user interface.
+- **Optimized List Rendering**: Implemented "Batch Loading" for the main credential list, populating items in small chunks to keep the application responsive during startup.
+- **Fluid Animations**:  upgraded the loading spinner animation to run at 60fps.
 
-### Fixed
-- **Extension Connection (Native Host)**: 
-    - Fixed incorrect path in the Native Messaging Host manifest pointing to a non-existent directory (`VaultKeeper-v2`).
-    - Corrected Firefox extension ID in the installation script (`installer.py`).
-    - Resolved syntax error in the bash wrapper generator script (`installer.py`).
-    - Reinstalled host manifests for Chrome, Chromium, Firefox, and Zen Browser.
-- **Credit Card UI**: Fixed layout issue where very long cardholder names broke the view. Implemented `ElidedLabel` with a stretch factor to automatically add ellipsis and fill available space elegantly.
-- **HTML Rendering in Secure Notes**: Fixed rendering of notes containing HTML by using `QTextBrowser` instead of `QPlainTextEdit` to display formatted content correctly.
+### Security
+- **Encryption Upgrade**: Switched from PBKDF2 to Scrypt (N=16384) to eliminate UI freezing during unlock operations while maintaining strong security.
+- **Database Migration**: Added `migrate_to_scrypt.py` script to automatically upgrade existing vaults to the new encryption standard.
 
-### Changed
-- **Text Rendering**: Replaced `QLabel` with `QTextBrowser`/`QPlainTextEdit` in various detail panel sections for better text selection, link support, and content expansion.
-- **Detail Layout**: Layout adjustments in detail panels (Secure Notes) to allow text content to expand vertically and fill the available window space.
+### New Features
+- **Watchtower Dashboard**: 
+  - Added a comprehensive security center to analyze vault health.
+  - Automatic scanning for compromised passwords (HIBP integration).
+  - Visual indicators for weak, reused, or leaked passwords.
+  - "Action Required" tab to quickly address security vulnerabilities.
+
+- **Advanced Password Generator**:
+  - New dedicated view for generating secure passwords.
+  - Customizable options (length, special characters, numbers).
+  - "Security Pro-Tip" educational cards.
+  - "Use Password" workflow to immediately create a new login with the generated secret.
+
+### Improvements
+- **UI Refinements**: 
+  - Full-screen loading overlay that blocks interaction while data loads securely.
+  - Restructured `VaultWidget` for better modularity and maintainability.
+  - Enhanced Sidebar execution and layout.

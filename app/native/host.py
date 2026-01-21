@@ -128,11 +128,10 @@ class NativeMessagingHost:
                 return self._handle_lock()
 
             elif action == 'get_credentials':
-
                 return self._handle_get_credentials(message)
-
+            elif action == 'check_credentials':
+                return self._handle_check_credentials(message)
             elif action == 'save_credentials':
-
                 return self._handle_save_credentials(message)
 
             elif action == 'delete_credentials':
@@ -239,6 +238,23 @@ class NativeMessagingHost:
 
             return {'success': True, 'credentials': []}
 
+    def _handle_check_credentials(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Returns basic credential info (no secrets) so the extension can check for existence
+        of valid accounts even if the vault is locked.
+        """
+        domain = message.get('domain')
+        if not domain:
+            return {'success': False, 'error': 'Domain required'}
+            
+        credentials = self.vault.get_basic_credentials_by_domain(domain)
+        
+        return {
+            'success': True,
+            'credentials': [cred.to_dict() for cred in credentials],
+            'locked': not self.auth.is_unlocked
+        }
+
     def _handle_save_credentials(self, message: Dict[str, Any]) -> Dict[str, Any]:
 
         if not self.auth.is_unlocked:
@@ -300,6 +316,44 @@ class NativeMessagingHost:
                 return {'success': True, 'message': 'Credential updated', 'id': credential_id}
 
             else:
+
+                # Check for existing credential to avoid duplicates
+
+                existing_creds = self.vault.get_credentials_by_domain(domain)
+
+                existing = next((c for c in existing_creds if c.username == username), None)
+
+                
+
+                if existing:
+
+                    logger.info(f"updating existing credential {existing.id} instead of creating new")
+
+                    self.vault.update_credential(
+
+                        existing.id,
+
+                        domain=domain, # Update domain in case of subdomain change? Usually keep as is or update.
+
+                        username=username,
+
+                        password=password,
+
+                        notes=notes,
+
+                        totp_secret=totp_secret,
+
+                        clear_totp=clear_totp,
+
+                        backup_codes=backup_codes,
+
+                        clear_backup=clear_backup
+
+                    )
+
+                    return {'success': True, 'message': 'Credential updated (overwrite)', 'id': existing.id}
+
+                
 
                 new_id = self.vault.add_credential(domain, username, password, notes, totp_secret, backup_codes)
 

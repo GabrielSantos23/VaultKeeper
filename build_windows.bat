@@ -49,7 +49,7 @@ if errorlevel 1 (
 REM Create distribution package
 echo.
 echo [5/5] Creating distribution package...
-set VERSION=1.0.5
+set VERSION=1.0.6
 set DIST_NAME=VaultKeeper-%VERSION%-windows-x64
 
 REM In OneDir mode, the output is a folder "dist\VaultKeeper"

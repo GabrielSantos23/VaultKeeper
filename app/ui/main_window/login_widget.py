@@ -7,13 +7,34 @@ from PySide6.QtWidgets import (
 
 from PySide6.QtGui import QIcon
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QThread
+from app.ui.components.svg_spinner import SvgSpinner
 
 from app.core.auth import AuthManager
 
 from app.ui.theme import get_theme
 
 from app.ui.ui_utils import load_svg_icon
+
+class LoginWorker(QThread):
+    finished = Signal(bool, str)
+
+    def __init__(self, auth_manager, password):
+        super().__init__()
+        self.auth = auth_manager
+        self.password = password
+
+    def run(self):
+        try:
+            if self.auth.is_first_run():
+                self.auth.create_master_password(self.password)
+            else:
+                self.auth.verify_master_password(self.password)
+            self.finished.emit(True, "")
+        except ValueError as e:
+            self.finished.emit(False, str(e))
+        except Exception as e:
+            self.finished.emit(False, f"An unexpected error occurred: {str(e)}")
 
 class LoginWidget(QWidget):
 
@@ -148,11 +169,11 @@ class LoginWidget(QWidget):
 
         card_layout.addWidget(self.error_label)
 
-        login_btn = QPushButton("Unlock" if not self.auth.is_first_run() else "Create Vault")
+        self.login_btn = QPushButton("Unlock" if not self.auth.is_first_run() else "Create Vault")
 
-        login_btn.setCursor(Qt.PointingHandCursor)
+        self.login_btn.setCursor(Qt.PointingHandCursor)
 
-        login_btn.setStyleSheet(f"""
+        self.login_btn.setStyleSheet(f"""
             QPushButton {{
 
                 background-color: {theme.colors.primary};
@@ -169,11 +190,35 @@ class LoginWidget(QWidget):
             }}
         """)
 
-        login_btn.clicked.connect(self.handle_login)
+        self.login_btn.clicked.connect(self.handle_login)
 
-        card_layout.addWidget(login_btn)
+        card_layout.addWidget(self.login_btn)
+        
+        # Add Spinner (Hidden by default)
+        self.spinner_container = QWidget()
+        self.spinner_container.setFixedHeight(40)
+        spinner_layout = QHBoxLayout(self.spinner_container)
+        spinner_layout.setContentsMargins(0, 0, 0, 0)
+        spinner_layout.setAlignment(Qt.AlignCenter)
+        self.spinner = SvgSpinner(size=24, parent=self.spinner_container)
+        spinner_layout.addWidget(self.spinner)
+        card_layout.addWidget(self.spinner_container)
+        self.spinner_container.hide()
 
         layout.addWidget(input_card, alignment=Qt.AlignCenter)
+
+    def set_loading(self, loading: bool):
+        self.login_btn.setVisible(not loading)
+        self.spinner_container.setVisible(loading)
+        self.password_input.setEnabled(not loading)
+        if hasattr(self, 'confirm_input'):
+            self.confirm_input.setEnabled(not loading)
+            
+        if loading:
+            self.spinner.start()
+            self.error_label.hide()
+        else:
+            self.spinner.stop()
 
     def handle_login(self):
 
@@ -185,37 +230,30 @@ class LoginWidget(QWidget):
 
             return
 
-        try:
+        if self.auth.is_first_run():
+             confirm = self.confirm_input.text()
+             if password != confirm:
+                 self.show_error("Passwords don't match")
+                 return
 
-            if self.auth.is_first_run():
+        self.set_loading(True)
+        
+        self.worker = LoginWorker(self.auth, password)
+        self.worker.finished.connect(self.on_login_finished)
+        self.worker.start()
 
-                confirm = self.confirm_input.text()
-
-                if password != confirm:
-
-                    self.show_error("Passwords don't match")
-
-                    return
-
-                self.auth.create_master_password(password)
-
-            else:
-
-                self.auth.verify_master_password(password)
-
+    def on_login_finished(self, success, message):
+        self.set_loading(False)
+        self.setCursor(Qt.ArrowCursor)
+        
+        if success:
             self.password_input.clear()
-
             if hasattr(self, 'confirm_input'):
-
                 self.confirm_input.clear()
-
             self.error_label.hide()
-
             self.login_success.emit()
-
-        except ValueError as e:
-
-            self.show_error(str(e))
+        else:
+            self.show_error(message)
 
     def show_error(self, message: str):
 

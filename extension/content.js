@@ -121,7 +121,7 @@ async function checkExistingCredential(domain, username) {
   return new Promise((resolve) => {
     browserAPI.runtime.sendMessage(
       {
-        action: "get_credentials",
+        action: "check_credentials",
         domain: domain,
       },
       (response) => {
@@ -489,6 +489,13 @@ function createSavePrompt(
 
 async function showSavePrompt(credentials) {
   if (savePromptShown) return;
+
+  // Do not prompt if never save list includes this domain
+  const neverSave = JSON.parse(
+    localStorage.getItem("vaultkeeper_never_save") || "[]",
+  );
+  if (neverSave.includes(currentDomain)) return;
+
   const existingCred = await checkExistingCredential(
     credentials.domain,
     credentials.username,
@@ -497,12 +504,15 @@ async function showSavePrompt(credentials) {
   let isUpdateMode = false;
 
   if (existingCred) {
+    // Exact match: do not prompt
     if (existingCred.password === credentials.password) {
       return;
     }
+    // Update match: prompt
     isUpdateMode = true;
     existingCredentialId = existingCred.id;
   }
+  // Else: New match (existingCred is null), prompt
 
   savePromptShown = true;
   pendingCredentials = credentials;

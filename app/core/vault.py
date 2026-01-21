@@ -396,7 +396,6 @@ class VaultManager:
             return None
 
     def get_credentials_by_domain(self, domain: str) -> List[Credential]:
-
         self._ensure_unlocked()
         self.auth.touch()
 
@@ -443,6 +442,68 @@ class VaultManager:
             rows = cursor.fetchall()
             
             return [self._row_to_credential(dict(row)) for row in rows]
+
+    def get_basic_credentials_by_domain(self, domain: str) -> List[Credential]:
+        # Version that works WITHOUT unlocking (returns encrypted blobs/None for secrets)
+        
+        parts = domain.split('.')
+        variations = []
+        current = domain
+        while '.' in current:
+            variations.append(current)
+            try:
+                _, rest = current.split('.', 1)
+                current = rest
+            except ValueError:
+                break
+        valid_variations = [v for v in variations if '.' in v]
+        if not valid_variations and variations: 
+            valid_variations = variations
+
+        placeholders = ','.join(['?'] * len(valid_variations))
+        
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            query = f'''
+                SELECT id, domain, username, is_favorite, folder_id, created_at, updated_at, leaked_count 
+                FROM vault
+                WHERE domain IN ({placeholders})
+                OR domain LIKE ?
+                ORDER BY length(domain) DESC
+            '''
+            
+            params = valid_variations + [f'%.{domain}']
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            creds = []
+            for row in rows:
+                data = dict(row)
+                # Fill secrets with dummies
+                data['password'] = b'' # Encrypted blob placeholder? Or just empty string in obj
+                data['notes'] = None
+                data['totp_secret'] = None
+                data['backup_codes'] = None
+                
+                # Manual construction to bypass _row_to_credential decryption attempt
+                creds.append(Credential(
+                    id=data['id'],
+                    domain=data['domain'],
+                    username=data['username'],
+                    password="", # Empty password since locked
+                    notes=None,
+                    totp_secret=None,
+                    backup_codes=None,
+                    is_favorite=bool(data.get('is_favorite', 0)),
+                    folder_id=data.get('folder_id'),
+                    created_at=data.get('created_at'),
+                    updated_at=data.get('updated_at'),
+                    leaked_count=data.get('leaked_count', 0)
+                ))
+            return creds
 
     def get_all_credentials(self) -> List[Credential]:
 

@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("VaultKeeper")
 
-        self.setMinimumSize(1000, 700)
+        self.setMinimumSize(1000, 800)
 
         self.setup_ui()
 
@@ -111,9 +111,10 @@ class MainWindow(QMainWindow):
 
             self.stack.removeWidget(self.vault_widget)
 
-        self.vault.crypto.derive_key(self.auth.master_password)
+        # Removed synchronous derive_key to prevent freeze
+        # self.vault.crypto.derive_key(self.auth.master_password)
 
-        self.vault_widget = VaultWidget(self.vault)
+        self.vault_widget = VaultWidget(self.vault, master_password=self.auth.master_password)
 
         self.vault_widget.lock_requested.connect(self.lock_vault)
 

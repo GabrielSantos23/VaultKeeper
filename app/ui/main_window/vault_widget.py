@@ -32,16 +32,45 @@ from app.ui.settings_dialog import SettingsDialog
 from app.ui.gdrive_dialog import GoogleDriveDialog
 
 import os
+from PySide6.QtCore import QThread
+from app.ui.components.loading import LoadingOverlay
+
+
+class DataLoadWorker(QThread):
+    finished = Signal(tuple)
+
+    def __init__(self, vault: VaultManager, master_password: str = None):
+        super().__init__()
+        self.vault = vault
+        self.master_password = master_password
+
+    def run(self):
+        try:
+            # Derive key if provided and needed
+            if self.master_password:
+                # Unlock vault (verifies password and derives key)
+                # Running in QThread avoids freezing the UI
+                self.vault.unlock(self.master_password)
+                
+            folders = self.vault.get_all_folders()
+            credentials = self.vault.get_all_credentials()
+            secure_notes = self.vault.get_all_secure_notes()
+            credit_cards = self.vault.get_all_credit_cards()
+            self.finished.emit((folders, credentials, secure_notes, credit_cards))
+
+        except Exception as e:
+            print(f"Error loading data in background: {e}")
+            self.finished.emit(([], [], [], []))
 
 class VaultWidget(QWidget):
-
     lock_requested = Signal()
 
-    def __init__(self, vault: VaultManager, parent=None):
+    def __init__(self, vault: VaultManager, parent=None, master_password: str = None):
 
         super().__init__(parent)
 
         self.vault = vault
+        self.master_password = master_password
 
         self.sidebar_visible = True
 
@@ -68,10 +97,96 @@ class VaultWidget(QWidget):
         self._reload_timer.start()
 
     def load_data(self):
+        # Prevent multiple simultaneous loads
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            return
 
-        self.load_folders()
+        if hasattr(self, 'watcher') and self.watcher:
+            self.watcher.blockSignals(True)
 
-        self.load_credentials()
+        if hasattr(self, 'loading_overlay'):
+            self.loading_overlay.show()
+            self.loading_overlay.raise_()
+        
+        # Pass master_password to worker
+        self.worker = DataLoadWorker(self.vault, self.master_password)
+        self.worker.finished.connect(self.on_data_loaded)
+        self.worker.start()
+        
+        # Clear master password from memory reference after passing to thread
+        self.master_password = None
+
+    def on_data_loaded(self, data):
+        folders, credentials, secure_notes, credit_cards = data
+        
+        try:
+            # Update Folders
+            self.sidebar.set_folders(folders)
+            self.detail_panel.set_available_folders(folders)
+            
+            # Update Items using Batch Loading to avoid UI freeze
+            self.credentials_list.clear_items()
+            
+            self._pending_items = []
+            for c in credentials: self._pending_items.append((c, 'credential'))
+            for n in secure_notes: self._pending_items.append((n, 'note'))
+            for card in credit_cards: self._pending_items.append((card, 'card'))
+            
+            if not hasattr(self, '_batch_timer'):
+                self._batch_timer = QTimer(self)
+                self._batch_timer.setInterval(0)
+                self._batch_timer.timeout.connect(self._process_batch)
+            
+            self._batch_timer.start()
+            
+            # Start Watchtower scan now that vault is unlocked and key is derived
+            if hasattr(self, 'watchtower_view'):
+                self.watchtower_view.start_initial_scan()
+            
+        except Exception as e:
+            print(f"Error updating UI with loaded data: {e}")
+            if hasattr(self, 'loading_overlay'):
+                self.loading_overlay.hide()
+            if hasattr(self, 'watcher') and self.watcher:
+                self.watcher.blockSignals(False)
+
+    def _process_batch(self):
+        try:
+            BATCH_SIZE = 50
+            if not hasattr(self, '_pending_items') or not self._pending_items:
+                self._finish_loading()
+                return
+
+            chunk = self._pending_items[:BATCH_SIZE]
+            self._pending_items = self._pending_items[BATCH_SIZE:]
+            
+            batch_creds = []
+            batch_notes = []
+            batch_cards = []
+            
+            for item, type_ in chunk:
+                if type_ == 'credential': batch_creds.append(item)
+                elif type_ == 'note': batch_notes.append(item)
+                elif type_ == 'card': batch_cards.append(item)
+                
+            self.credentials_list.add_items_batch(batch_creds, batch_notes, batch_cards)
+            
+            if not self._pending_items:
+                self._finish_loading()
+                
+        except Exception as e:
+            print(f"Error in batch processing: {e}")
+            self._finish_loading()
+
+    def _finish_loading(self):
+        if hasattr(self, '_batch_timer'):
+            self._batch_timer.stop()
+        if hasattr(self, 'loading_overlay'):
+            self.loading_overlay.hide()
+        if hasattr(self, 'watcher') and self.watcher:
+            self.watcher.blockSignals(False)
+
+
 
     def setup_ui(self):
 
@@ -81,26 +196,17 @@ class VaultWidget(QWidget):
 
         self.main_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.main_layout.setSpacing(0)
+
 
         self.sidebar = Sidebar()
-
         self.sidebar.category_changed.connect(self.on_category_changed)
-
         self.sidebar.toggle_sidebar.connect(self.toggle_sidebar)
-
         self.sidebar.add_folder_clicked.connect(self.add_folder)
-
         self.sidebar.folder_edit_requested.connect(self.on_folder_edit)
-
         self.sidebar.folder_delete_requested.connect(self.on_folder_delete)
-
         self.sidebar.settings_clicked.connect(self.on_settings_clicked)
-
         self.sidebar.google_drive_clicked.connect(self.on_google_drive_clicked)
-        
         self.sidebar.add_item_clicked.connect(self.add_credential)
-
         self.main_layout.addWidget(self.sidebar)
 
         # Content Area (Stacked Widget)
@@ -142,6 +248,11 @@ class VaultWidget(QWidget):
         from .watchtower_view import WatchtowerView
         self.watchtower_view = WatchtowerView(self.vault)
         self.content_stack.addWidget(self.watchtower_view)
+        
+        # Loading Overlay (Last to be on top)
+        self.loading_overlay = LoadingOverlay(self)
+        self.loading_overlay.setVisible(True) # Start visible
+
 
     def set_category(self, category: str):
         self.sidebar.set_category(category)

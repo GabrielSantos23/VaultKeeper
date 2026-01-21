@@ -3,11 +3,12 @@ from PySide6.QtWidgets import QPushButton, QWidget, QVBoxLayout, QLabel
 
 from PySide6.QtCore import Qt, QSize
 
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPixmap
 
 from app.ui.theme import get_theme
 
 from app.ui.ui_utils import load_svg_icon
+from app.ui.components.svg_spinner import SvgSpinner
 
 class SidebarButton(QPushButton):
 
@@ -41,6 +42,9 @@ class SidebarButton(QPushButton):
 
         self.setMinimumHeight(40)
 
+        self.is_loading = False
+        self.spinner = None
+
         self.update_style()
 
     def update_style(self):
@@ -52,8 +56,14 @@ class SidebarButton(QPushButton):
         if self.isChecked():
 
             icon_color = theme.colors.sidebar_primary_foreground
-
-        self.setIcon(QIcon(load_svg_icon(self.icon_name, 18, icon_color)))
+        
+        if self.is_loading:
+            # Use transparent icon to maintain spacing
+            pixmap = QPixmap(18, 18)
+            pixmap.fill(Qt.transparent)
+            self.setIcon(QIcon(pixmap))
+        else:
+            self.setIcon(QIcon(load_svg_icon(self.icon_name, 18, icon_color)))
 
         self.setIconSize(QSize(18, 18))
 
@@ -97,6 +107,48 @@ class SidebarButton(QPushButton):
         super().setChecked(checked)
 
         self.update_style()
+
+    def start_loading(self):
+        if self.is_loading:
+            return
+            
+        self.is_loading = True
+        self.update_style()
+        
+        if not self.spinner:
+            # Calculate position based on padding
+            # Default padding is 12 (or self.padding_left), icon size is 18
+            # Vertically center: (height - 18) / 2
+            
+            self.spinner = SvgSpinner(size=18, parent=self)
+            
+            # Position manually
+            y = (self.height() - 18) // 2
+            self.spinner.move(self.padding_left, y)
+            self.spinner.raise_()
+            self.spinner.show()
+            
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
+            
+    def stop_loading(self):
+        if not self.is_loading:
+            return
+            
+        self.is_loading = False
+        
+        if self.spinner:
+            self.spinner.stop()
+            self.spinner.deleteLater()
+            self.spinner = None
+            
+        self.update_style()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.spinner:
+             y = (self.height() - 18) // 2
+             self.spinner.move(self.padding_left, y)
 
 class SidebarSection(QWidget):
 

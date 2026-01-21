@@ -647,3 +647,9 @@ class Sidebar(QFrame):
                     break
 
         self.category_changed.emit(category)
+
+    def set_all_items_loading(self, loading: bool):
+        if loading:
+            self.btn_all.start_loading()
+        else:
+            self.btn_all.stop_loading()

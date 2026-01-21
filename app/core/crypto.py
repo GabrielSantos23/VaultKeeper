@@ -9,50 +9,49 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from cryptography.hazmat.primitives import hashes
 
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.backends import default_backend
+
+def derive_key_static(password: str, salt: bytes) -> bytes:
+    kdf = Scrypt(
+        salt=salt,
+        length=32,
+        n=2**14, 
+        r=8,
+        p=1,
+        backend=default_backend()
+    )
+    return kdf.derive(password.encode())
 
 class CryptoManager:
 
     SALT_SIZE = 16
-
     NONCE_SIZE = 12
-
     KEY_SIZE = 32
-
-    ITERATIONS = 600000
+    
+    N = 16384
+    R = 8
+    P = 1
 
     def __init__(self):
-
         self._key: Optional[bytes] = None
-
         self._salt: Optional[bytes] = None
 
     def derive_key(self, master_password: str, salt: Optional[bytes] = None) -> bytes:
-
         if salt is None:
-
             salt = os.urandom(self.SALT_SIZE)
-
         self._salt = salt
 
-        kdf = PBKDF2HMAC(
-
-            algorithm=hashes.SHA256(),
-
-            length=self.KEY_SIZE,
-
+        kdf = Scrypt(
             salt=salt,
-
-            iterations=self.ITERATIONS,
-
+            length=self.KEY_SIZE,
+            n=self.N,
+            r=self.R,
+            p=self.P,
             backend=default_backend()
-
         )
 
         self._key = kdf.derive(master_password.encode('utf-8'))
-
         return self._key
 
     def set_key(self, key: bytes, salt: bytes):

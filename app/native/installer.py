@@ -15,7 +15,7 @@ from pathlib import Path
 
 from typing import Optional, List, Tuple
 
-FIREFOX_EXTENSION_ID = "gabriel.gs605@gmail.com"
+FIREFOX_EXTENSION_ID = "vaultkeeper@example.com"
 
 CHROME_EXTENSION_ID = "bklgfpmbbpfboanbdjakcgmlldhmlkco"
 

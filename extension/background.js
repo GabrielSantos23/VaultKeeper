@@ -136,6 +136,12 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           response = await getCredentials(request.domain);
           break;
 
+        case "check_credentials":
+          response = await sendNativeMessage("check_credentials", {
+            domain: request.domain,
+          });
+          break;
+
         case "save_credentials":
           response = await saveCredentials(
             request.domain,

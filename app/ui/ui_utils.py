@@ -42,46 +42,38 @@ def get_icon_path(name: str) -> str:
 
     return str(ICONS_DIR / f"{name}.svg")
 
+_icon_cache = {}
+
 def load_svg_icon(name: str, size: int = 20, color: str = None) -> QPixmap:
+    cache_key = (name, size, color)
+    if cache_key in _icon_cache:
+        return _icon_cache[cache_key]
 
     if os.path.isabs(name) or (os.path.sep in name) or ('/' in name):
-
         path = name
-
     else:
-
         path = get_icon_path(name)
 
     if not os.path.exists(path):
-
         return QPixmap(size, size)
 
     with open(path, 'r') as f:
-
         svg_content = f.read()
 
     if color:
-
         svg_content = svg_content.replace('currentColor', color)
-
     else:
-
         theme = get_theme()
-
         svg_content = svg_content.replace('currentColor', theme.colors.foreground)
 
     renderer = QSvgRenderer(svg_content.encode())
-
     pixmap = QPixmap(size, size)
-
     pixmap.fill(Qt.transparent)
-
     painter = QPainter(pixmap)
-
     renderer.render(painter)
-
     painter.end()
-
+    
+    _icon_cache[cache_key] = pixmap
     return pixmap
 
 def create_icon_button(icon_name: str, size: int = 20, color: str = None, tooltip: str = "") -> QPushButton:
