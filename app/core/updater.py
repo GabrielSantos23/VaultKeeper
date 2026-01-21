@@ -138,22 +138,20 @@ class UpdateManager(QObject):
             from urllib.parse import urlparse
 
             path = urlparse(url).path
-
-            ext = os.path.splitext(path)[1]
-
-            if not ext:
-
+            
+            # Try to get the filename from the URL
+            filename = os.path.basename(path)
+            
+            # If no filename or generic, fallback
+            if not filename or filename.strip() == "":
                 if "appimage" in url.lower():
-
-                    ext = ".AppImage"
-
+                    filename = "update.AppImage"
                 else:
-
-                    ext = ".zip"
-
-            fd, path = tempfile.mkstemp(suffix=ext)
-
-            os.close(fd)
+                    filename = "update.zip"
+            
+            # Use mkdtemp to create a directory, so we can keep the original filename
+            temp_dir = tempfile.mkdtemp()
+            save_path = os.path.join(temp_dir, filename)
 
             def report(block_num, block_size, total_size):
 
@@ -163,9 +161,9 @@ class UpdateManager(QObject):
 
                     self.download_progress.emit(percent)
 
-            urllib.request.urlretrieve(url, path, report)
+            urllib.request.urlretrieve(url, save_path, report)
 
-            self.download_complete.emit(path)
+            self.download_complete.emit(save_path)
 
         except Exception as e:
 
@@ -202,18 +200,50 @@ class UpdateManager(QObject):
                     self.download_error.emit(f"Failed to launch installer: {e}")
 
             elif file_path.lower().endswith(".appimage"):
-
                 try:
-
+                    import shutil
                     os.chmod(file_path, 0o755)
 
-                    subprocess.Popen([file_path])
+                    # Check if running as AppImage
+                    current_appimage = os.environ.get("APPIMAGE")
+                    if current_appimage and os.path.exists(current_appimage):
+                        # Determine installation location
+                        install_dir = os.path.dirname(current_appimage)
+                        new_filename = os.path.basename(file_path)
+                        target_path = os.path.join(install_dir, new_filename)
+                        
+                        # Move new version to the installation directory
+                        # If target exists (e.g. reinstalling same version?), remove it first
+                        if os.path.exists(target_path):
+                            try:
+                                os.remove(target_path)
+                            except:
+                                pass
+                        
+                        shutil.move(file_path, target_path)
+                        os.chmod(target_path, 0o755)
+                        
+                        # Remove old version if filename is different and it's not the same file
+                        if current_appimage != target_path:
+                            try:
+                                os.remove(current_appimage)
+                            except:
+                                # If remove fails/locked, rename to .old to hide it 
+                                # (AppImageLauncher might handle this transition)
+                                try:
+                                    os.rename(current_appimage, current_appimage + ".old")
+                                except:
+                                    pass
+
+                        # Launch the new AppImage
+                        subprocess.Popen([target_path])
+                    else:
+                        subprocess.Popen([file_path])
 
                     self.install_complete.emit()
 
                 except Exception as e:
-
-                    self.download_error.emit(f"Failed to launch AppImage: {e}")
+                    self.download_error.emit(f"Failed to install AppImage: {e}")
 
             else:
 

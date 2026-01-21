@@ -1,6 +1,12 @@
 # Changelog
 
-## [Current Version] - 2026-01-21
+## [1.0.7] - 2026-01-21
+
+### Linux Improvements
+- **Correção Crítica no Atualizador**: O auto-update no Linux agora substitui corretamente o arquivo AppImage antigo pela nova versão, reiniciando a aplicação automaticamente.
+- **Suporte ao AppImageLauncher**: A atualização agora é totalmente compatível com o AppImageLauncher, preservando atalhos e ícones do sistema ao atualizar. O arquivo novo substitui o antigo no diretório de instalação (ex: `~/Applications`).
+
+## [1.0.6] - 2026-01-21
 
 ### Performance & Stability
 - **Smoother Loading Experience**: ADDED multithreading and multiprocessing support to handle heavy cryptographic operations (Argon2 key derivation) without freezing the user interface.
