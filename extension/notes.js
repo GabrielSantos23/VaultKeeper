@@ -60,8 +60,9 @@
 
   // --- HTML to Markdown Converter ---
   function htmlToMarkdown(html) {
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const temp = doc.body;
     // Clean spaces
     let md = domToMarkdown(temp).trim();
     // Reduce multiple newlines to max 2
@@ -184,13 +185,25 @@
 
       const preview = note.content.replace(/<[^>]*>/g, "").slice(0, 50);
 
-      item.innerHTML = `
-        <div class="note-icon">📝</div>
-        <div class="note-info">
-          <div class="note-title">${escapeHtml(note.title)}</div>
-          <div class="note-preview">${escapeHtml(preview)}${preview.length >= 50 ? "..." : ""}</div>
-        </div>
-      `;
+      const iconDiv = document.createElement("div");
+      iconDiv.className = "note-icon";
+      iconDiv.textContent = "📝";
+
+      const infoDiv = document.createElement("div");
+      infoDiv.className = "note-info";
+
+      const titleDiv = document.createElement("div");
+      titleDiv.className = "note-title";
+      titleDiv.textContent = note.title;
+
+      const previewDiv = document.createElement("div");
+      previewDiv.className = "note-preview";
+      previewDiv.textContent = preview + (preview.length >= 50 ? "..." : "");
+
+      infoDiv.appendChild(titleDiv);
+      infoDiv.appendChild(previewDiv);
+      item.appendChild(iconDiv);
+      item.appendChild(infoDiv);
 
       item.addEventListener("click", () => selectNote(note));
       notesList.appendChild(item);
@@ -213,9 +226,14 @@
     if (noteDetailPanel) noteDetailPanel.classList.remove("hidden");
 
     document.getElementById("note-detail-title").textContent = note.title;
-    document.getElementById("note-detail-content").innerHTML = cleanQtContent(
-      note.content,
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(
+      cleanQtContent(note.content),
+      "text/html",
     );
+    document
+      .getElementById("note-detail-content")
+      .replaceChildren(...doc.body.childNodes);
     document.getElementById("note-detail-date").textContent = formatDate(
       note.updated_at || note.created_at,
     );
@@ -247,11 +265,17 @@
 
     if (note) {
       if (noteEditorTitle) noteEditorTitle.value = note.title;
-      if (noteEditorContent)
-        noteEditorContent.innerHTML = cleanQtContent(note.content);
+      if (noteEditorContent) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(
+          cleanQtContent(note.content),
+          "text/html",
+        );
+        noteEditorContent.replaceChildren(...doc.body.childNodes);
+      }
     } else {
       if (noteEditorTitle) noteEditorTitle.value = "";
-      if (noteEditorContent) noteEditorContent.innerHTML = "";
+      if (noteEditorContent) noteEditorContent.replaceChildren();
     }
 
     if (noteEditorContent) noteEditorContent.focus();
@@ -388,6 +412,7 @@
 
   function openNotesView() {
     document.getElementById("unlocked-view")?.classList.add("hidden");
+    document.getElementById("cards-view")?.classList.add("hidden");
     document.getElementById("notes-view")?.classList.remove("hidden");
     loadNotes();
   }

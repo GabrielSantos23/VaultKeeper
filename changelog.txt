@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.8] - 2026-01-22
+
+### Cross-Platform Compatibility (Desktop & Extension)
+- **Rich Text Notes**: Standardized HTML usage for Secure Notes across both Desktop and Browser Extension.
+  - Implemented bidirectional HTML synchronization.
+  - Fixed display issues where HTML tags were visible in the list preview or detail panels.
+  - Added logic to strip Qt-specific metadata when displaying notes in the extension.
+
+### Browser Extension
+- **Editor Improvements**:
+  - Added "Bullet List" and "Numbered List" buttons to the Secure Note editor toolbar.
+  - Fixed excessive vertical spacing in notes display.
+- **Copy as Markdown**: Added a "Copy as MD" button that converts the note content to Markdown format and copies it to the clipboard.
+
+### Desktop UI Improvements
+- **Detail Panels**:
+  - Standardized "Edit" buttons across Secure Notes and Credit Cards to match the Credentials design (rounded, secondary color).
+  - Added "Copy as Markdown" (MD) button to Secure Notes with visual feedback ("Copied!" with check icon).
+- **Bug Fixes**:
+  - Fixed a crash related to `QSize` import in detail panels.
+  - Increased main window minimum size for better layout.
+
 ## [1.0.7] - 2026-01-21
 
 ### Linux Improvements

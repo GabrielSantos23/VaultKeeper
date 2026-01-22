@@ -7,6 +7,13 @@ let isConnected = false;
 let pendingRequests = new Map();
 let requestId = 0;
 
+// Internal Cache to avoid redundant native requests
+let inMemoryCache = {
+  credentials: null,
+  notes: null,
+  cards: null,
+};
+
 function connectNativeHost() {
   if (nativePort) {
     return;
@@ -22,6 +29,8 @@ function connectNativeHost() {
     nativePort.onDisconnect.addListener(() => {
       nativePort = null;
       isConnected = false;
+      // Clear cache on disconnect/restart
+      inMemoryCache = { credentials: null, notes: null, cards: null };
 
       for (const [id, { reject }] of pendingRequests) {
         reject(new Error("Native host disconnected"));
@@ -77,37 +86,21 @@ async function sendNativeMessage(action, data = {}) {
   });
 }
 
-async function getCredentials(domain) {
-  return sendNativeMessage("get_credentials", { domain });
-}
-
-async function saveCredentials(domain, username, password, notes = null) {
-  return sendNativeMessage("save_credentials", {
-    domain,
-    username,
-    password,
-    notes,
-  });
-}
-
+// Helpers that manage cache
 async function getStatus() {
   return sendNativeMessage("status");
 }
 
 async function unlock(password) {
+  // Clear cache on unlock to ensure fresh start, or keep null
+  inMemoryCache = { credentials: null, notes: null, cards: null };
   return sendNativeMessage("unlock", { password });
 }
 
 async function lock() {
+  // Clear cache on lock
+  inMemoryCache = { credentials: null, notes: null, cards: null };
   return sendNativeMessage("lock");
-}
-
-async function getAllCredentials() {
-  return sendNativeMessage("get_all_credentials");
-}
-
-async function searchCredentials(query) {
-  return sendNativeMessage("search", { query });
 }
 
 browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -122,6 +115,16 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case "status":
           response = await getStatus();
+          // If locked or disconnected, clear cache
+          if (response.success && !response.unlocked) {
+            if (
+              inMemoryCache.credentials ||
+              inMemoryCache.notes ||
+              inMemoryCache.cards
+            ) {
+              inMemoryCache = { credentials: null, notes: null, cards: null };
+            }
+          }
           break;
 
         case "unlock":
@@ -133,7 +136,9 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "get_credentials":
-          response = await getCredentials(request.domain);
+          response = await sendNativeMessage("get_credentials", {
+            domain: request.domain,
+          });
           break;
 
         case "check_credentials":
@@ -142,36 +147,57 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
           break;
 
+        case "invalidate_cache":
+          inMemoryCache = { credentials: null, notes: null, cards: null };
+          response = { success: true };
+          break;
+
         case "save_credentials":
-          response = await saveCredentials(
-            request.domain,
-            request.username,
-            request.password,
-            request.notes,
-          );
+          inMemoryCache.credentials = null; // Invalidate cache
+          response = await sendNativeMessage("save_credentials", {
+            domain: request.domain,
+            username: request.username,
+            password: request.password,
+            notes: request.notes,
+          });
           break;
 
         case "get_all_credentials":
-          response = await getAllCredentials();
+          if (inMemoryCache.credentials) {
+            response = inMemoryCache.credentials;
+            // Background refresh? Maybe implemented later if stale data is an issue
+          } else {
+            response = await sendNativeMessage("get_all_credentials");
+            if (response.success) {
+              inMemoryCache.credentials = response;
+            }
+          }
           break;
 
         case "search":
-          response = await searchCredentials(request.query);
+          // Search should probably bypass cache or filter local cache if complete?
+          // Native search is better for large datasets (but here datasets are small-ish).
+          response = await sendNativeMessage("search", {
+            query: request.query,
+          });
           break;
 
         case "toggle_favorite":
+          inMemoryCache.credentials = null; // Invalidate
           response = await sendNativeMessage("toggle_favorite", {
             id: request.id,
           });
           break;
 
         case "delete_credentials":
+          inMemoryCache.credentials = null; // Invalidate
           response = await sendNativeMessage("delete_credentials", {
             id: request.id,
           });
           break;
 
         case "update_credentials":
+          inMemoryCache.credentials = null; // Invalidate
           response = await sendNativeMessage("update_credentials", {
             id: request.id,
             domain: request.domain,
@@ -186,6 +212,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "set_folder":
+          inMemoryCache.credentials = null; // Moving folder affects list order/grouping? Maybe. Best to invalidate.
           response = await sendNativeMessage("set_folder", {
             id: request.id,
             folder_id: request.folder_id,
@@ -193,6 +220,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "get_totp":
+          // Dynamic data, do not cache
           response = await sendNativeMessage("get_totp", {
             id: request.id,
           });
@@ -208,10 +236,18 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "get_all_credit_cards":
-          response = await sendNativeMessage("get_all_credit_cards");
+          if (inMemoryCache.cards) {
+            response = inMemoryCache.cards;
+          } else {
+            response = await sendNativeMessage("get_all_credit_cards");
+            if (response.success) {
+              inMemoryCache.cards = response;
+            }
+          }
           break;
 
         case "save_credit_card":
+          inMemoryCache.cards = null; // Invalidate
           response = await sendNativeMessage("save_credit_card", {
             id: request.id,
             title: request.title,
@@ -224,16 +260,25 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "delete_credit_card":
+          inMemoryCache.cards = null; // Invalidate
           response = await sendNativeMessage("delete_credit_card", {
             id: request.id,
           });
           break;
 
         case "get_all_secure_notes":
-          response = await sendNativeMessage("get_all_secure_notes");
+          if (inMemoryCache.notes) {
+            response = inMemoryCache.notes;
+          } else {
+            response = await sendNativeMessage("get_all_secure_notes");
+            if (response.success) {
+              inMemoryCache.notes = response;
+            }
+          }
           break;
 
         case "save_secure_note":
+          inMemoryCache.notes = null; // Invalidate
           response = await sendNativeMessage("save_secure_note", {
             id: request.id,
             title: request.title,
@@ -242,6 +287,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "delete_secure_note":
+          inMemoryCache.notes = null; // Invalidate
           response = await sendNativeMessage("delete_secure_note", {
             id: request.id,
           });

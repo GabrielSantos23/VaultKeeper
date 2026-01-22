@@ -65,13 +65,26 @@
       const lastFour = card.card_number.slice(-4);
       const cardType = detectCardType(card.card_number);
 
-      item.innerHTML = `
-        <div class="card-icon">${getCardIcon(cardType)}</div>
-        <div class="card-info">
-          <div class="card-title">${escapeHtml(card.title)}</div>
-          <div class="card-number">•••• ${lastFour}</div>
-        </div>
-      `;
+      const iconDiv = document.createElement("div");
+      iconDiv.className = "card-icon";
+      iconDiv.textContent = getCardIcon(cardType);
+
+      const infoDiv = document.createElement("div");
+      infoDiv.className = "card-info";
+
+      const titleDiv = document.createElement("div");
+      titleDiv.className = "card-title";
+      titleDiv.textContent = card.title;
+
+      const numberDiv = document.createElement("div");
+      numberDiv.className = "card-number";
+      numberDiv.textContent = `•••• ${lastFour}`;
+
+      infoDiv.appendChild(titleDiv);
+      infoDiv.appendChild(numberDiv);
+
+      item.appendChild(iconDiv);
+      item.appendChild(infoDiv);
 
       item.addEventListener("click", () => selectCard(card));
       cardsList.appendChild(item);
@@ -151,10 +164,12 @@
       await navigator.clipboard.writeText(value);
       const btn = document.querySelector(`[data-copy-card="${field}"]`);
       if (btn) {
-        const originalHTML = btn.innerHTML;
+        const originalChildren = Array.from(btn.childNodes).map((n) =>
+          n.cloneNode(true),
+        );
         btn.textContent = "✓";
         setTimeout(() => {
-          btn.innerHTML = originalHTML;
+          btn.replaceChildren(...originalChildren);
         }, 1500);
       }
     } catch (error) {
@@ -314,6 +329,7 @@
 
   function openCardsView() {
     document.getElementById("unlocked-view")?.classList.add("hidden");
+    document.getElementById("notes-view")?.classList.add("hidden");
     document.getElementById("cards-view")?.classList.remove("hidden");
     loadCards();
   }

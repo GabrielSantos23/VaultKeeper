@@ -111,9 +111,19 @@ async function checkStatus() {
       return;
     }
 
+    function restoreLastView() {
+      const lastView = localStorage.getItem("vk_last_view");
+      if (lastView === "notes" && window.openNotesView) {
+        window.openNotesView();
+      } else if (lastView === "cards" && window.openCardsView) {
+        window.openCardsView();
+      }
+    }
+
     if (response.unlocked) {
       showView("unlocked-view");
       loadCredentials();
+      restoreLastView();
     } else {
       showView("locked-view");
     }
@@ -694,7 +704,9 @@ function createDropdownMenu() {
 
   const dropdown = document.createElement("div");
   dropdown.className = "vk-dropdown-menu";
-  dropdown.innerHTML = `
+
+  const parser = new DOMParser();
+  const html = `
         <button class="vk-dropdown-item" data-action="edit">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -717,6 +729,8 @@ function createDropdownMenu() {
             Delete
         </button>
     `;
+  const doc = parser.parseFromString(html, "text/html");
+  Array.from(doc.body.childNodes).forEach((node) => dropdown.appendChild(node));
 
   return dropdown;
 }
@@ -920,22 +934,18 @@ const navNotesBtn = document.getElementById("nav-notes-btn");
 
 if (navCardsBtn) {
   navCardsBtn.addEventListener("click", () => {
-    console.log("Credit Cards button clicked");
+    localStorage.setItem("vk_last_view", "cards");
     if (window.openCardsView) {
       window.openCardsView();
-    } else {
-      console.error("openCardsView function not found");
     }
   });
 }
 
 if (navNotesBtn) {
   navNotesBtn.addEventListener("click", () => {
-    console.log("Secure Notes button clicked");
+    localStorage.setItem("vk_last_view", "notes");
     if (window.openNotesView) {
       window.openNotesView();
-    } else {
-      console.error("openNotesView function not found");
     }
   });
 }
@@ -1061,17 +1071,25 @@ function renderPasswordWithColors(password) {
   const numbers = "0123456789";
   const symbols = "!@#$%^&*()_+-=[]{}|;:,.<>?";
 
-  let html = "";
+  genPasswordText.replaceChildren();
+  const fragment = document.createDocumentFragment();
+
   for (const char of password) {
     if (numbers.includes(char)) {
-      html += `<span class="char-number">${escapeHtml(char)}</span>`;
+      const span = document.createElement("span");
+      span.className = "char-number";
+      span.textContent = char;
+      fragment.appendChild(span);
     } else if (symbols.includes(char)) {
-      html += `<span class="char-symbol">${escapeHtml(char)}</span>`;
+      const span = document.createElement("span");
+      span.className = "char-symbol";
+      span.textContent = char;
+      fragment.appendChild(span);
     } else {
-      html += escapeHtml(char);
+      fragment.appendChild(document.createTextNode(char));
     }
   }
-  genPasswordText.innerHTML = html;
+  genPasswordText.appendChild(fragment);
 }
 
 function updateGeneratorStrength(password) {
@@ -1156,3 +1174,88 @@ if (genSymbolsToggle)
   genSymbolsToggle.addEventListener("change", generateNewPassword);
 if (genTypeSelect)
   genTypeSelect.addEventListener("change", generateNewPassword);
+
+// Persistence back navigation
+const persistenceNotesBack = document.getElementById("notes-back-btn");
+const persistenceCardsBack = document.getElementById("cards-back-btn");
+
+if (persistenceNotesBack) {
+  persistenceNotesBack.addEventListener("click", () => {
+    localStorage.setItem("vk_last_view", "home");
+  });
+}
+
+if (persistenceCardsBack) {
+  persistenceCardsBack.addEventListener("click", () => {
+    localStorage.setItem("vk_last_view", "home");
+  });
+}
+
+// Refresh Button Logic
+const refreshBtn = document.getElementById("refresh-btn");
+if (refreshBtn) {
+  refreshBtn.addEventListener("click", async () => {
+    const icon = refreshBtn.querySelector("svg");
+    if (icon) icon.classList.add("spinning");
+
+    try {
+      await sendMessage({ action: "invalidate_cache" });
+      await loadCredentials();
+
+      const lastView = localStorage.getItem("vk_last_view");
+      if (lastView === "notes" && window.openNotesView) {
+        window.openNotesView();
+      } else if (lastView === "cards" && window.openCardsView) {
+        window.openCardsView();
+      }
+    } catch (e) {
+      console.error("Refresh failed", e);
+    } finally {
+      setTimeout(() => {
+        if (icon) icon.classList.remove("spinning");
+      }, 500);
+    }
+  });
+}
+
+/* New Tab Navigation Listeners */
+const navHomeFromCards = document.getElementById("nav-home-from-cards");
+const navNotesFromCards = document.getElementById("nav-notes-from-cards");
+const navHomeFromNotes = document.getElementById("nav-home-from-notes");
+const navCardsFromNotes = document.getElementById("nav-cards-from-notes");
+
+if (navHomeFromCards) {
+  navHomeFromCards.addEventListener("click", () => {
+    localStorage.setItem("vk_last_view", "home");
+    if (window.closeCardsView) {
+      window.closeCardsView();
+    } else {
+      showView("unlocked-view");
+    }
+  });
+}
+
+if (navNotesFromCards) {
+  navNotesFromCards.addEventListener("click", () => {
+    localStorage.setItem("vk_last_view", "notes");
+    if (window.openNotesView) window.openNotesView();
+  });
+}
+
+if (navHomeFromNotes) {
+  navHomeFromNotes.addEventListener("click", () => {
+    localStorage.setItem("vk_last_view", "home");
+    if (window.closeNotesView) {
+      window.closeNotesView();
+    } else {
+      showView("unlocked-view");
+    }
+  });
+}
+
+if (navCardsFromNotes) {
+  navCardsFromNotes.addEventListener("click", () => {
+    localStorage.setItem("vk_last_view", "cards");
+    if (window.openCardsView) window.openCardsView();
+  });
+}
