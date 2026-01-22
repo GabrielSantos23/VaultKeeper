@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("VaultKeeper")
 
-        self.setMinimumSize(1000, 800)
+        self.setMinimumSize(1200, 800)
 
         self.setup_ui()
 

@@ -264,6 +264,86 @@ function setFieldValue(field, value) {
   field.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+function fillCreditCard(cardNumber, expiryDate, cvv, cardholderName) {
+  let filled = false;
+
+  const cardNumberSelectors = [
+    'input[autocomplete="cc-number"]',
+    'input[name*="card" i][name*="number" i]',
+    'input[name*="cardnumber" i]',
+    'input[id*="card" i][id*="number" i]',
+    'input[id*="cardnumber" i]',
+    'input[placeholder*="card number" i]',
+    'input[data-card-field="number"]',
+  ];
+
+  const expirySelectors = [
+    'input[autocomplete="cc-exp"]',
+    'input[name*="expir" i]',
+    'input[name*="exp" i][name*="date" i]',
+    'input[id*="expir" i]',
+    'input[placeholder*="MM" i]',
+  ];
+
+  const cvvSelectors = [
+    'input[autocomplete="cc-csc"]',
+    'input[name*="cvv" i]',
+    'input[name*="cvc" i]',
+    'input[name*="security" i][name*="code" i]',
+    'input[id*="cvv" i]',
+    'input[id*="cvc" i]',
+    'input[placeholder*="CVV" i]',
+    'input[placeholder*="CVC" i]',
+  ];
+
+  const nameSelectors = [
+    'input[autocomplete="cc-name"]',
+    'input[name*="card" i][name*="holder" i]',
+    'input[name*="cardholder" i]',
+    'input[name*="name" i][name*="card" i]',
+    'input[id*="cardholder" i]',
+    'input[placeholder*="name on card" i]',
+  ];
+
+  for (const selector of cardNumberSelectors) {
+    const field = document.querySelector(selector);
+    if (field && isVisible(field)) {
+      setFieldValue(field, cardNumber);
+      filled = true;
+      break;
+    }
+  }
+
+  for (const selector of expirySelectors) {
+    const field = document.querySelector(selector);
+    if (field && isVisible(field)) {
+      setFieldValue(field, expiryDate);
+      filled = true;
+      break;
+    }
+  }
+
+  for (const selector of cvvSelectors) {
+    const field = document.querySelector(selector);
+    if (field && isVisible(field)) {
+      setFieldValue(field, cvv);
+      filled = true;
+      break;
+    }
+  }
+
+  for (const selector of nameSelectors) {
+    const field = document.querySelector(selector);
+    if (field && isVisible(field)) {
+      setFieldValue(field, cardholderName);
+      filled = true;
+      break;
+    }
+  }
+
+  return filled;
+}
+
 function captureCredentials(form) {
   const passwordField = form.querySelector('input[type="password"]');
   let username = "";
@@ -1162,6 +1242,15 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
         isMultiStep: detectedFields?.isMultiStep || false,
       });
       break;
+    case "fill_password_only":
+      detectedFields = detectLoginFields();
+      let passwordFilled = false;
+      if (detectedFields && detectedFields.password) {
+        setFieldValue(detectedFields.password, request.password);
+        passwordFilled = true;
+      }
+      sendResponse({ success: passwordFilled });
+      break;
     case "detect":
       detectedFields = detectLoginFields();
       sendResponse({
@@ -1171,6 +1260,15 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
         isMultiStep: detectedFields?.isMultiStep || false,
         domain: currentDomain,
       });
+      break;
+    case "fill_card":
+      const cardFilled = fillCreditCard(
+        request.card_number,
+        request.expiry_date,
+        request.cvv,
+        request.cardholder_name,
+      );
+      sendResponse({ success: cardFilled });
       break;
   }
   return true;

@@ -150,6 +150,19 @@ class NativeMessagingHost:
 
                 return self._handle_get_totp(message)
 
+            elif action == 'get_all_credit_cards':
+                return self._handle_get_all_credit_cards()
+            elif action == 'save_credit_card':
+                return self._handle_save_credit_card(message)
+            elif action == 'delete_credit_card':
+                return self._handle_delete_credit_card(message)
+            elif action == 'get_all_secure_notes':
+                return self._handle_get_all_secure_notes()
+            elif action == 'save_secure_note':
+                return self._handle_save_secure_note(message)
+            elif action == 'delete_secure_note':
+                return self._handle_delete_secure_note(message)
+
             else:
 
                 return {'success': False, 'error': f'Unknown action: {action}'}
@@ -464,6 +477,96 @@ class NativeMessagingHost:
             logger.error(f"Error generating TOTP: {e}")
 
             return {'success': False, 'error': 'Failed to generate TOTP code'}
+
+    def _handle_get_all_credit_cards(self) -> Dict[str, Any]:
+        if not self.auth.is_unlocked:
+            return {'success': False, 'error': 'Vault is locked', 'locked': True}
+        cards = self.vault.get_all_credit_cards()
+        return {
+            'success': True,
+            'cards': [card.to_dict() for card in cards]
+        }
+
+    def _handle_save_credit_card(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.auth.is_unlocked:
+            return {'success': False, 'error': 'Vault is locked', 'locked': True}
+        
+        card_id = message.get('id')
+        title = message.get('title')
+        cardholder_name = message.get('cardholder_name')
+        card_number = message.get('card_number')
+        expiry_date = message.get('expiry_date')
+        cvv = message.get('cvv')
+        notes = message.get('notes')
+
+        if not all([title, cardholder_name, card_number, expiry_date, cvv]):
+            return {'success': False, 'error': 'All card fields are required'}
+
+        try:
+            if card_id:
+                self.vault.update_credit_card(
+                    card_id, title=title, cardholder_name=cardholder_name,
+                    card_number=card_number, expiry_date=expiry_date,
+                    cvv=cvv, notes=notes
+                )
+                return {'success': True, 'message': 'Card updated', 'id': card_id}
+            else:
+                new_id = self.vault.add_credit_card(
+                    title, cardholder_name, card_number, expiry_date, cvv, notes
+                )
+                return {'success': True, 'message': 'Card saved', 'id': new_id}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def _handle_delete_credit_card(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.auth.is_unlocked:
+            return {'success': False, 'error': 'Vault is locked', 'locked': True}
+        card_id = message.get('id')
+        if not card_id:
+            return {'success': False, 'error': 'Card ID required'}
+        if self.vault.delete_credit_card(card_id):
+            return {'success': True, 'message': 'Card deleted'}
+        return {'success': False, 'error': 'Card not found'}
+
+    def _handle_get_all_secure_notes(self) -> Dict[str, Any]:
+        if not self.auth.is_unlocked:
+            return {'success': False, 'error': 'Vault is locked', 'locked': True}
+        notes = self.vault.get_all_secure_notes()
+        return {
+            'success': True,
+            'notes': [note.to_dict() for note in notes]
+        }
+
+    def _handle_save_secure_note(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.auth.is_unlocked:
+            return {'success': False, 'error': 'Vault is locked', 'locked': True}
+        
+        note_id = message.get('id')
+        title = message.get('title')
+        content = message.get('content')
+
+        if not title or not content:
+            return {'success': False, 'error': 'Title and content are required'}
+
+        try:
+            if note_id:
+                self.vault.update_secure_note(note_id, title=title, content=content)
+                return {'success': True, 'message': 'Note updated', 'id': note_id}
+            else:
+                new_id = self.vault.add_secure_note(title, content)
+                return {'success': True, 'message': 'Note saved', 'id': new_id}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def _handle_delete_secure_note(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.auth.is_unlocked:
+            return {'success': False, 'error': 'Vault is locked', 'locked': True}
+        note_id = message.get('id')
+        if not note_id:
+            return {'success': False, 'error': 'Note ID required'}
+        if self.vault.delete_secure_note(note_id):
+            return {'success': True, 'message': 'Note deleted'}
+        return {'success': False, 'error': 'Note not found'}
 
     def run(self):
 

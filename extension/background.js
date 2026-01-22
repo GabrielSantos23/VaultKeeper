@@ -207,6 +207,57 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           response = { success: true };
           break;
 
+        case "get_all_credit_cards":
+          response = await sendNativeMessage("get_all_credit_cards");
+          break;
+
+        case "save_credit_card":
+          response = await sendNativeMessage("save_credit_card", {
+            id: request.id,
+            title: request.title,
+            cardholder_name: request.cardholder_name,
+            card_number: request.card_number,
+            expiry_date: request.expiry_date,
+            cvv: request.cvv,
+            notes: request.notes,
+          });
+          break;
+
+        case "delete_credit_card":
+          response = await sendNativeMessage("delete_credit_card", {
+            id: request.id,
+          });
+          break;
+
+        case "get_all_secure_notes":
+          response = await sendNativeMessage("get_all_secure_notes");
+          break;
+
+        case "save_secure_note":
+          response = await sendNativeMessage("save_secure_note", {
+            id: request.id,
+            title: request.title,
+            content: request.content,
+          });
+          break;
+
+        case "delete_secure_note":
+          response = await sendNativeMessage("delete_secure_note", {
+            id: request.id,
+          });
+          break;
+
+        case "fill_card":
+          browserAPI.tabs.sendMessage(sender.tab?.id || request.tabId, {
+            action: "fill_card",
+            card_number: request.card_number,
+            expiry_date: request.expiry_date,
+            cvv: request.cvv,
+            cardholder_name: request.cardholder_name,
+          });
+          response = { success: true };
+          break;
+
         default:
           response = {
             success: false,

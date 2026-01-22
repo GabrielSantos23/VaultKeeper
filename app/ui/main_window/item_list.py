@@ -186,7 +186,11 @@ class VaultItemWrapper:
             self.folder_id = item.folder_id
         elif type_ == ITEM_TYPE_NOTE:
             self.title = item.title
-            preview = item.content[:50].split('\n')[0]
+            import re
+            # Remove HTML tags for preview
+            clean_content = re.sub(r'<[^>]+>', '', item.content)
+            # Remove HTML entities like &nbsp; if desired, but basic tag stripping is good start
+            preview = clean_content.strip()[:50].split('\n')[0]
             self.subtitle = preview
             self.domain = ""
             self.updated_at = getattr(item, 'updated_at', 0) or getattr(item, 'created_at', 0)

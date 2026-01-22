@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 from app.ui.components.elided_label import ElidedLabel
 
 
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, Signal, QTimer, QSize
 
 from PySide6.QtGui import QIcon, QClipboard
 
@@ -478,7 +478,12 @@ class SecureNoteDetailPanel(QWidget):
         from PySide6.QtWidgets import QSizePolicy
 
         content = self.note.content
-        is_html = content.strip().startswith('<!DOCTYPE') or content.strip().startswith('<html')
+        # Better HTML detection
+        stripped = content.strip()
+        is_html = (stripped.startswith('<!DOCTYPE') or 
+                  stripped.startswith('<html') or 
+                  'qrichtext' in content or 
+                  (stripped.startswith('<') and '>' in stripped))
         is_large_content = len(content) > self.LARGE_CONTENT_THRESHOLD
 
         if is_html:
@@ -598,31 +603,53 @@ class SecureNoteDetailPanel(QWidget):
 
         header_layout.addLayout(title_layout, 1)
 
-        edit_btn = QPushButton("Edit")
-
-        edit_btn.setFixedSize(70, 32)
-
+        # Edit Button
+        edit_btn = QPushButton(" Edit")
+        edit_btn.setIcon(QIcon(load_svg_icon("edit", 14, theme.colors.secondary_foreground)))
+        edit_btn.setIconSize(QSize(14, 14))
         edit_btn.setCursor(Qt.PointingHandCursor)
-
+        edit_btn.setFixedHeight(36)
         edit_btn.setStyleSheet(f"""
             QPushButton {{
-
-                background-color: {theme.colors.card};
-                color: {theme.colors.foreground};
-                border: 1px solid {theme.colors.border};
-                border-radius: 6px;
-                font-size: 13px;
+                background-color: {theme.colors.secondary};
+                color: {theme.colors.secondary_foreground};
+                border: none;
+                border-radius: 8px;
+                padding: 0 16px;
+                font-size: 14px;
                 font-weight: 500;
             }}
             QPushButton:hover {{
-
                 background-color: {theme.colors.accent};
             }}
         """)
-
         edit_btn.clicked.connect(lambda: self.edit_requested.emit(self.note))
-
+        
         header_layout.addWidget(edit_btn)
+
+        # Copy Markdown Button
+        copy_md_btn = QPushButton("Copy")
+        copy_md_btn.setIcon(QIcon(load_svg_icon("copy", 14, theme.colors.secondary_foreground)))
+        copy_md_btn.setIconSize(QSize(14, 14))
+        copy_md_btn.setCursor(Qt.PointingHandCursor)
+        copy_md_btn.setFixedHeight(36)
+        copy_md_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.colors.secondary};
+                color: {theme.colors.secondary_foreground};
+                border: none;
+                border-radius: 8px;
+                padding: 0 12px;
+                font-size: 14px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """)
+        copy_md_btn.clicked.connect(lambda: self._copy_markdown(copy_md_btn))
+
+        header_layout.addWidget(copy_md_btn)
 
         menu_btn = QPushButton()
 
@@ -702,6 +729,71 @@ class SecureNoteDetailPanel(QWidget):
         elif action == delete_action:
 
             self.delete_requested.emit(self.note)
+
+    def _copy_markdown(self, button=None):
+        text = self.note.content
+        import re
+        from html import unescape
+        
+        # Remove Qt fluff
+        text = re.sub(r'<meta[^>]*>', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL|re.IGNORECASE)
+        
+        # Replace common formatting
+        text = re.sub(r'<b>(.*?)</b>', r'**\1**', text, flags=re.DOTALL|re.IGNORECASE)
+        text = re.sub(r'<strong>(.*?)</strong>', r'**\1**', text, flags=re.DOTALL|re.IGNORECASE)
+        # Qt specific bold span
+        text = re.sub(r'<span style="font-weight:600;">(.*?)</span>', r'**\1**', text, flags=re.DOTALL|re.IGNORECASE)
+        text = re.sub(r'<span style="font-weight:700;">(.*?)</span>', r'**\1**', text, flags=re.DOTALL|re.IGNORECASE)
+        
+        text = re.sub(r'<i>(.*?)</i>', r'*\1*', text, flags=re.DOTALL|re.IGNORECASE)
+        text = re.sub(r'<em>(.*?)</em>', r'*\1*', text, flags=re.DOTALL|re.IGNORECASE)
+        text = re.sub(r'<span style="font-style:italic;">(.*?)</span>', r'*\1*', text, flags=re.DOTALL|re.IGNORECASE)
+
+        text = re.sub(r'<code[^>]*>(.*?)</code>', r'`\1`', text, flags=re.DOTALL|re.IGNORECASE)
+        
+        text = re.sub(r'<h1[^>]*>(.*?)</h1>', r'# \1\n\n', text, flags=re.DOTALL|re.IGNORECASE)
+        text = re.sub(r'<h2[^>]*>(.*?)</h2>', r'## \1\n\n', text, flags=re.DOTALL|re.IGNORECASE)
+        text = re.sub(r'<h3[^>]*>(.*?)</h3>', r'### \1\n\n', text, flags=re.DOTALL|re.IGNORECASE)
+        
+        text = re.sub(r'<ul>(.*?)</ul>', r'\1\n', text, flags=re.DOTALL|re.IGNORECASE)
+        text = re.sub(r'<ol>(.*?)</ol>', r'\1\n', text, flags=re.DOTALL|re.IGNORECASE)
+        text = re.sub(r'<li[^>]*>(.*?)</li>', r'- \1\n', text, flags=re.DOTALL|re.IGNORECASE)
+        
+        text = re.sub(r'<a href="(.*?)">(.*?)</a>', r'[\2](\1)', text, flags=re.DOTALL|re.IGNORECASE)
+        
+        # Breaks and paragraphs
+        text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+        text = re.sub(r'</p>', '\n\n', text, flags=re.IGNORECASE)
+        
+        # Strip all other tags
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # Decode entities
+        text = unescape(text)
+        
+        # Fix spacing
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        
+        QApplication.clipboard().setText(text.strip())
+
+        if button:
+            original_text = button.text()
+            original_icon = button.icon()
+            
+            button.setText(" Copied!")
+            # Use load_svg_icon for check mark, assuming "check" exists or "done"
+            # Fallback to no icon if check doesn't exist, but usually it does in material icons
+            button.setIcon(QIcon(load_svg_icon("check", 14, "#10b981"))) 
+            
+            QTimer.singleShot(2000, lambda: self._restore_copy_button(button, original_text, original_icon))
+
+    def _restore_copy_button(self, button, text, icon):
+        try:
+            button.setText(text)
+            button.setIcon(icon)
+        except RuntimeError:
+            pass # Widget deleted
 
 class CreditCardDetailPanel(QWidget):
 
@@ -927,30 +1019,28 @@ class CreditCardDetailPanel(QWidget):
 
         header_layout.addLayout(title_layout, 1)
 
-        edit_btn = QPushButton("Edit")
-
-        edit_btn.setFixedSize(70, 32)
-
+        # Edit Button
+        edit_btn = QPushButton(" Edit")
+        edit_btn.setIcon(QIcon(load_svg_icon("edit", 14, theme.colors.secondary_foreground)))
+        edit_btn.setIconSize(QSize(14, 14))
         edit_btn.setCursor(Qt.PointingHandCursor)
-
+        edit_btn.setFixedHeight(36)
         edit_btn.setStyleSheet(f"""
             QPushButton {{
-
-                background-color: {theme.colors.card};
-                color: {theme.colors.foreground};
-                border: 1px solid {theme.colors.border};
-                border-radius: 6px;
-                font-size: 13px;
+                background-color: {theme.colors.secondary};
+                color: {theme.colors.secondary_foreground};
+                border: none;
+                border-radius: 8px;
+                padding: 0 16px;
+                font-size: 14px;
                 font-weight: 500;
             }}
             QPushButton:hover {{
-
                 background-color: {theme.colors.accent};
             }}
         """)
-
         edit_btn.clicked.connect(lambda: self.edit_requested.emit(self.card))
-
+        
         header_layout.addWidget(edit_btn)
 
         menu_btn = QPushButton()

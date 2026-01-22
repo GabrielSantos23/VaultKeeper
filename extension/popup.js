@@ -9,6 +9,7 @@ const lockedView = document.getElementById("locked-view");
 const unlockedView = document.getElementById("unlocked-view");
 const disconnectedView = document.getElementById("disconnected-view");
 const setupView = document.getElementById("setup-view");
+const generatorView = document.getElementById("generator-view");
 const modal = document.getElementById("modal");
 
 const masterPasswordInput = document.getElementById("master-password");
@@ -55,12 +56,22 @@ const toggleBackupBtn = document.getElementById("toggle-backup");
 let backupCodesVisible = false;
 let actualBackupCodes = {};
 
+const cardsView = document.getElementById("cards-view");
+const notesView = document.getElementById("notes-view");
+
 function showView(viewId) {
-  [loadingView, lockedView, unlockedView, disconnectedView, setupView].forEach(
-    (v) => {
-      if (v) v.classList.add("hidden");
-    },
-  );
+  [
+    loadingView,
+    lockedView,
+    unlockedView,
+    disconnectedView,
+    setupView,
+    generatorView,
+    cardsView,
+    notesView,
+  ].forEach((v) => {
+    if (v) v.classList.add("hidden");
+  });
   const view = document.getElementById(viewId);
   if (view) view.classList.remove("hidden");
 }
@@ -152,6 +163,9 @@ async function lock() {
 
 async function loadCredentials() {
   try {
+    const credentialsLoading = document.getElementById("credentials-loading");
+    if (credentialsLoading) credentialsLoading.style.display = "flex";
+
     const response = await sendMessage({ action: "get_all_credentials" });
 
     if (response.success) {
@@ -175,7 +189,11 @@ async function loadCredentials() {
         selectCredential(currentCredentials[0]);
       }
     }
-  } catch (error) {}
+    if (credentialsLoading) credentialsLoading.style.display = "none";
+  } catch (error) {
+    const credentialsLoading = document.getElementById("credentials-loading");
+    if (credentialsLoading) credentialsLoading.style.display = "none";
+  }
 }
 
 function renderCredentials(filter = "") {
@@ -393,7 +411,6 @@ async function copyToClipboard(type) {
       text = selectedCredential.domain;
       break;
     case "totp":
-
       try {
         const response = await sendMessage({
           action: "get_totp",
@@ -897,4 +914,245 @@ credPassword.addEventListener("input", (e) => {
 });
 menuBtn.addEventListener("click", showDropdownMenu);
 
+// Navigation button handlers
+const navCardsBtn = document.getElementById("nav-cards-btn");
+const navNotesBtn = document.getElementById("nav-notes-btn");
+
+if (navCardsBtn) {
+  navCardsBtn.addEventListener("click", () => {
+    console.log("Credit Cards button clicked");
+    if (window.openCardsView) {
+      window.openCardsView();
+    } else {
+      console.error("openCardsView function not found");
+    }
+  });
+}
+
+if (navNotesBtn) {
+  navNotesBtn.addEventListener("click", () => {
+    console.log("Secure Notes button clicked");
+    if (window.openNotesView) {
+      window.openNotesView();
+    } else {
+      console.error("openNotesView function not found");
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", checkStatus);
+
+const generatorBtn = document.getElementById("generator-btn");
+const generatorBackBtn = document.getElementById("generator-back-btn");
+const genCopyBtn = document.getElementById("gen-copy-btn");
+const genRefreshBtn = document.getElementById("gen-refresh-btn");
+const genAutofillBtn = document.getElementById("gen-autofill-btn");
+const genPasswordText = document.getElementById("gen-password-text");
+const genStrengthFill = document.getElementById("gen-strength-fill");
+const genTypeSelect = document.getElementById("gen-type-select");
+const genLengthSlider = document.getElementById("gen-length-slider");
+const genLengthInput = document.getElementById("gen-length-input");
+const genNumbersToggle = document.getElementById("gen-numbers-toggle");
+const genSymbolsToggle = document.getElementById("gen-symbols-toggle");
+
+let generatedPassword = "";
+
+function openGeneratorView() {
+  showView("generator-view");
+  generateNewPassword();
+}
+
+function closeGeneratorView() {
+  showView("unlocked-view");
+}
+
+function generateNewPassword() {
+  const length = parseInt(genLengthSlider.value) || 20;
+  const includeNumbers = genNumbersToggle.checked;
+  const includeSymbols = genSymbolsToggle.checked;
+  const type = genTypeSelect.value;
+
+  let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  const numbers = "0123456789";
+  const symbols = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
+  if (includeNumbers) chars += numbers;
+  if (includeSymbols) chars += symbols;
+
+  if (type === "memorable") {
+    generatedPassword = generateMemorablePassword(
+      length,
+      includeNumbers,
+      includeSymbols,
+    );
+  } else {
+    const randomValues = new Uint32Array(length);
+    crypto.getRandomValues(randomValues);
+    generatedPassword = "";
+    for (let i = 0; i < length; i++) {
+      generatedPassword += chars.charAt(randomValues[i] % chars.length);
+    }
+  }
+
+  renderPasswordWithColors(generatedPassword);
+  updateGeneratorStrength(generatedPassword);
+}
+
+function generateMemorablePassword(length, includeNumbers, includeSymbols) {
+  const words = [
+    "apple",
+    "brave",
+    "cloud",
+    "dance",
+    "eagle",
+    "flame",
+    "grape",
+    "house",
+    "ice",
+    "jazz",
+    "kite",
+    "lemon",
+    "moon",
+    "night",
+    "ocean",
+    "piano",
+    "queen",
+    "river",
+    "storm",
+    "tiger",
+    "urban",
+    "voice",
+    "water",
+    "xenon",
+    "youth",
+    "zebra",
+    "amber",
+    "beach",
+    "coral",
+    "delta",
+  ];
+
+  let result = "";
+  const randomValues = new Uint32Array(10);
+  crypto.getRandomValues(randomValues);
+  let idx = 0;
+
+  while (result.length < length) {
+    const word = words[randomValues[idx % 10] % words.length];
+    const capitalizedWord = word.charAt(0).toUpperCase() + word.slice(1);
+    result += capitalizedWord;
+    idx++;
+
+    if (result.length < length && includeNumbers) {
+      result += (randomValues[idx % 10] % 10).toString();
+      idx++;
+    }
+    if (result.length < length && includeSymbols) {
+      const syms = "!@#$%&*";
+      result += syms[randomValues[idx % 10] % syms.length];
+      idx++;
+    }
+  }
+
+  return result.slice(0, length);
+}
+
+function renderPasswordWithColors(password) {
+  const numbers = "0123456789";
+  const symbols = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
+  let html = "";
+  for (const char of password) {
+    if (numbers.includes(char)) {
+      html += `<span class="char-number">${escapeHtml(char)}</span>`;
+    } else if (symbols.includes(char)) {
+      html += `<span class="char-symbol">${escapeHtml(char)}</span>`;
+    } else {
+      html += escapeHtml(char);
+    }
+  }
+  genPasswordText.innerHTML = html;
+}
+
+function updateGeneratorStrength(password) {
+  const analysis = analyzePassword(password);
+  const strengthPercent = Math.min(100, analysis.score * 25);
+
+  genStrengthFill.style.width = `${strengthPercent}%`;
+  genStrengthFill.style.background = analysis.color;
+}
+
+async function copyGeneratedPassword() {
+  if (!generatedPassword) return;
+
+  try {
+    await navigator.clipboard.writeText(generatedPassword);
+    const originalText = genCopyBtn.textContent;
+    genCopyBtn.textContent = "Copied!";
+    setTimeout(() => {
+      genCopyBtn.textContent = originalText;
+    }, 1500);
+
+    setTimeout(async () => {
+      try {
+        const current = await navigator.clipboard.readText();
+        if (current === generatedPassword) {
+          await navigator.clipboard.writeText("");
+        }
+      } catch (e) {}
+    }, 30000);
+  } catch (error) {
+    console.error("Failed to copy password:", error);
+  }
+}
+
+async function autofillGeneratedPassword() {
+  if (!generatedPassword) return;
+
+  try {
+    const [tab] = await browserAPI.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    await browserAPI.tabs.sendMessage(tab.id, {
+      action: "fill_password_only",
+      password: generatedPassword,
+    });
+    window.close();
+  } catch (error) {
+    await navigator.clipboard.writeText(generatedPassword);
+    showPopupNotification("Password copied to clipboard", "success");
+  }
+}
+
+if (generatorBtn) generatorBtn.addEventListener("click", openGeneratorView);
+if (generatorBackBtn)
+  generatorBackBtn.addEventListener("click", closeGeneratorView);
+if (genCopyBtn) genCopyBtn.addEventListener("click", copyGeneratedPassword);
+if (genRefreshBtn) genRefreshBtn.addEventListener("click", generateNewPassword);
+if (genAutofillBtn)
+  genAutofillBtn.addEventListener("click", autofillGeneratedPassword);
+
+if (genLengthSlider) {
+  genLengthSlider.addEventListener("input", (e) => {
+    genLengthInput.value = e.target.value;
+    generateNewPassword();
+  });
+}
+
+if (genLengthInput) {
+  genLengthInput.addEventListener("change", (e) => {
+    let val = parseInt(e.target.value) || 20;
+    val = Math.max(8, Math.min(64, val));
+    e.target.value = val;
+    genLengthSlider.value = val;
+    generateNewPassword();
+  });
+}
+
+if (genNumbersToggle)
+  genNumbersToggle.addEventListener("change", generateNewPassword);
+if (genSymbolsToggle)
+  genSymbolsToggle.addEventListener("change", generateNewPassword);
+if (genTypeSelect)
+  genTypeSelect.addEventListener("change", generateNewPassword);
