@@ -48,6 +48,14 @@ class DataManagementTab(QWidget):
 
         # Export Section
         self._setup_export_section(layout, theme)
+        layout.addWidget(create_separator())
+        
+        # Secure Notes Export/Import Section
+        self._setup_notes_section(layout, theme)
+        layout.addWidget(create_separator())
+        
+        # Credit Cards Export/Import Section
+        self._setup_cards_section(layout, theme)
         
         layout.addStretch()
 
@@ -242,3 +250,279 @@ class DataManagementTab(QWidget):
                     "Export Failed",
                     f"An error occurred while exporting:\n{str(e)}"
                 )
+
+    def _setup_notes_section(self, layout, theme):
+        """Setup Secure Notes export/import section."""
+        container = QWidget()
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+        
+        title = QLabel("Secure Notes")
+        title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
+        text_layout.addWidget(title)
+        
+        subtitle = QLabel("Export or import secure notes as JSON (for transfer between devices).")
+        subtitle.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+        text_layout.addWidget(subtitle)
+        
+        row.addLayout(text_layout)
+
+        btn_style = f"""
+            QPushButton {{
+                background-color: {theme.colors.card};
+                border: 1px solid {theme.colors.border};
+                color: {theme.colors.foreground};
+                border-radius: 6px;
+                font-size: 13px;
+                padding: 6px 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """
+
+        export_btn = QPushButton("Export")
+        export_btn.setCursor(Qt.PointingHandCursor)
+        export_btn.setFixedWidth(80)
+        export_btn.setFixedHeight(32)
+        export_btn.setStyleSheet(btn_style)
+        export_btn.clicked.connect(self._handle_notes_export)
+        row.addWidget(export_btn)
+
+        import_btn = QPushButton("Import")
+        import_btn.setCursor(Qt.PointingHandCursor)
+        import_btn.setFixedWidth(80)
+        import_btn.setFixedHeight(32)
+        import_btn.setStyleSheet(btn_style)
+        import_btn.clicked.connect(self._handle_notes_import)
+        row.addWidget(import_btn)
+
+        layout.addWidget(container)
+
+    def _setup_cards_section(self, layout, theme):
+        """Setup Credit Cards export/import section."""
+        container = QWidget()
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+        
+        title = QLabel("Credit Cards")
+        title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
+        text_layout.addWidget(title)
+        
+        subtitle = QLabel("Export or import credit cards as JSON (for transfer between devices).")
+        subtitle.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+        text_layout.addWidget(subtitle)
+        
+        row.addLayout(text_layout)
+
+        btn_style = f"""
+            QPushButton {{
+                background-color: {theme.colors.card};
+                border: 1px solid {theme.colors.border};
+                color: {theme.colors.foreground};
+                border-radius: 6px;
+                font-size: 13px;
+                padding: 6px 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """
+
+        export_btn = QPushButton("Export")
+        export_btn.setCursor(Qt.PointingHandCursor)
+        export_btn.setFixedWidth(80)
+        export_btn.setFixedHeight(32)
+        export_btn.setStyleSheet(btn_style)
+        export_btn.clicked.connect(self._handle_cards_export)
+        row.addWidget(export_btn)
+
+        import_btn = QPushButton("Import")
+        import_btn.setCursor(Qt.PointingHandCursor)
+        import_btn.setFixedWidth(80)
+        import_btn.setFixedHeight(32)
+        import_btn.setStyleSheet(btn_style)
+        import_btn.clicked.connect(self._handle_cards_import)
+        row.addWidget(import_btn)
+
+        layout.addWidget(container)
+
+    def _handle_notes_export(self):
+        """Export secure notes to JSON file."""
+        if not self.vault:
+            QMessageBox.warning(self, "Error", "Vault not available.")
+            return
+            
+        reply = QMessageBox.question(
+            self,
+            "Confirm Export",
+            "This will export your secure notes to a JSON file.\n\nThe content will be UNENCRYPTED. Keep this file secure.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                import json
+                notes = self.vault.get_all_secure_notes()
+                
+                export_data = []
+                for note in notes:
+                    export_data.append({
+                        "title": note.title,
+                        "content": note.content,
+                        "is_favorite": note.is_favorite,
+                        "created_at": note.created_at,
+                        "updated_at": note.updated_at
+                    })
+                
+                file_path, _ = QFileDialog.getSaveFileName(
+                    self,
+                    "Save Secure Notes",
+                    "secure_notes_export.json",
+                    "JSON Files (*.json)"
+                )
+                
+                if file_path:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        json.dump(export_data, f, indent=2, ensure_ascii=False)
+                    
+                    QMessageBox.information(
+                        self,
+                        "Export Successful",
+                        f"Exported {len(notes)} secure notes to:\n{file_path}"
+                    )
+            except Exception as e:
+                QMessageBox.critical(self, "Export Failed", f"Error: {str(e)}")
+
+    def _handle_notes_import(self):
+        """Import secure notes from JSON file."""
+        if not self.vault:
+            QMessageBox.warning(self, "Error", "Vault not available.")
+            return
+            
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select JSON File",
+            "",
+            "JSON Files (*.json);;All Files (*.*)"
+        )
+        
+        if file_path:
+            try:
+                import json
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    notes_data = json.load(f)
+                
+                imported_count = 0
+                for note in notes_data:
+                    self.vault.add_secure_note(
+                        title=note.get('title', 'Untitled'),
+                        content=note.get('content', '')
+                    )
+                    imported_count += 1
+                
+                QMessageBox.information(
+                    self,
+                    "Import Successful",
+                    f"Imported {imported_count} secure notes."
+                )
+            except Exception as e:
+                QMessageBox.critical(self, "Import Failed", f"Error: {str(e)}")
+
+    def _handle_cards_export(self):
+        """Export credit cards to JSON file."""
+        if not self.vault:
+            QMessageBox.warning(self, "Error", "Vault not available.")
+            return
+            
+        reply = QMessageBox.question(
+            self,
+            "Confirm Export",
+            "This will export your credit cards to a JSON file.\n\nThe content will be UNENCRYPTED. Keep this file secure.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                import json
+                cards = self.vault.get_all_credit_cards()
+                
+                export_data = []
+                for card in cards:
+                    export_data.append({
+                        "title": card.title,
+                        "cardholder_name": card.cardholder_name,
+                        "card_number": card.card_number,
+                        "expiry_date": card.expiry_date,
+                        "cvv": card.cvv,
+                        "notes": card.notes,
+                        "is_favorite": card.is_favorite,
+                        "created_at": card.created_at,
+                        "updated_at": card.updated_at
+                    })
+                
+                file_path, _ = QFileDialog.getSaveFileName(
+                    self,
+                    "Save Credit Cards",
+                    "credit_cards_export.json",
+                    "JSON Files (*.json)"
+                )
+                
+                if file_path:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        json.dump(export_data, f, indent=2, ensure_ascii=False)
+                    
+                    QMessageBox.information(
+                        self,
+                        "Export Successful",
+                        f"Exported {len(cards)} credit cards to:\n{file_path}"
+                    )
+            except Exception as e:
+                QMessageBox.critical(self, "Export Failed", f"Error: {str(e)}")
+
+    def _handle_cards_import(self):
+        """Import credit cards from JSON file."""
+        if not self.vault:
+            QMessageBox.warning(self, "Error", "Vault not available.")
+            return
+            
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select JSON File",
+            "",
+            "JSON Files (*.json);;All Files (*.*)"
+        )
+        
+        if file_path:
+            try:
+                import json
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    cards_data = json.load(f)
+                
+                imported_count = 0
+                for card in cards_data:
+                    self.vault.add_credit_card(
+                        title=card.get('title', 'Untitled'),
+                        cardholder_name=card.get('cardholder_name', ''),
+                        card_number=card.get('card_number', ''),
+                        expiry_date=card.get('expiry_date', ''),
+                        cvv=card.get('cvv', ''),
+                        notes=card.get('notes')
+                    )
+                    imported_count += 1
+                
+                QMessageBox.information(
+                    self,
+                    "Import Successful",
+                    f"Imported {imported_count} credit cards."
+                )
+            except Exception as e:
+                QMessageBox.critical(self, "Import Failed", f"Error: {str(e)}")

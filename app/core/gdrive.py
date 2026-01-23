@@ -1032,10 +1032,35 @@ class GoogleDriveManager:
                     except sqlite3.OperationalError:
                         return []
             
+            def read_secure_notes_raw(db_path: Path) -> list:
+                """Read raw encrypted secure notes from database."""
+                with sqlite3.connect(db_path) as conn:
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+                    try:
+                        cursor.execute('SELECT * FROM secure_notes ORDER BY id')
+                        return [dict(row) for row in cursor.fetchall()]
+                    except sqlite3.OperationalError:
+                        return []
+            
+            def read_credit_cards_raw(db_path: Path) -> list:
+                """Read raw encrypted credit cards from database."""
+                with sqlite3.connect(db_path) as conn:
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+                    try:
+                        cursor.execute('SELECT * FROM credit_cards ORDER BY id')
+                        return [dict(row) for row in cursor.fetchall()]
+                    except sqlite3.OperationalError:
+                        return []
+            
             local_creds = read_credentials_raw(vault_path)
             cloud_creds = read_credentials_raw(cloud_vault_path)
             local_folders = read_folders_raw(vault_path)
             cloud_folders = read_folders_raw(cloud_vault_path)
+            
+            # NOTE: Secure notes and credit cards are NOT synced automatically due to encryption issues.
+            # Use Settings > Data Management to manually export/import notes and cards between devices.
             
             report_progress(40, f"Found {len(local_creds)} local and {len(cloud_creds)} cloud credentials...")
             

@@ -1,0 +1,3 @@
+### Linux Improvements
+- **Correção Crítica no Atualizador**: O auto-update no Linux agora substitui corretamente o arquivo AppImage antigo pela nova versão, reiniciando a aplicação automaticamente.
+- **Suporte ao AppImageLauncher**: A atualização agora é totalmente compatível com o AppImageLauncher, preservando atalhos e ícones do sistema ao atualizar. O arquivo novo substitui o antigo no diretório de instalação (ex: `~/Applications`).
