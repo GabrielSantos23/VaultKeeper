@@ -281,62 +281,39 @@ class VaultManager:
                 self.crypto.derive_key(master_password)
 
     def _trigger_auto_sync(self):
-
         try:
-
             from .config import get_config
-
             from .gdrive import get_gdrive_manager
+            import logging
+            
+            logger = logging.getLogger(__name__)
 
             config = get_config()
-
             gdrive = get_gdrive_manager()
+            auto_sync_enabled = True # TODO: Get from config
 
-            auto_sync_enabled = True
-
-            print(f"[Auto-Sync] FORCED ENABLED. Connected: {gdrive.is_connected()}")
+            logger.info(f"[Auto-Sync] FORCED ENABLED. Connected: {gdrive.is_connected()}")
 
             if auto_sync_enabled and gdrive.is_connected():
-
                 def sync_in_background():
-
                     try:
-
-                        print("[Auto-Sync] Starting upload...")
-
+                        logger.info("[Auto-Sync] Starting upload...")
                         gdrive.upload_vault()
-
-                        print("[Auto-Sync] Vault synced to Google Drive successfully!")
-
+                        logger.info("[Auto-Sync] Vault synced to Google Drive successfully!")
                     except Exception as e:
-
-                        print(f"[Auto-Sync] Failed to sync: {e}")
-
-                        import traceback
-
-                        traceback.print_exc()
-
+                        logger.error(f"[Auto-Sync] Failed to sync: {e}")
+                
                 thread = threading.Thread(target=sync_in_background, daemon=True)
-
                 thread.start()
-
             else:
-
                 if not auto_sync_enabled:
-
-                    print("[Auto-Sync] Skipped - auto-sync is disabled")
-
+                    logger.debug("[Auto-Sync] Skipped - auto-sync is disabled")
                 if not gdrive.is_connected():
-
-                    print("[Auto-Sync] Skipped - not connected to Google Drive")
+                    logger.debug("[Auto-Sync] Skipped - not connected to Google Drive")
 
         except Exception as e:
-
-            print(f"[Auto-Sync] Error: {e}")
-
-            import traceback
-
-            traceback.print_exc()
+            # Avoid printing here to keep stdout clean for Native Messaging
+            pass
 
     def add_credential(self, domain: str, username: str, password: str,
 

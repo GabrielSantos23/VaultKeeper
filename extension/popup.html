@@ -806,7 +806,6 @@
                   </button>
                 </div>
               </div>
-              <!-- Card Editor Form -->
               <div id="card-editor" class="card-editor hidden">
                 <h3 id="card-editor-title">Add Credit Card</h3>
                 <form id="card-form">
@@ -885,7 +884,6 @@
         </div>
       </div>
 
-      <!-- Secure Notes View -->
       <div id="notes-view" class="view notes-view hidden">
         <div class="notes-container">
           <div class="notes-header">
@@ -1167,7 +1165,6 @@
                       <path
                         d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"
                       />
-                      <!-- Note: reusing generic list icon for simplicity or replace with specific ol icon -->
                       <path
                         d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zM7 5v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"
                       />
@@ -1237,35 +1234,51 @@
                 required
               />
             </div>
-            <div class="form-group">
-              <label>Username</label>
-              <input
-                type="text"
-                id="cred-username"
-                placeholder="user@email.com"
-                required
-              />
+            <div class="form-row">
+              <div class="form-group">
+                <label>Username</label>
+                <input
+                  type="text"
+                  id="cred-username"
+                  placeholder="user@email.com"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label>Password</label>
+                <div class="input-with-actions">
+                  <input type="password" id="cred-password" required />
+                  <button
+                    type="button"
+                    id="generate-btn"
+                    class="icon-btn-small"
+                    title="Generate"
+                  >
+                    🎲
+                  </button>
+                  <button
+                    type="button"
+                    id="toggle-btn"
+                    class="icon-btn-small"
+                    title="Show"
+                  >
+                    👁
+                  </button>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-              <label>Password</label>
-              <div class="input-with-actions">
-                <input type="password" id="cred-password" required />
-                <button
-                  type="button"
-                  id="generate-btn"
-                  class="icon-btn-small"
-                  title="Generate"
-                >
-                  🎲
-                </button>
-                <button
-                  type="button"
-                  id="toggle-btn"
-                  class="icon-btn-small"
-                  title="Show"
-                >
-                  👁
-                </button>
+            <div class="form-row">
+              <div class="form-group">
+                <label>2FA Secret</label>
+                <input
+                  type="text"
+                  id="cred-totp"
+                  placeholder="JBSWY3DPEHPK3PXP"
+                />
+              </div>
+              <div class="form-group">
+                 <label>Backup Codes</label>
+                 <textarea id="cred-backup" rows="1" placeholder="code1, code2..."></textarea>
               </div>
             </div>
             <div class="form-group">

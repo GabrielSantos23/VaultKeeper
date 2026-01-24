@@ -1,12 +1,28 @@
 # Changelog
 
-## [1.0.8] - 2026-01-22
+## [1.0.8] - 2026-01-24
 
-### Cross-Platform Compatibility (Desktop & Extension)
-- **Rich Text Notes**: Standardized HTML usage for Secure Notes across both Desktop and Browser Extension.
-  - Implemented bidirectional HTML synchronization.
-  - Fixed display issues where HTML tags were visible in the list preview or detail panels.
-  - Added logic to strip Qt-specific metadata when displaying notes in the extension.
+### 🦊 Browser Compatibility & Connection
+- **Universal Browser Fix**: Resolved the persistent "Could not connect to VaultKeeper app" error affecting Firefox, Zen Browser, and other Gecko-based browsers.
+  - Implemented global `stdout` redirection to prevent native messaging protocol corruption.
+  - Eliminated interference from background logs and third-party library output.
+- **Zen Browser Support**: Added official support for Zen Browser, including automatic detection of XDG configuration paths (`~/.config/zen`).
+- **Connection Repair Tool**: Added a new "Browser Connection" section in **Settings > General** with a "Repair Connection" button to automatically fix extension issues without reinstalling.
+- **Native Host Fixes**: Fixed an `Unknown action: update_credentials` error when updating passwords from the extension by aliasing the action to the save handler.
+
+### 🛡️ Security & 2FA
+- **Integrated TOTP Support**: 
+  - Added new fields for **2FA Secret** and **Backup Codes** in the "New Item" / "Edit Item" modal.
+  - The extension now automatically fetches and fills the current TOTP code when using "Auto-Fill".
+- **Enhanced Credential Form**: Redesigned the "New Item" popup with a more compact, horizontal layout for better usability.
+
+### Extension
+- **Auto-Fill Improvements**:
+  - Automatically fills TOTP codes if a secret is saved.
+  - Fixed a race condition where the email field could be overwritten.
+- **UI Polish**:
+  - Horizontal layout for Username/Password fields.
+  - Wider modal for better visibility of backup codes.
 
 ### Browser Extension
 - **Editor Improvements**:

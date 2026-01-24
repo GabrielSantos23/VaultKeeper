@@ -23,13 +23,25 @@ const USERNAME_SELECTORS = [
   'input[id*="email" i]',
   'input[placeholder*="email" i]',
   'input[placeholder*="user" i]',
-  'input[type="text"]',
+  'input[type="text"][name*="user" i]',
+  'input[type="text"][name*="login" i]',
+  'input[type="text"][name*="email" i]',
+  'input[type="text"][id*="user" i]',
+  'input[type="text"][id*="login" i]',
+  'input[type="text"][id*="email" i]',
 ];
 
 const PASSWORD_SELECTORS = [
   'input[type="password"]',
   'input[autocomplete="current-password"]',
   'input[autocomplete="new-password"]',
+];
+
+const TOTP_SELECTORS = [
+  'input[name="totp" i]', 'input[name="code" i]', 'input[name="otp" i]',
+  'input[name*="2fa" i]', 'input[id*="totp" i]', 'input[id*="otp" i]',
+  'input[autocomplete="one-time-code"]', 'input[placeholder*="code" i]',
+  'input[placeholder*="6-digit" i]'
 ];
 function escapeHtml(text) {
   if (text === null || text === undefined) return "";
@@ -163,6 +175,23 @@ function detectLoginFields() {
     for (const candidate of candidates) {
       if (!isVisible(candidate)) continue;
       if (candidate === fields.password) continue;
+      
+      // Exclude obvious search/TOTP fields from being treated as username
+      const name = (candidate.name || '').toLowerCase();
+      const id = (candidate.id || '').toLowerCase();
+      const placeholder = (candidate.placeholder || '').toLowerCase();
+      
+      if (
+          name.includes('search') || id.includes('search') || placeholder.includes('search') ||
+          name.includes('query') || id.includes('query') ||
+          name.includes('totp') || id.includes('totp') || 
+          name.includes('code') || id.includes('code') || placeholder.includes('code') ||
+          name.includes('otp') || id.includes('otp') ||
+          name.includes('2fa') || id.includes('2fa')
+      ) {
+          continue;
+      }
+
       if (fields.password) {
         if (
           fields.password.compareDocumentPosition(candidate) &
@@ -205,21 +234,47 @@ function isVisible(element) {
   );
 }
 
-function fillCredentials(username, password) {
+function fillCredentials(username, password, totpCode = null) {
   if (!detectedFields) {
     detectedFields = detectLoginFields();
+  }
+
+  let filled = false;
+  
+  let totpField = null;
+  if (totpCode) {
+      if (fillTOTP(totpCode)) {
+          filled = true;
+          // Try to find the filled TOTP field to avoid overwriting
+           const totpSelectors = [
+            'input[name="totp" i]', 'input[name="code" i]', 'input[name="otp" i]',
+            'input[name*="2fa" i]', 'input[id*="totp" i]', 'input[id*="otp" i]',
+            'input[autocomplete="one-time-code"]', 'input[placeholder*="code" i]',
+            'input[placeholder*="6-digit" i]'
+          ];
+          for (const selector of totpSelectors) {
+            const inputs = document.querySelectorAll(selector);
+            for (const input of inputs) {
+                if (isVisible(input) && input.value === totpCode) {
+                    totpField = input;
+                    break;
+                }
+            }
+            if (totpField) break;
+          }
+      }
   }
 
   if (
     !detectedFields ||
     (!detectedFields.username && !detectedFields.password)
   ) {
-    return false;
+    return filled; // Return true if TOTP was filled at least
   }
 
-  let filled = false;
+  // Prevent username fill if it targets the detected TOTP field
   if (detectedFields.username && !detectedFields.password) {
-    if (username) {
+    if (username && detectedFields.username !== totpField) {
       setFieldValue(detectedFields.username, username);
       storeMultiStepUsername(username);
       filled = true;
@@ -230,21 +285,35 @@ function fillCredentials(username, password) {
       filled = true;
     }
   } else {
-    if (detectedFields.username && username) {
+    if (detectedFields.username && username && detectedFields.username !== totpField) {
       setFieldValue(detectedFields.username, username);
       filled = true;
     }
+    
+    // ... rest of function
 
     if (detectedFields.password && password) {
       setFieldValue(detectedFields.password, password);
       filled = true;
     }
-
-    if (filled) {
-    }
   }
 
   return filled;
+}
+
+function fillTOTP(code) {
+  if (!code) return false;
+  
+  for (const selector of TOTP_SELECTORS) {
+    const inputs = document.querySelectorAll(selector);
+    for (const input of inputs) {
+      if (isVisible(input)) {
+        setFieldValue(input, code);
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function setFieldValue(field, value) {
@@ -570,7 +639,6 @@ function createSavePrompt(
 async function showSavePrompt(credentials) {
   if (savePromptShown) return;
 
-  // Do not prompt if never save list includes this domain
   const neverSave = JSON.parse(
     localStorage.getItem("vaultkeeper_never_save") || "[]",
   );
@@ -584,15 +652,12 @@ async function showSavePrompt(credentials) {
   let isUpdateMode = false;
 
   if (existingCred) {
-    // Exact match: do not prompt
     if (existingCred.password === credentials.password) {
       return;
     }
-    // Update match: prompt
     isUpdateMode = true;
     existingCredentialId = existingCred.id;
   }
-  // Else: New match (existingCred is null), prompt
 
   savePromptShown = true;
   pendingCredentials = credentials;
@@ -820,12 +885,19 @@ function showUnlockAndFillPrompt(targetField) {
 
       if (unlockResponse && unlockResponse.success) {
         hidePrompt();
-        // Retry the request
         requestCredentials(targetField);
       } else {
-        showUnlockError("Invalid master password");
-        unlockBtn.disabled = false;
-        unlockBtn.textContent = "Unlock & Fill";
+        // Fix for Issue 1: Double check status in case of false negative
+        browserAPI.runtime.sendMessage({ action: "status" }, (statusResp) => {
+            if (statusResp && statusResp.success && statusResp.unlocked) {
+                 hidePrompt();
+                 requestCredentials(targetField);
+            } else {
+                 showUnlockError("Invalid master password");
+                 unlockBtn.disabled = false;
+                 unlockBtn.textContent = "Unlock & Fill";
+            }
+        });
       }
     } catch (error) {
       showUnlockError("Failed to unlock vault");
@@ -983,6 +1055,26 @@ function setupFormInterception() {
   );
 }
 
+// Positioning helper
+function updateIconPosition(field, icon) {
+  if (!isVisible(field)) {
+    icon.style.display = 'none';
+    return;
+  }
+  icon.style.display = 'flex';
+  const rect = field.getBoundingClientRect();
+  const scrollX = window.scrollX || window.pageXOffset;
+  const scrollY = window.scrollY || window.pageYOffset;
+
+  // Position: centered vertically in input, right aligned with padding
+  // But wait, if we append to body, we need absolute coords.
+  const top = rect.top + scrollY + (rect.height / 2) - 10; // 10 is half icon height (20px)
+  const left = rect.right + scrollX - 30; // 30px from right edge (20px icon + 10px padding)
+
+  icon.style.top = `${top}px`;
+  icon.style.left = `${left}px`;
+}
+
 function addVaultKeeperIcon(field) {
   if (field.dataset.vaultkeeperIcon) return;
   field.dataset.vaultkeeperIcon = "true";
@@ -1018,16 +1110,41 @@ function addVaultKeeperIcon(field) {
     e.stopPropagation();
     requestCredentials(field);
   });
+  
   field.addEventListener("focus", () => {
     if (document.activeElement === field) {
       requestCredentials(field, true);
     }
   });
 
-  if (field.parentElement) {
-    field.parentElement.style.position = "relative";
-    field.parentElement.appendChild(icon);
-  }
+  // Append to body to avoid positioning issues relative to parent
+  document.body.appendChild(icon);
+  
+  // Initial position
+  updateIconPosition(field, icon);
+
+  // Update position on events
+  const updatePos = () => updateIconPosition(field, icon);
+  window.addEventListener('scroll', updatePos, true);
+  window.addEventListener('resize', updatePos);
+  
+  // Also update when field changes (e.g. dynamic resizing)
+  const resizeObserver = new ResizeObserver(updatePos);
+  resizeObserver.observe(field);
+
+  // Clean up if field is removed
+  const mutationObserver = new MutationObserver((mutations) => {
+     if (!document.contains(field)) {
+         icon.remove();
+         window.removeEventListener('scroll', updatePos, true);
+         window.removeEventListener('resize', updatePos);
+         resizeObserver.disconnect();
+         mutationObserver.disconnect();
+     } else {
+         updatePos();
+     }
+  });
+  mutationObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 let activeAutofillDropdown = null;
@@ -1072,10 +1189,25 @@ function showAutofillDropdown(credentials, targetField) {
 
     item.addEventListener("click", (e) => {
       e.stopPropagation();
-      fillCredentials(cred.username, cred.password);
       dropdown.remove();
       activeAutofillDropdown = null;
-      showNotification("Credentials filled!", "success");
+      
+      const doFill = (code = null) => {
+         fillCredentials(cred.username, cred.password, code);
+         showNotification("Credentials filled!", "success");
+      };
+
+      if (cred.totp_secret || cred.id) { 
+          browserAPI.runtime.sendMessage({ action: "get_totp", id: cred.id }, (resp) => {
+               if(resp.success) {
+                   doFill(resp.code);
+               } else {
+                   doFill(null);
+               }
+          });
+      } else {
+          doFill(null);
+      }
     });
 
     dropdown.appendChild(item);
@@ -1118,29 +1250,43 @@ function requestCredentials(targetField = null, isFocus = false) {
           showAutofillDropdown(credentials, targetField);
         } else {
           const cred = credentials[0];
-          const filled = fillCredentials(cred.username, cred.password);
+          
+          const performFill = (totpCode = null) => {
+             const filled = fillCredentials(cred.username, cred.password, totpCode);
 
-          if (filled) {
-            if (detectedFields?.isMultiStep) {
-              if (detectedFields.username && !detectedFields.password) {
-                showNotification("Email/username filled!", "success");
-              } else if (detectedFields.password && !detectedFields.username) {
-                showNotification("Password filled!", "success");
-              } else {
-                showNotification("Credentials filled!", "success");
-              }
-            } else {
-              showNotification("Credentials filled!", "success");
-            }
+             if (filled) {
+                if (detectedFields?.isMultiStep) {
+                  if (detectedFields.username && !detectedFields.password) {
+                    showNotification("Email/username filled!", "success");
+                  } else if (detectedFields.password && !detectedFields.username) {
+                    showNotification("Password filled!", "success");
+                  } else {
+                    showNotification("Credentials filled!", "success");
+                  }
+                } else {
+                  showNotification("Credentials filled!", "success");
+                }
+             } else {
+               showNotification("Could not fill credentials", "error");
+             }
+          };
+
+          if (cred.totp_secret || cred.id) {
+               browserAPI.runtime.sendMessage({ action: "get_totp", id: cred.id }, (resp) => {
+                   if(resp.success) {
+                        performFill(resp.code);
+                   } else {
+                        performFill(null);
+                   }
+               });
           } else {
-            showNotification("Could not fill credentials", "error");
+               performFill(null);
           }
         }
       } else if (response && response.locked) {
         if (!isFocus) {
           showUnlockAndFillPrompt(targetField);
         } else {
-          // Optional: show a small tooltip or nothing on focus if locked
         }
       } else {
         if (!isFocus) showNotification("No credentials found", "error");
@@ -1182,6 +1328,15 @@ function init() {
     }
 
     setupFormInterception();
+  }
+  
+  // Always search for TOTP fields regardless of login detection
+  for (const selector of TOTP_SELECTORS) {
+      document.querySelectorAll(selector).forEach(field => {
+          if (isVisible(field)) {
+              addVaultKeeperIcon(field);
+          }
+      });
   }
 }
 
@@ -1236,7 +1391,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.action) {
     case "fill":
       detectedFields = detectLoginFields();
-      const success = fillCredentials(request.username, request.password);
+      const success = fillCredentials(request.username, request.password, request.totp);
       sendResponse({
         success,
         isMultiStep: detectedFields?.isMultiStep || false,
@@ -1300,6 +1455,15 @@ const observer = new MutationObserver(() => {
 
       setupFormInterception();
     }
+  }
+  
+  // Independent TOTP check on mutation
+  for (const selector of TOTP_SELECTORS) {
+      document.querySelectorAll(selector).forEach(field => {
+          if (isVisible(field)) {
+               addVaultKeeperIcon(field);
+          }
+      });
   }
 });
 

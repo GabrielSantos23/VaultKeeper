@@ -1,6 +1,4 @@
-#!/bin/bash
-# VaultKeeper Build Script for Linux
-# Creates a standalone executable and AppImage for Linux
+
 
 set -e
 
@@ -8,21 +6,17 @@ echo "=========================================="
 echo "  VaultKeeper Build Script - Linux"
 echo "=========================================="
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Configuration
-VERSION="1.0.7"
+VERSION="1.0.8"
 APP_NAME="VaultKeeper"
 
-# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Check Python
 echo -e "\n${YELLOW}[1/7] Checking Python...${NC}"
 if command -v python3 &> /dev/null; then
     PYTHON=python3
@@ -34,24 +28,20 @@ else
 fi
 echo "Using: $($PYTHON --version)"
 
-# Create/activate virtual environment
 echo -e "\n${YELLOW}[2/7] Setting up virtual environment...${NC}"
 if [ ! -d ".venv" ]; then
     $PYTHON -m venv .venv
 fi
 source .venv/bin/activate
 
-# Install dependencies
 echo -e "\n${YELLOW}[3/7] Installing dependencies...${NC}"
 pip install --upgrade pip
 pip install -r requirements.txt
 pip install pyinstaller
 
-# Build executable
 echo -e "\n${YELLOW}[4/7] Building executable...${NC}"
 pyinstaller vaultkeeper.spec --clean --noconfirm
 
-# Create distribution package (tar.gz)
 echo -e "\n${YELLOW}[5/7] Creating distribution package...${NC}"
 DIST_NAME="${APP_NAME}-${VERSION}-linux-x64"
 DIST_DIR="dist/${DIST_NAME}"
@@ -64,19 +54,15 @@ cd dist
 tar -czvf "${DIST_NAME}.tar.gz" "${DIST_NAME}"
 cd ..
 
-# Create AppImage
 echo -e "\n${YELLOW}[6/7] Creating AppImage...${NC}"
 APPDIR="dist/${APP_NAME}.AppDir"
 
-# Create AppDir structure
 mkdir -p "$APPDIR/usr/bin"
 mkdir -p "$APPDIR/usr/share/applications"
 mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
-# Copy executable and dependencies
 cp -r dist/VaultKeeper/* "$APPDIR/usr/bin/"
 
-# Create .desktop file
 cat > "$APPDIR/${APP_NAME}.desktop" << EOF
 [Desktop Entry]
 Type=Application
@@ -88,15 +74,12 @@ Comment=Secure Password Manager
 Terminal=false
 EOF
 
-# Copy desktop file to share
 cp "$APPDIR/${APP_NAME}.desktop" "$APPDIR/usr/share/applications/"
 
-# Create/Copy icon (use a simple placeholder if no icon exists)
 if [ -f "app/ui/icons/icon.png" ]; then
     cp "app/ui/icons/icon.png" "$APPDIR/vaultkeeper.png"
     cp "app/ui/icons/icon.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/vaultkeeper.png"
 else
-    # Create a simple placeholder icon using Python
     $PYTHON << 'PYEOF'
 from PySide6.QtGui import QImage, QPainter, QColor, QFont
 from PySide6.QtCore import Qt, QRect
@@ -124,7 +107,6 @@ print("Icon created")
 PYEOF
 fi
 
-# Create AppRun script
 cat > "$APPDIR/AppRun" << 'EOF'
 #!/bin/bash
 SELF=$(readlink -f "$0")
@@ -134,7 +116,6 @@ exec "${HERE}/usr/bin/VaultKeeper" "$@"
 EOF
 chmod +x "$APPDIR/AppRun"
 
-# Download appimagetool if not present
 echo -e "\n${YELLOW}[7/7] Packaging AppImage...${NC}"
 APPIMAGETOOL="appimagetool-x86_64.AppImage"
 if [ ! -f "$APPIMAGETOOL" ]; then
@@ -143,10 +124,8 @@ if [ ! -f "$APPIMAGETOOL" ]; then
     chmod +x "$APPIMAGETOOL"
 fi
 
-# Create AppImage
 ARCH=x86_64 ./"$APPIMAGETOOL" "$APPDIR" "dist/${APP_NAME}-${VERSION}-x86_64.AppImage"
 
-# Cleanup
 rm -rf "$APPDIR"
 
 echo -e "\n${GREEN}=========================================="

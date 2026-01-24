@@ -139,17 +139,14 @@ class UpdateManager(QObject):
 
             path = urlparse(url).path
             
-            # Try to get the filename from the URL
             filename = os.path.basename(path)
             
-            # If no filename or generic, fallback
             if not filename or filename.strip() == "":
                 if "appimage" in url.lower():
                     filename = "update.AppImage"
                 else:
                     filename = "update.zip"
             
-            # Use mkdtemp to create a directory, so we can keep the original filename
             temp_dir = tempfile.mkdtemp()
             save_path = os.path.join(temp_dir, filename)
 
@@ -204,16 +201,12 @@ class UpdateManager(QObject):
                     import shutil
                     os.chmod(file_path, 0o755)
 
-                    # Check if running as AppImage
                     current_appimage = os.environ.get("APPIMAGE")
                     if current_appimage and os.path.exists(current_appimage):
-                        # Determine installation location
                         install_dir = os.path.dirname(current_appimage)
                         new_filename = os.path.basename(file_path)
                         target_path = os.path.join(install_dir, new_filename)
                         
-                        # Move new version to the installation directory
-                        # If target exists (e.g. reinstalling same version?), remove it first
                         if os.path.exists(target_path):
                             try:
                                 os.remove(target_path)
@@ -223,19 +216,15 @@ class UpdateManager(QObject):
                         shutil.move(file_path, target_path)
                         os.chmod(target_path, 0o755)
                         
-                        # Remove old version if filename is different and it's not the same file
                         if current_appimage != target_path:
                             try:
                                 os.remove(current_appimage)
                             except:
-                                # If remove fails/locked, rename to .old to hide it 
-                                # (AppImageLauncher might handle this transition)
                                 try:
                                     os.rename(current_appimage, current_appimage + ".old")
                                 except:
                                     pass
 
-                        # Launch the new AppImage
                         subprocess.Popen([target_path])
                     else:
                         subprocess.Popen([file_path])

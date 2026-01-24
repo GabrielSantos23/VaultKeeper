@@ -332,11 +332,10 @@
 
 .vaultkeeper-field-icon {
   position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  /* right and top are set via JS */
+  /* transform: translateY(-50%); Removed, handled by JS top calculation */
   cursor: pointer;
-  z-index: 10000;
+  z-index: 2147483647;
   opacity: 0.6;
   transition: opacity 0.2s;
   user-select: none;

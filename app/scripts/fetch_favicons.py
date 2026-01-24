@@ -3,10 +3,8 @@ from pathlib import Path
 from PIL import Image
 import io
 
-# Caminho absoluto para o seu projeto no Windows
 OUTPUT_DIR = Path(r"D:\projects\VaultKeeper\app\ui\icons\service_icons")
 
-# Cria as pastas necessárias se não existirem
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 SITES = {
@@ -109,6 +107,7 @@ SITES = {
     "coursera": "coursera.org",
     "duolingo": "duolingo.com",
     "govbr": "gov.br",
+    "letterboxd": "letterboxd.com",
 }
 
 FAVICON_URL = "https://www.google.com/s2/favicons"

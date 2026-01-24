@@ -43,6 +43,8 @@ const credDomain = document.getElementById("cred-domain");
 const credUsername = document.getElementById("cred-username");
 const credPassword = document.getElementById("cred-password");
 const credNotes = document.getElementById("cred-notes");
+const credTotp = document.getElementById("cred-totp");
+const credBackup = document.getElementById("cred-backup");
 const strengthBadge = document.querySelector(".strength-badge");
 const totpFieldGroup = document.getElementById("totp-field-group");
 const totpCodeElement = document.getElementById("detail-totp-code");
@@ -390,6 +392,21 @@ function toggleDetailPassword() {
 async function fillCredential() {
   if (!selectedCredential) return;
 
+  let totpCode = null;
+  if (selectedCredential.totp_secret) {
+    try {
+      const response = await sendMessage({
+        action: "get_totp",
+        id: selectedCredential.id,
+      });
+      if (response.success) {
+        totpCode = response.code;
+      }
+    } catch (e) {
+      console.error("Error fetching TOTP for auto-fill:", e);
+    }
+  }
+
   try {
     const [tab] = await browserAPI.tabs.query({
       active: true,
@@ -400,6 +417,7 @@ async function fillCredential() {
       action: "fill",
       username: selectedCredential.username,
       password: actualPasswords[selectedCredential.id] || "",
+      totp: totpCode,
     });
 
     window.close();
@@ -586,6 +604,8 @@ async function saveCredential(e) {
     username: credUsername.value.trim(),
     password: credPassword.value,
     notes: credNotes.value.trim() || null,
+    totp_secret: credTotp.value.trim() || null,
+    backup_codes: credBackup.value.trim() || null,
   };
 
   if (!data.domain || !data.username || !data.password) {
@@ -789,6 +809,8 @@ function openEditModal(cred) {
   credUsername.value = cred.username;
   credPassword.value = actualPasswords[cred.id] || "";
   credNotes.value = cred.notes || "";
+  credTotp.value = cred.totp_secret || "";
+  credBackup.value = actualBackupCodes[cred.id] || "";
 
   updateStrengthBadge(credPassword.value);
   credentialForm.dataset.editId = cred.id;
@@ -1175,7 +1197,6 @@ if (genSymbolsToggle)
 if (genTypeSelect)
   genTypeSelect.addEventListener("change", generateNewPassword);
 
-// Persistence back navigation
 const persistenceNotesBack = document.getElementById("notes-back-btn");
 const persistenceCardsBack = document.getElementById("cards-back-btn");
 
@@ -1191,7 +1212,6 @@ if (persistenceCardsBack) {
   });
 }
 
-// Refresh Button Logic
 const refreshBtn = document.getElementById("refresh-btn");
 if (refreshBtn) {
   refreshBtn.addEventListener("click", async () => {
@@ -1218,7 +1238,6 @@ if (refreshBtn) {
   });
 }
 
-/* New Tab Navigation Listeners */
 const navHomeFromCards = document.getElementById("nav-home-from-cards");
 const navNotesFromCards = document.getElementById("nav-notes-from-cards");
 const navHomeFromNotes = document.getElementById("nav-home-from-notes");

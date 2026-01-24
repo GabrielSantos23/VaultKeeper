@@ -58,14 +58,11 @@
     return content;
   }
 
-  // --- HTML to Markdown Converter ---
   function htmlToMarkdown(html) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
     const temp = doc.body;
-    // Clean spaces
     let md = domToMarkdown(temp).trim();
-    // Reduce multiple newlines to max 2
     return md.replace(/\n\s*\n\s*\n/g, "\n\n");
   }
 
@@ -91,7 +88,6 @@
       case "h3":
         return "### " + getChildrenMd(node) + "\n\n";
       case "p":
-        // Check if plain p or has content
         const content = getChildrenMd(node);
         return content.trim() ? content + "\n\n" : "";
       case "ul":
@@ -138,7 +134,6 @@
   async function copyNoteAsMarkdown() {
     if (!selectedNote) return;
 
-    // Use cleanQtContent first to strip headers, then convert
     const cleanedHtml = cleanQtContent(selectedNote.content);
     const markdown = htmlToMarkdown(cleanedHtml);
 
@@ -149,7 +144,7 @@
       if (btn) {
         const originalText = btn.textContent;
         btn.textContent = "Copied!";
-        btn.classList.add("btn-success"); // Optional styling
+        btn.classList.add("btn-success");
         setTimeout(() => {
           btn.textContent = originalText;
           btn.classList.remove("btn-success");
@@ -478,7 +473,6 @@
       ?.addEventListener("click", formatLink);
   });
 
-  // Expose global functions
   window.openNotesView = openNotesView;
   window.closeNotesView = closeNotesView;
 })();

@@ -108,9 +108,76 @@ class GeneralTab(QWidget):
 
         layout.addWidget(create_separator())
 
+        self._setup_browser_section(layout)
+
+        layout.addWidget(create_separator())
+
         self._setup_update_section(layout)
 
         layout.addStretch()
+
+    def _setup_browser_section(self, layout):
+        theme = get_theme()
+        container = QWidget()
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+        
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+        
+        title = QLabel("Browser Connection")
+        title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
+        text_layout.addWidget(title)
+        
+        subtitle = QLabel("Repair connection with browser extension if it stops working.")
+        subtitle.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+        text_layout.addWidget(subtitle)
+        
+        row.addLayout(text_layout)
+        
+        btn_repair = QPushButton("Repair Connection")
+        btn_repair.setCursor(Qt.PointingHandCursor)
+        btn_repair.setFixedWidth(180)
+        btn_repair.setFixedHeight(32)
+        btn_repair.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.colors.sidebar_accent};
+                border: 1px solid {theme.colors.border};
+                color: {theme.colors.foreground};
+                border-radius: 6px;
+                font-size: 13px;
+                padding: 6px 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.border};
+            }}
+        """)
+        btn_repair.clicked.connect(self._repair_connection)
+        row.addWidget(btn_repair)
+        
+        layout.addWidget(container)
+
+    def _repair_connection(self):
+        try:
+            from ...native.installer import NativeHostInstaller
+            installer = NativeHostInstaller()
+            installer.create_wrapper_script()
+            results = installer.install_all()
+            
+            installed = [browser.title() for browser, success, msg in results if success]
+            
+            if installed:
+                QMessageBox.information(
+                    self,
+                    "Connection Repaired",
+                    f"Successfully repaired connection for:\n\n• " + "\n• ".join(installed) + 
+                    "\n\nPlease restart your browser."
+                )
+            else:
+                QMessageBox.warning(self, "Repair Failed", "Could not find any compatible browsers.")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to repair connection: {e}")
 
     def _setup_general_settings(self, layout):
 

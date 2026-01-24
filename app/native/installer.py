@@ -79,6 +79,8 @@ class NativeHostInstaller:
 
                 "zen": home / ".zen" / "native-messaging-hosts",
 
+                "zen_xdg": home / ".config" / "zen" / "native-messaging-hosts",
+
                 "chrome": home / ".config" / "google-chrome" / "NativeMessagingHosts",
 
                 "chromium": home / ".config" / "chromium" / "NativeMessagingHosts",
@@ -189,7 +191,7 @@ class NativeHostInstaller:
 
         }
 
-        firefox_based = {"firefox", "librewolf", "waterfox", "floorp", "zen"}
+        firefox_based = {"firefox", "librewolf", "waterfox", "floorp", "zen", "zen_xdg"}
 
         if browser in firefox_based:
 

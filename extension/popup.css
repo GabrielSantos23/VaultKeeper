@@ -603,7 +603,7 @@ body {
   position: relative;
   background: var(--vk-bg-primary);
   border-radius: var(--vk-radius-lg);
-  width: 380px;
+  width: 500px;
   max-height: 90%;
   overflow-y: auto;
   box-shadow: var(--vk-shadow-md);
@@ -796,6 +796,17 @@ body {
 
 .vk-dropdown-item.danger {
   color: var(--vk-accent-red);
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
 }
 
 .vk-dropdown-item.danger svg {

@@ -1,5 +1,4 @@
 (() => {
-  // browserAPI is already defined in popup.js which loads first
   const api =
     window.browserAPI || (typeof browser !== "undefined" ? browser : chrome);
 
@@ -359,7 +358,6 @@
     const deleteCardBtn = document.getElementById("delete-card-btn");
     if (deleteCardBtn) deleteCardBtn.addEventListener("click", deleteCard);
 
-    // Card editor buttons
     const addCardBtn = document.getElementById("add-card-btn");
     if (addCardBtn)
       addCardBtn.addEventListener("click", () => openCardEditor());
@@ -371,7 +369,6 @@
     if (cardForm) cardForm.addEventListener("submit", saveCard);
   });
 
-  // Expose global functions
   window.openCardsView = openCardsView;
   window.closeCardsView = closeCardsView;
 })();

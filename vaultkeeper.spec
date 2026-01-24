@@ -1,18 +1,9 @@
-# -*- mode: python ; coding: utf-8 -*-
-"""
-VaultKeeper PyInstaller Specification File
-Builds TWO executables in a SINGLE DIRECTORY (OneDir mode):
-1. VaultKeeper.exe (GUI)
-2. vk_host.exe (Console/Native Messaging Host)
-"""
-
 import sys
 from pathlib import Path
 
 block_cipher = None
 project_root = Path(SPECPATH)
 
-# Common settings
 datas = [
     (str(project_root / 'app' / 'ui' / 'icons'), 'app/ui/icons'),
 ]
@@ -20,7 +11,6 @@ if (project_root / '.env').exists():
     datas.append((str(project_root / '.env'), '.'))
 
 if not (project_root / 'app' / 'ui' / 'icons').exists():
-    # Remove icons from datas if they don't exist, but keep .env if added
     datas = [d for d in datas if d[1] != 'app/ui/icons']
 
 hiddenimports = [
@@ -29,9 +19,6 @@ hiddenimports = [
     'argon2', 'argon2.low_level', 'sqlite3',
 ]
 
-# -----------------------------------------------
-# Analysis 1: Main GUI Application
-# -----------------------------------------------
 a = Analysis(
     [str(project_root / 'app' / 'main.py')],
     pathex=[str(project_root)],
@@ -54,13 +41,13 @@ exe = EXE(
     pyz,
     a.scripts,
     [],
-    exclude_binaries=True, # IMPORTANT: Don't bundle into EXE, use COLLECT for folder
+    exclude_binaries=True,
     name='VaultKeeper',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False, # GUI Mode
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -69,15 +56,11 @@ exe = EXE(
     icon=str(project_root / 'app' / 'ui' / 'icons' / 'icon.ico') if sys.platform == 'win32' else None,
 )
 
-# -----------------------------------------------
-# Analysis 2: Native Messaging Host (Console)
-# -----------------------------------------------
-# We do a second analysis for the host script
 b = Analysis(
     [str(project_root / 'app' / 'native' / 'host.py')],
     pathex=[str(project_root)],
     binaries=[],
-    datas=[], # Datas already in main, but safe to repeat or omit if shared
+    datas=[],
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],
@@ -95,12 +78,12 @@ exe_host = EXE(
     b.scripts,
     [],
     exclude_binaries=True,
-    name='vk_host', # Name of the host executable
+    name='vk_host',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True, # MUST BE TRUE for stdin/stdout communication
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -108,23 +91,19 @@ exe_host = EXE(
     entitlements_file=None,
 )
 
-# -----------------------------------------------
-# COLLECTION (Folder Output)
-# -----------------------------------------------
-# Collect everything into one folder
 coll = COLLECT(
     exe,
     a.binaries,
     a.zipfiles,
     a.datas,
     
-    exe_host, # Include the host exe
-    b.binaries, # Include host binaries (duplicates are filtered by PyInstaller)
+    exe_host,
+    b.binaries,
     b.zipfiles,
     b.datas,
     
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='VaultKeeper', # Folder name in dist/
+    name='VaultKeeper',
 )

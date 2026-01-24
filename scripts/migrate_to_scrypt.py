@@ -11,11 +11,9 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.backends import default_backend
 
-# --- Configuration ---
 DB_NAME = "vault.db"
 DEFAULT_DB_PATH = os.path.join(os.path.expanduser("~"), ".vaultkeeper", DB_NAME)
 
-# --- Legacy Crypto (PBKDF2) ---
 class LegacyCrypto:
     SALT_SIZE = 16
     NONCE_SIZE = 12
@@ -40,10 +38,10 @@ class LegacyCrypto:
         try:
             combined = base64.b64decode(encrypted_data.encode('utf-8'))
         except Exception:
-            return None # Not valid base64 or empty
+            return None
 
         if len(combined) < self.SALT_SIZE + self.NONCE_SIZE:
-             return None # Too short
+             return None
 
         salt = combined[:self.SALT_SIZE]
         nonce = combined[self.SALT_SIZE:self.SALT_SIZE + self.NONCE_SIZE]
@@ -56,16 +54,13 @@ class LegacyCrypto:
             plaintext = aesgcm.decrypt(nonce, ciphertext, None)
             return plaintext.decode('utf-8')
         except Exception:
-            # Decryption failed (wrong password or corrupted)
             raise ValueError("Decryption failed")
 
-# --- Modern Crypto (Scrypt) ---
 class ModernCrypto:
     SALT_SIZE = 16
     NONCE_SIZE = 12
     KEY_SIZE = 32
-    # Scrypt parameters (Light/Balanced)
-    N = 16384 # 2^14
+    N = 16384
     R = 8
     P = 1
 
@@ -96,7 +91,6 @@ class ModernCrypto:
         combined = salt + nonce + ciphertext
         return base64.b64encode(combined).decode('utf-8')
 
-# --- Migration Logic ---
 def migrate_vault(db_path: str, password: str):
     if not os.path.exists(db_path):
         print(f"Error: Database not found at {db_path}")
@@ -104,7 +98,6 @@ def migrate_vault(db_path: str, password: str):
 
     print(f"Migrating database: {db_path}")
     
-    # Backup
     backup_path = db_path + ".pbkdf2.bak"
     import shutil
     shutil.copy2(db_path, backup_path)
@@ -121,42 +114,35 @@ def migrate_vault(db_path: str, password: str):
     errors = 0
 
     try:
-        # 1. Migrate Vault (Credentials)
         cursor.execute("SELECT id, password, notes, totp_secret, backup_codes FROM vault")
         rows = cursor.fetchall()
         print(f"Processing {len(rows)} credentials...")
         
         for row in rows:
             try:
-                # Decrypt
                 updates_in_row = {}
                 
-                # Password
                 plain_pass = legacy.decrypt(row['password'], password)
                 updates_in_row['password'] = modern.encrypt(plain_pass, password)
 
-                # Notes
                 if row['notes']:
                     plain_notes = legacy.decrypt(row['notes'], password)
                     updates_in_row['notes'] = modern.encrypt(plain_notes, password)
                 else:
                     updates_in_row['notes'] = None
 
-                # TOTP
                 if row['totp_secret']:
                     plain_totp = legacy.decrypt(row['totp_secret'], password)
                     updates_in_row['totp_secret'] = modern.encrypt(plain_totp, password)
                 else:
                     updates_in_row['totp_secret'] = None
 
-                # Backup
                 if row['backup_codes']:
                     plain_backup = legacy.decrypt(row['backup_codes'], password)
                     updates_in_row['backup_codes'] = modern.encrypt(plain_backup, password)
                 else:
                     updates_in_row['backup_codes'] = None
                 
-                # Update DB
                 cursor.execute("""
                     UPDATE vault 
                     SET password=?, notes=?, totp_secret=?, backup_codes=?, updated_at=CURRENT_TIMESTAMP
@@ -173,11 +159,8 @@ def migrate_vault(db_path: str, password: str):
             except ValueError:
                 print(f"Failed to decrypt credential ID {row['id']} - Incorrect Password?")
                 errors += 1
-                # Abort if first item fails to avoid partial corruption?
-                # Actually, continuing might be bad.
                 raise Exception("Decryption failed. Wrong password likely.")
 
-        # 2. Migrate Secure Notes
         cursor.execute("SELECT id, content FROM secure_notes")
         rows = cursor.fetchall()
         print(f"Processing {len(rows)} secure notes...")
@@ -194,7 +177,6 @@ def migrate_vault(db_path: str, password: str):
                 print(f"Error note {row['id']}: {e}")
                 errors += 1
 
-        # 3. Migrate Credit Cards
         cursor.execute("SELECT id, card_number, cvv, notes FROM credit_cards")
         rows = cursor.fetchall()
         print(f"Processing {len(rows)} credit cards...")
@@ -203,15 +185,12 @@ def migrate_vault(db_path: str, password: str):
             try:
                 updates_in_row = {}
                 
-                # Card Number
                 plain_num = legacy.decrypt(row['card_number'], password)
                 updates_in_row['card_number'] = modern.encrypt(plain_num, password)
                 
-                # CVV
                 plain_cvv = legacy.decrypt(row['cvv'], password)
                 updates_in_row['cvv'] = modern.encrypt(plain_cvv, password)
                 
-                # Notes
                 if row['notes']:
                     plain_notes = legacy.decrypt(row['notes'], password)
                     updates_in_row['notes'] = modern.encrypt(plain_notes, password)
