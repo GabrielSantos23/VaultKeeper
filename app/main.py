@@ -199,6 +199,8 @@ def main():
 
         print(f"⚠️ Warning: Could not check native host: {e}")
 
+    # Local Sync Server is now managed by MainWindow
+
     from app.ui.main_window import main as ui_main
 
     ui_main()

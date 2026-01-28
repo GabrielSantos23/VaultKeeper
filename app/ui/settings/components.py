@@ -1,7 +1,7 @@
 
 from PySide6.QtWidgets import (
 
-    QCheckBox, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
+    QCheckBox, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSizePolicy
 
 )
 
@@ -130,50 +130,34 @@ class SettingsSidebarButton(QPushButton):
         """)
 
 def create_toggle_setting(title: str, subtitle: str, checked: bool) -> tuple[QWidget, ToggleSwitch]:
-
     widget = QWidget()
-
+    # Ensure the widget expands properly
+    widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+    
     layout = QHBoxLayout(widget)
-
     layout.setContentsMargins(0, 12, 0, 12)
-
+    
     theme = get_theme()
-
+    
     text_layout = QVBoxLayout()
-
     text_layout.setSpacing(4)
-
+    
     label_title = QLabel(title)
-
-    label_title.setStyleSheet(f"""
-        color: {theme.colors.foreground};
-        font-size: 14px;
-        font-weight: 500;
-        border: none;
-        background: transparent;
-    """)
-
+    label_title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
+    label_title.setWordWrap(True)
     text_layout.addWidget(label_title)
-
+    
     label_sub = QLabel(subtitle)
-
-    label_sub.setStyleSheet(f"""
-        color: {theme.colors.muted_foreground};
-        font-size: 12px;
-        border: none;
-        background: transparent;
-    """)
-
+    label_sub.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+    label_sub.setWordWrap(True)
     text_layout.addWidget(label_sub)
-
-    layout.addLayout(text_layout)
-
+    
+    layout.addLayout(text_layout, 1)
+    
     toggle = ToggleSwitch()
-
     toggle.setChecked(checked)
-
     layout.addWidget(toggle)
-
+    
     return widget, toggle
 
 def create_separator() -> QFrame:

@@ -527,7 +527,12 @@ class CredentialsList(QWidget):
             self.credential_selected.emit(item)
             
     def set_sidebar_toggle_visible(self, visible):
-        self.toggle_sidebar_btn.setVisible(visible)
+        if visible:
+            self.toggle_sidebar_btn.setFixedSize(28, 28)
+            self.toggle_sidebar_btn.show()
+        else:
+            self.toggle_sidebar_btn.setFixedSize(0, 0)
+            self.toggle_sidebar_btn.hide()
 
     def _show_sort_menu(self):
         theme = get_theme()

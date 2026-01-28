@@ -68,14 +68,40 @@ class MainWindow(QMainWindow):
         self.lock_timer.start(10000)
 
         self.update_auto_lock()
+        
+        # Setup Local Sync
+        self.setup_local_sync()
 
         get_config().settings_changed.connect(self.on_settings_changed)
+
+    def setup_local_sync(self):
+        try:
+            from app.core.local_sync import LocalSyncServer
+            from app.core.config import Config
+            vault_path = Config.get_config_dir() / 'vault.db'
+            self.sync_server = LocalSyncServer(vault_path)
+            
+            if get_config().get_local_sync_enabled():
+                self.sync_server.start()
+                print("📡 Local Sync Server: Started")
+        except Exception as e:
+            print(f"⚠️ Failed to setup local sync: {e}")
+            self.sync_server = None
 
     def on_settings_changed(self, key, value):
 
         if key == "general/auto_lock_timeout":
 
             self.update_auto_lock()
+            
+        elif key == "general/local_sync":
+            if self.sync_server:
+                if value:
+                    self.sync_server.start()
+                    print("📡 Local Sync Server: Started (Settings)")
+                else:
+                    self.sync_server.stop()
+                    print("📡 Local Sync Server: Stopped (Settings)")
 
     def update_auto_lock(self):
 

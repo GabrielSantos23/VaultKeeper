@@ -58,3 +58,6 @@ dist/
 *.exe
 *.dmg
 *.AppImage
+
+# Mobile
+mobile/

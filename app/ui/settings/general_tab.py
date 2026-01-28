@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
 
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
 
-    QComboBox, QMessageBox
+    QComboBox, QMessageBox, QSizePolicy
 
 )
 
@@ -90,19 +90,7 @@ class GeneralTab(QWidget):
 
         layout.addSpacing(8)
 
-        lang_widget, _ = self._create_dropdown_setting(
 
-            "Language selection",
-
-            "Choose the display language for the interface.",
-
-            ["English (US)", "Portuguese (BR)", "Spanish"]
-
-        )
-
-        layout.addWidget(lang_widget)
-
-        layout.addWidget(create_separator())
 
         self._setup_general_settings(layout)
 
@@ -127,18 +115,19 @@ class GeneralTab(QWidget):
         
         title = QLabel("Browser Connection")
         title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
+        title.setWordWrap(True)
         text_layout.addWidget(title)
         
         subtitle = QLabel("Repair connection with browser extension if it stops working.")
         subtitle.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+        subtitle.setWordWrap(True)
         text_layout.addWidget(subtitle)
         
-        row.addLayout(text_layout)
+        row.addLayout(text_layout, 1)
         
         btn_repair = QPushButton("Repair Connection")
         btn_repair.setCursor(Qt.PointingHandCursor)
-        btn_repair.setFixedWidth(180)
-        btn_repair.setFixedHeight(32)
+        btn_repair.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         btn_repair.setStyleSheet(f"""
             QPushButton {{
                 background-color: {theme.colors.sidebar_accent};
@@ -146,7 +135,8 @@ class GeneralTab(QWidget):
                 color: {theme.colors.foreground};
                 border-radius: 6px;
                 font-size: 13px;
-                padding: 6px 12px;
+                padding: 6px 16px;
+                min-height: 20px;
             }}
             QPushButton:hover {{
                 background-color: {theme.colors.border};
@@ -261,25 +251,7 @@ class GeneralTab(QWidget):
 
         layout.addWidget(clip_widget)
 
-        layout.addWidget(create_separator())
 
-        notif_widget, notif_toggle = create_toggle_setting(
-
-            "Show desktop notifications",
-
-            "Get alerts for security updates and vault activities.",
-
-            config.get_notifications_enabled()
-
-        )
-
-        notif_toggle.stateChanged.connect(
-
-            lambda state: config.set_notifications_enabled(state == Qt.Checked)
-
-        )
-
-        layout.addWidget(notif_widget)
 
     def _create_dropdown_setting(self, title: str, subtitle: str, options: list):
 
@@ -298,16 +270,18 @@ class GeneralTab(QWidget):
         label_title = QLabel(title)
 
         label_title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
+        label_title.setWordWrap(True)
 
         text_layout.addWidget(label_title)
 
         label_sub = QLabel(subtitle)
 
         label_sub.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+        label_sub.setWordWrap(True)
 
         text_layout.addWidget(label_sub)
 
-        layout.addLayout(text_layout)
+        layout.addLayout(text_layout, 1)
 
         combo = QComboBox()
 
@@ -315,7 +289,7 @@ class GeneralTab(QWidget):
 
         combo.setCursor(Qt.PointingHandCursor)
 
-        combo.setFixedWidth(200)
+        combo.setMinimumWidth(200)
 
         combo.setStyleSheet(f"""
             QComboBox {{
@@ -379,37 +353,33 @@ class GeneralTab(QWidget):
         title = QLabel(f"Version {__version__}")
 
         title.setStyleSheet(f"color: {theme.colors.foreground}; font-size: 14px; font-weight: 500;")
+        title.setWordWrap(True)
 
         text_layout.addWidget(title)
 
         subtitle = QLabel("Check for the latest updates on GitHub.")
 
         subtitle.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-size: 12px;")
+        subtitle.setWordWrap(True)
 
         text_layout.addWidget(subtitle)
 
-        row.addLayout(text_layout)
+        row.addLayout(text_layout, 1)
 
         self.btn_update = QPushButton("Check for Updates")
-
         self.btn_update.setCursor(Qt.PointingHandCursor)
-
-        self.btn_update.setFixedWidth(180)
-
-        self.btn_update.setFixedHeight(32)
-
+        self.btn_update.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         self.btn_update.setStyleSheet(f"""
             QPushButton {{
-
                 background-color: {theme.colors.sidebar_accent};
                 border: 1px solid {theme.colors.border};
                 color: {theme.colors.foreground};
                 border-radius: 6px;
                 font-size: 13px;
-                padding: 6px 12px;
+                padding: 6px 16px;
+                min-height: 20px;
             }}
             QPushButton:hover {{
-
                 background-color: {theme.colors.border};
             }}
         """)
@@ -429,32 +399,36 @@ class GeneralTab(QWidget):
         self.update_manager.check_for_updates()
 
     def _on_update_available(self, version, url):
-
-        self.btn_update.setText("Update Now")
-
-        self.btn_update.setEnabled(True)
-
         self.latest_download_url = url
-
-        reply = QMessageBox.question(
-
-            self,
-
-            "Update Available",
-
-            f"A new version ({version}) is available!\nDo you want to download and install it now?",
-
-            QMessageBox.Yes | QMessageBox.No
-
-        )
-
-        if reply == QMessageBox.Yes:
-
-            self.btn_update.setText("Starting...")
-
-            self.btn_update.setEnabled(False)
-
-            self.update_manager.download_update(url)
+        
+        import platform
+        if platform.system().lower() == "linux":
+            reply = QMessageBox.question(
+                self,
+                "Update Available",
+                f"A new version ({version}) is available!\n\nDue to Linux security policies, you need to download the AppImage manually.\n\nOpen download page?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            
+            if reply == QMessageBox.Yes:
+                QDesktopServices.openUrl(url)
+                self.btn_update.setText("Open Download")
+                self.btn_update.setEnabled(True)
+        else:
+            self.btn_update.setText("Update Now")
+            self.btn_update.setEnabled(True)
+            
+            reply = QMessageBox.question(
+                self,
+                "Update Available",
+                f"A new version ({version}) is available!\nDo you want to download and install it now?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            
+            if reply == QMessageBox.Yes:
+                self.btn_update.setText("Starting...")
+                self.btn_update.setEnabled(False)
+                self.update_manager.download_update(url)
 
     def _on_no_update(self):
 

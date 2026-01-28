@@ -347,7 +347,8 @@ fi
 
         if self.system != "windows":
 
-            os.chmod(self.host_script, 0o755)
+            if self.host_script.exists():
+                os.chmod(self.host_script, 0o755)
 
         for browser in self.get_browser_paths().keys():
 

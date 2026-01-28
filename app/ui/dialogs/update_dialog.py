@@ -77,12 +77,21 @@ class UpdateDialog(QDialog):
         self.manager.install_complete.connect(self.on_install_complete)
     
     def start_update(self):
-        self.update_btn.setEnabled(False)
-        self.cancel_btn.setEnabled(False)
-        self.progress_bar.show()
-        self.status_label.show()
-        self.status_label.setText("Downloading update...")
-        self.manager.download_update(self.download_url)
+        import platform
+        from PySide6.QtGui import QDesktopServices
+        
+        if platform.system().lower() == "linux":
+            QDesktopServices.openUrl(self.download_url)
+            self.status_label.setText("Opening download page...")
+            self.status_label.show()
+            self.update_btn.setText("Open Download")
+        else:
+            self.update_btn.setEnabled(False)
+            self.cancel_btn.setEnabled(False)
+            self.progress_bar.show()
+            self.status_label.show()
+            self.status_label.setText("Downloading update...")
+            self.manager.download_update(self.download_url)
     
     def on_download_progress(self, percent):
         self.progress_bar.setValue(percent)
