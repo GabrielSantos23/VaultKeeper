@@ -41,7 +41,7 @@ if errorlevel 1 (
 
 echo.
 echo [5/5] Creating distribution package...
-set VERSION=1.0.8
+set VERSION=1.0.9
 set DIST_NAME=VaultKeeper-%VERSION%-windows-x64
 
 if exist "dist\%DIST_NAME%.zip" del "dist\%DIST_NAME%.zip"
