@@ -243,6 +243,25 @@ fi
 
         return wrapper_path
 
+    def install_at_path(self, browser_type: str, target_dir: Path, chrome_extension_id: Optional[str] = None) -> Tuple[bool, str]:
+        """Install manifest to a specific custom directory."""
+        if not target_dir.exists():
+            return False, "Target directory does not exist"
+            
+        try:
+            manifest = self.create_manifest(browser_type, chrome_extension_id)
+            manifest_path = target_dir / f"{HOST_NAME}.json"
+            
+            with open(manifest_path, 'w') as f:
+                json.dump(manifest, f, indent=2)
+                
+            if self.system == "windows":
+                self._register_windows(browser_type, manifest_path)
+                
+            return True, f"Installed to {manifest_path}"
+        except Exception as e:
+            return False, f"Failed to install: {e}"
+
     def install_for_browser(self, browser: str, chrome_extension_id: Optional[str] = None) -> Tuple[bool, str]:
         paths_map = self.get_browser_paths()
         

@@ -1,19 +1,21 @@
+from pathlib import Path
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-    QListWidget, QListWidgetItem, QWidget, QFrame, QMessageBox
+    QListWidget, QListWidgetItem, QWidget, QFrame, QMessageBox,
+    QLineEdit, QComboBox, QFileDialog
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
 
 from ...native.installer import NativeHostInstaller
 from ..theme import get_theme
-from ..ui_utils import load_svg_icon, get_icon_path
+from ..ui_utils import load_svg_icon
 
 class BrowserRepairDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Browser Connection Repair")
-        self.setFixedSize(600, 500)
+        self.setWindowTitle("Browser Connection")
+        self.setFixedSize(700, 600)
         self.installer = NativeHostInstaller()
         self.setup_ui()
         self.scan_browsers()
@@ -30,14 +32,14 @@ class BrowserRepairDialog(QDialog):
         # Header
         header = QFrame()
         header.setStyleSheet(f"background-color: {theme.colors.sidebar}; border-bottom: 1px solid {theme.colors.border};")
-        header.setFixedHeight(80)
+        header.setFixedHeight(70)
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(24, 0, 24, 0)
         
         title_box = QVBoxLayout()
-        title_label = QLabel("Browser Detection")
-        title_label.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {theme.colors.foreground};")
-        subtitle = QLabel("VaultKeeper scans for installed browsers to register the extension.")
+        title_label = QLabel("Browser Integration")
+        title_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {theme.colors.foreground};")
+        subtitle = QLabel("Manage native messaging hosts for your browsers.")
         subtitle.setStyleSheet(f"font-size: 13px; color: {theme.colors.muted_foreground};")
         
         title_box.addWidget(title_label)
@@ -48,54 +50,128 @@ class BrowserRepairDialog(QDialog):
         # Content
         content = QWidget()
         content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(24, 24, 24, 24)
-        content_layout.setSpacing(16)
+        content_layout.setContentsMargins(24, 24, 24, 12)
+        content_layout.setSpacing(20)
 
-        # Found Browsers Section
-        lbl_found = QLabel("✓ Compatible Browsers Found")
-        lbl_found.setStyleSheet(f"font-weight: 600; color: #4ade80; font-size: 14px;")
-        content_layout.addWidget(lbl_found)
+        # 1. Detected Browsers List
+        lbl_detected = QLabel("Detected Installations")
+        lbl_detected.setStyleSheet(f"font-weight: 600; font-size: 14px; color: {theme.colors.foreground};")
+        content_layout.addWidget(lbl_detected)
 
-        self.list_found = QListWidget()
-        self.list_found.setStyleSheet(f"""
+        self.list_browsers = QListWidget()
+        self.list_browsers.setStyleSheet(f"""
             QListWidget {{
                 background-color: {theme.colors.card};
                 border: 1px solid {theme.colors.border};
                 border-radius: 8px;
-                padding: 8px;
+                padding: 4px;
                 outline: none;
             }}
             QListWidget::item {{
-                padding: 8px;
-                border-radius: 4px;
+                border-bottom: 1px solid {theme.colors.border};
+                padding: 4px;
+            }}
+            QListWidget::item:last {{
+                border-bottom: none;
             }}
             QListWidget::item:hover {{
                 background-color: {theme.colors.sidebar_accent};
             }}
         """)
-        content_layout.addWidget(self.list_found)
+        content_layout.addWidget(self.list_browsers)
 
-        # Missing Browsers Section
-        lbl_missing = QLabel("✗ Browsers Not Found")
-        lbl_missing.setStyleSheet(f"font-weight: 600; color: {theme.colors.muted_foreground}; font-size: 14px; margin-top: 10px;")
-        content_layout.addWidget(lbl_missing)
-
-        self.list_missing = QListWidget()
-        self.list_missing.setStyleSheet(f"""
-            QListWidget {{
+        # 2. Manual Installation
+        manual_group = QFrame()
+        manual_group.setStyleSheet(f"""
+            QFrame {{
                 background-color: {theme.colors.card};
-                border: 1px solid {theme.colors.border};
+                border: 1px dashed {theme.colors.border};
                 border-radius: 8px;
-                padding: 8px;
-                color: {theme.colors.muted_foreground};
-                outline: none;
-            }}
-            QListWidget::item {{
-                padding: 8px;
             }}
         """)
-        self.list_missing.setFixedHeight(120)
-        content_layout.addWidget(self.list_missing)
+        manual_layout = QVBoxLayout(manual_group)
+        manual_layout.setContentsMargins(16, 16, 16, 16)
+        manual_layout.setSpacing(12)
+
+        lbl_manual = QLabel("Manual Installation (Advanced)")
+        lbl_manual.setStyleSheet(f"font-weight: 600; font-size: 14px; border: none; background: transparent;")
+        manual_layout.addWidget(lbl_manual)
+        
+        lbl_manual_input = QLabel("If your browser isn't listed, select its type and native messaging folder:")
+        lbl_manual_input.setStyleSheet(f"font-size: 12px; color: {theme.colors.muted_foreground}; border: none; background: transparent;")
+        manual_layout.addWidget(lbl_manual_input)
+
+        form_layout = QHBoxLayout()
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.combo_type = QComboBox()
+        self.combo_type.addItems(["Firefox", "Chrome", "Chromium", "Brave", "Edge", "Vivaldi", "Opera", "Zen"])
+        self.combo_type.setFixedWidth(100)
+        self.combo_type.setFixedHeight(36)
+        self.combo_type.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {theme.colors.input};
+                border: 1px solid {theme.colors.border};
+                border-radius: 6px;
+                color: {theme.colors.foreground};
+                padding: 4px 8px;
+            }}
+        """)
+        form_layout.addWidget(self.combo_type)
+
+        self.input_path = QLineEdit()
+        self.input_path.setPlaceholderText("Path to 'NativeMessagingHosts' or 'native-messaging-hosts' folder")
+        self.input_path.setFixedHeight(36)
+        self.input_path.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {theme.colors.input};
+                border: 1px solid {theme.colors.border};
+                border-radius: 6px;
+                color: {theme.colors.foreground};
+                padding: 0 12px;
+            }}
+        """)
+        form_layout.addWidget(self.input_path)
+
+        btn_browse = QPushButton("Browse...")
+        btn_browse.setCursor(Qt.PointingHandCursor)
+        btn_browse.setFixedHeight(36)
+        btn_browse.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.colors.secondary};
+                color: {theme.colors.secondary_foreground};
+                border: 1px solid {theme.colors.border};
+                border-radius: 6px;
+                padding: 0 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.accent};
+            }}
+        """)
+        btn_browse.clicked.connect(self.browse_folder)
+        form_layout.addWidget(btn_browse)
+
+        manual_layout.addLayout(form_layout)
+
+        btn_install_manual = QPushButton("Install to Custom Path")
+        btn_install_manual.setCursor(Qt.PointingHandCursor)
+        btn_install_manual.setFixedHeight(32)
+        btn_install_manual.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {theme.colors.sidebar_accent};
+                color: {theme.colors.foreground};
+                border: 1px solid {theme.colors.border};
+                border-radius: 6px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.colors.border};
+            }}
+        """)
+        btn_install_manual.clicked.connect(self.install_manual)
+        manual_layout.addWidget(btn_install_manual)
+
+        content_layout.addWidget(manual_group)
 
         layout.addWidget(content)
 
@@ -106,131 +182,150 @@ class BrowserRepairDialog(QDialog):
         footer_layout = QHBoxLayout(footer)
         footer_layout.setContentsMargins(24, 0, 24, 0)
         
+        status_info = QLabel("Changes require browser restart.")
+        status_info.setStyleSheet(f"color: {theme.colors.muted_foreground}; font-style: italic;")
+        footer_layout.addWidget(status_info)
+        
         footer_layout.addStretch()
         
-        btn_cancel = QPushButton("Cancel")
-        btn_cancel.setCursor(Qt.PointingHandCursor)
-        btn_cancel.setFixedSize(100, 36)
-        btn_cancel.setStyleSheet(f"""
+        btn_close = QPushButton("Close")
+        btn_close.setCursor(Qt.PointingHandCursor)
+        btn_close.setFixedSize(100, 36)
+        btn_close.setStyleSheet(f"""
             QPushButton {{
-                background-color: transparent;
+                background-color: {theme.colors.card};
                 border: 1px solid {theme.colors.border};
                 color: {theme.colors.foreground};
                 border-radius: 6px;
-                font-weight: 500;
             }}
             QPushButton:hover {{
                 background-color: {theme.colors.sidebar_accent};
             }}
         """)
-        btn_cancel.clicked.connect(self.reject)
-        footer_layout.addWidget(btn_cancel)
+        btn_close.clicked.connect(self.reject)
+        footer_layout.addWidget(btn_close)
 
-        self.btn_repair = QPushButton("Install to Found Browsers")
-        self.btn_repair.setCursor(Qt.PointingHandCursor)
-        self.btn_repair.setMinimumWidth(200)
-        self.btn_repair.setFixedHeight(36)
-        self.btn_repair.setStyleSheet(f"""
+        self.btn_install_all = QPushButton("Install to All Detected")
+        self.btn_install_all.setCursor(Qt.PointingHandCursor)
+        self.btn_install_all.setFixedSize(180, 36)
+        self.btn_install_all.setStyleSheet(f"""
             QPushButton {{
                 background-color: {theme.colors.primary};
                 border: none;
                 color: white;
                 border-radius: 6px;
                 font-weight: 600;
-                padding: 0 16px;
             }}
             QPushButton:hover {{
                 background-color: {theme.colors.primary_hover};
             }}
-            QPushButton:disabled {{
-                background-color: {theme.colors.muted};
-                color: {theme.colors.muted_foreground};
-            }}
         """)
-        self.btn_repair.clicked.connect(self.run_repair)
-        footer_layout.addWidget(self.btn_repair)
+        self.btn_install_all.clicked.connect(self.install_all)
+        footer_layout.addWidget(self.btn_install_all)
 
         layout.addWidget(footer)
 
     def scan_browsers(self):
         paths_map = self.installer.get_browser_paths()
-        self.found = []
-        self.missing = []
+        self.detected_paths = []
+        self.list_browsers.clear()
+        
+        theme = get_theme()
 
         for browser, paths in paths_map.items():
-            valid_paths = []
             for path in paths:
-                # Logic matches installer.install_for_browser check
-                check_path = path if path.parent.exists() else None
-                if check_path:
-                    valid_paths.append(str(path))
-            
-            if valid_paths:
-                self.found.append((browser, valid_paths))
-            else:
-                self.missing.append(browser)
-
-        # Populate Lists
-        self.list_found.clear()
-        for browser, locations in self.found:
-            item = QListWidgetItem(self.list_found)
-            widget = QWidget()
-            h_layout = QHBoxLayout(widget)
-            h_layout.setContentsMargins(0, 0, 0, 0)
-            h_layout.setSpacing(8)
-            
-            # Browser Icon/Name
-            name_lbl = QLabel(browser.title())
-            theme = get_theme()
-            name_lbl.setStyleSheet(f"font-weight: bold; font-size: 14px; color: {theme.colors.foreground};")
-            h_layout.addWidget(name_lbl)
-            
-            # Location Count
-            loc_lbl = QLabel(f"{len(locations)} location(s)")
-            loc_lbl.setStyleSheet("color: #4ade80; background: rgba(74, 222, 128, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 11px;")
-            h_layout.addWidget(loc_lbl)
-            
-            h_layout.addStretch()
-            
-            item.setSizeHint(widget.sizeHint())
-            self.list_found.setItemWidget(item, widget)
-
-        self.list_missing.clear()
-        for browser in self.missing:
-            item = QListWidgetItem(f"{browser.title()}")
-            self.list_missing.addItem(item)
-            
-        if not self.found:
-            self.btn_repair.setEnabled(False)
-            self.btn_repair.setText("No Browsers Found")
-
-    def run_repair(self):
-        self.btn_repair.setText("Installing...")
-        self.btn_repair.setEnabled(False)
-        self.list_found.setEnabled(False)
+                # Check if this path actually exists/is valid for installation
+                if path.parent.exists():
+                    self.detected_paths.append((browser, path))
+                    self._add_browser_item(browser, path, theme)
         
-        try:
-            self.installer.create_wrapper_script()
-            results = []
+        if not self.detected_paths:
+            no_item = QListWidgetItem(self.list_browsers)
+            lbl = QLabel("No standard browser installations found.")
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setStyleSheet(f"color: {theme.colors.muted_foreground}; padding: 20px;")
+            self.list_browsers.setItemWidget(no_item, lbl)
+            self.btn_install_all.setEnabled(False)
+        else:
+            self.btn_install_all.setEnabled(True)
+
+    def _add_browser_item(self, browser, path, theme):
+        item = QListWidgetItem(self.list_browsers)
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(12, 8, 12, 8)
+        
+        # Icon placeholder (or could use load_svg_icon if icons matched keys)
+        
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(2)
+        
+        name_lbl = QLabel(browser.title())
+        name_lbl.setStyleSheet(f"font-weight: bold; font-size: 14px; color: {theme.colors.foreground};")
+        info_layout.addWidget(name_lbl)
+        
+        path_lbl = QLabel(str(path))
+        path_lbl.setStyleSheet(f"font-size: 12px; color: {theme.colors.muted_foreground}; font-family: monospace;")
+        path_lbl.setWordWrap(True)
+        info_layout.addWidget(path_lbl)
+        
+        layout.addLayout(info_layout, 1)
+        
+        # Check if already installed
+        manifest_path = path / "com.vaultkeeper.host.json"
+        is_installed = manifest_path.exists()
+        
+        status_lbl = QLabel("Installed" if is_installed else "Not Installed")
+        status_color = theme.colors.success if is_installed else theme.colors.muted_foreground
+        status_lbl.setStyleSheet(f"color: {status_color}; font-size: 12px; font-weight: 500;")
+        layout.addWidget(status_lbl)
+        
+        item.setSizeHint(widget.sizeHint())
+        self.list_browsers.addItem(item)
+        self.list_browsers.setItemWidget(item, widget)
+
+    def browse_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select NativeMessagingHosts Folder")
+        if folder:
+            self.input_path.setText(folder)
+
+    def install_manual(self):
+        path_str = self.input_path.text().strip()
+        if not path_str:
+            return
             
-            # Only install for found browsers to avoid unnecessary checks/errors
-            for browser, _ in self.found:
-                success, msg = self.installer.install_for_browser(browser)
-                results.append((browser, success, msg))
-            
-            installed_names = [r[0].title() for r in results if r[1]]
-            
-            if installed_names:
-                QMessageBox.information(
-                    self, 
-                    "Success", 
-                    f"VaultKeeper has been connected to:\n{', '.join(installed_names)}\n\nPlease restart your browsers."
-                )
-                self.accept()
+        path = Path(path_str)
+        browser_type = self.combo_type.currentText().lower()
+        
+        # Map common names to internal keys if needed
+        type_map = {"chrome": "chrome", "firefox": "firefox", "edge": "edge", "brave": "brave", "chromium": "chromium", "zen": "zen"}
+        internal_type = type_map.get(browser_type, "chrome") # default to chrome structure if unknown
+
+        self.installer.create_wrapper_script()
+        success, msg = self.installer.install_at_path(internal_type, path)
+        
+        if success:
+             QMessageBox.information(self, "Success", f"Installed successfully to:\n{path}")
+             self.input_path.clear()
+             self.scan_browsers() # Refresh list to see if it shows up (if it matches standard paths) or just to reset state
+        else:
+             QMessageBox.warning(self, "Error", f"Installation failed:\n{msg}")
+
+    def install_all(self):
+        self.installer.create_wrapper_script()
+        count = 0
+        errors = []
+        
+        for browser, path in self.detected_paths:
+            success, msg = self.installer.install_at_path(browser, path)
+            if success:
+                count += 1
             else:
-                QMessageBox.warning(self, "Failure", "Failed to install to any browser.")
-                self.reject()
-                
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Installation failed: {str(e)}")
-            self.reject()
+                errors.append(f"{browser}: {msg}")
+        
+        if errors:
+            QMessageBox.warning(self, "Partial Success", f"Installed to {count} locations.\nErrors:\n" + "\n".join(errors))
+        else:
+            QMessageBox.information(self, "Success", f"Successfully installed to all {count} detected locations.")
+            
+        self.scan_browsers() # Refresh status labels
