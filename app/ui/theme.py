@@ -31,6 +31,8 @@ class ThemeColors:
 
     primary_foreground: str
 
+    primary_hover: str
+
     secondary: str
 
     secondary_foreground: str
@@ -98,6 +100,8 @@ LIGHT_COLORS = ThemeColors(
     primary="#0073e6",
 
     primary_foreground="#ffffff",
+
+    primary_hover="#0062c4",
 
     secondary="#e8eaed",
 
@@ -168,6 +172,8 @@ DARK_COLORS = ThemeColors(
     primary="#3b9eff",
 
     primary_foreground="#ffffff",
+
+    primary_hover="#3182CE",
 
     secondary="#2a2e35",
 

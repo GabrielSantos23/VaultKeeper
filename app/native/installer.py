@@ -62,96 +62,74 @@ class NativeHostInstaller:
         self.wrapper_script = self.project_root / "app" / "native" / "vaultkeeper_host.sh"
 
     def get_browser_paths(self) -> dict:
-
         home = Path.home()
+        paths = {}
 
         if self.system == "linux":
+            # Firefox & Derivatives
+            firefox_paths = [
+                home / ".mozilla" / "native-messaging-hosts",
+                home / ".librewolf" / "native-messaging-hosts",
+                home / ".waterfox" / "native-messaging-hosts",
+                # Snap
+                home / "snap" / "firefox" / "common" / ".mozilla" / "native-messaging-hosts",
+                # Flatpak
+                home / ".var" / "app" / "org.mozilla.firefox" / ".mozilla" / "native-messaging-hosts",
+                home / ".var" / "app" / "io.gitlab.librewolf-community" / ".librewolf" / "native-messaging-hosts",
+            ]
+            paths["firefox"] = firefox_paths
 
-            return {
+            # Chromium Based
+            chrome_paths = [
+                home / ".config" / "google-chrome" / "NativeMessagingHosts",
+                home / ".var" / "app" / "com.google.Chrome" / "config" / "google-chrome" / "NativeMessagingHosts",
+            ]
+            paths["chrome"] = chrome_paths
 
-                "firefox": home / ".mozilla" / "native-messaging-hosts",
+            chromium_paths = [
+                home / ".config" / "chromium" / "NativeMessagingHosts",
+                home / "snap" / "chromium" / "common" / ".chromium" / "NativeMessagingHosts",
+                home / ".var" / "app" / "org.chromium.Chromium" / "config" / "chromium" / "NativeMessagingHosts",
+            ]
+            paths["chromium"] = chromium_paths
 
-                "librewolf": home / ".librewolf" / "native-messaging-hosts",
+            brave_paths = [
+                home / ".config" / "BraveSoftware" / "Brave-Browser" / "NativeMessagingHosts",
+                home / ".var" / "app" / "com.brave.Browser" / "config" / "BraveSoftware" / "Brave-Browser" / "NativeMessagingHosts",
+            ]
+            paths["brave"] = brave_paths
 
-                "waterfox": home / ".waterfox" / "native-messaging-hosts",
+            edge_paths = [
+                home / ".config" / "microsoft-edge" / "NativeMessagingHosts",
+                home / ".var" / "app" / "com.microsoft.Edge" / "config" / "microsoft-edge" / "NativeMessagingHosts",
+            ]
+            paths["edge"] = edge_paths
 
-                "floorp": home / ".floorp" / "native-messaging-hosts",
-
-                "zen": home / ".zen" / "native-messaging-hosts",
-
-                "zen_xdg": home / ".config" / "zen" / "native-messaging-hosts",
-
-                "chrome": home / ".config" / "google-chrome" / "NativeMessagingHosts",
-
-                "chromium": home / ".config" / "chromium" / "NativeMessagingHosts",
-
-                "brave": home / ".config" / "BraveSoftware" / "Brave-Browser" / "NativeMessagingHosts",
-
-                "edge": home / ".config" / "microsoft-edge" / "NativeMessagingHosts",
-
-                "vivaldi": home / ".config" / "vivaldi" / "NativeMessagingHosts",
-
-                "opera": home / ".config" / "opera" / "NativeMessagingHosts",
-
-            }
+            # Zen Browser (AppImage / Portable / Flatpak?)
+            zen_paths = [
+                home / ".zen" / "native-messaging-hosts",
+                home / ".config" / "zen" / "native-messaging-hosts",
+                home / ".var" / "app" / "io.github.zen_browser.zen" / ".zen" / "native-messaging-hosts"
+            ]
+            paths["zen"] = zen_paths
 
         elif self.system == "darwin":
-
-            return {
-
-                "firefox": home / "Library" / "Application Support" / "Mozilla" / "NativeMessagingHosts",
-
-                "librewolf": home / "Library" / "Application Support" / "librewolf" / "NativeMessagingHosts",
-
-                "waterfox": home / "Library" / "Application Support" / "Waterfox" / "NativeMessagingHosts",
-
-                "chrome": home / "Library" / "Application Support" / "Google" / "Chrome" / "NativeMessagingHosts",
-
-                "chromium": home / "Library" / "Application Support" / "Chromium" / "NativeMessagingHosts",
-
-                "brave": home / "Library" / "Application Support" / "BraveSoftware" / "Brave-Browser" / "NativeMessagingHosts",
-
-                "edge": home / "Library" / "Application Support" / "Microsoft Edge" / "NativeMessagingHosts",
-
-                "vivaldi": home / "Library" / "Application Support" / "Vivaldi" / "NativeMessagingHosts",
-
-                "opera": home / "Library" / "Application Support" / "com.operasoftware.Opera" / "NativeMessagingHosts",
-
-            }
+            # MacOS paths usually standard, but prepared for list structure
+            paths["firefox"] = [home / "Library" / "Application Support" / "Mozilla" / "NativeMessagingHosts"]
+            paths["chrome"] = [home / "Library" / "Application Support" / "Google" / "Chrome" / "NativeMessagingHosts"]
+            # ... others can be added similarly
+            paths["chromium"] = [home / "Library" / "Application Support" / "Chromium" / "NativeMessagingHosts"]
+            paths["brave"] = [home / "Library" / "Application Support" / "BraveSoftware" / "Brave-Browser" / "NativeMessagingHosts"]
+            paths["edge"] = [home / "Library" / "Application Support" / "Microsoft Edge" / "NativeMessagingHosts"]
 
         elif self.system == "windows":
-
             appdata = Path(os.environ.get("LOCALAPPDATA", home / "AppData" / "Local"))
+            # Windows usually uses Registry for Chrome-based, but Filesystem for Firefox
+            paths["firefox"] = [appdata / "Mozilla" / "NativeMessagingHosts"]
+            paths["chrome"] = [appdata / "Google" / "Chrome" / "User Data" / "NativeMessagingHosts"]
+            # ... others
 
-            return {
-
-                "firefox": appdata / "Mozilla" / "NativeMessagingHosts",
-
-                "librewolf": appdata / "librewolf" / "NativeMessagingHosts",
-
-                "waterfox": appdata / "Waterfox" / "NativeMessagingHosts",
-
-                "floorp": appdata / "Floorp" / "NativeMessagingHosts",
-
-                "zen": appdata / "Zen Browser" / "NativeMessagingHosts",
-
-                "chrome": appdata / "Google" / "Chrome" / "User Data" / "NativeMessagingHosts",
-
-                "chromium": appdata / "Chromium" / "User Data" / "NativeMessagingHosts",
-
-                "brave": appdata / "BraveSoftware" / "Brave-Browser" / "User Data" / "NativeMessagingHosts",
-
-                "edge": appdata / "Microsoft" / "Edge" / "User Data" / "NativeMessagingHosts",
-
-                "vivaldi": appdata / "Vivaldi" / "User Data" / "NativeMessagingHosts",
-
-                "opera": appdata / "Opera Software" / "Opera Stable" / "NativeMessagingHosts",
-
-            }
-
-        else:
-
-            return {}
+        return paths
 
     def create_manifest(self, browser: str, chrome_extension_id: Optional[str] = None) -> dict:
 
@@ -266,48 +244,47 @@ fi
         return wrapper_path
 
     def install_for_browser(self, browser: str, chrome_extension_id: Optional[str] = None) -> Tuple[bool, str]:
-
-        paths = self.get_browser_paths()
-
-        if browser not in paths:
-
+        paths_map = self.get_browser_paths()
+        
+        if browser not in paths_map:
             return False, f"Unknown browser: {browser}"
+            
+        target_paths = paths_map[browser]
+        installed_paths = []
+        errors = []
+        
+        for target_dir in target_paths:
+            # Check if browser config exists (parent directory)
+            # For standard ~/.config/google-chrome/NativeMessagingHosts, parent is google-chrome
+            # For ~/.mozilla/native-messaging-hosts, parent is .mozilla
+            
+            # Snap/Flatpak paths logic remains the same: we look if the config root exists.
+            
+            if not target_dir.parent.exists():
+                continue
+                
+            try:
+                target_dir.mkdir(parents=True, exist_ok=True)
+                manifest = self.create_manifest(browser, chrome_extension_id)
+                manifest_path = target_dir / f"{HOST_NAME}.json"
+                
+                with open(manifest_path, 'w') as f:
+                    json.dump(manifest, f, indent=2)
+                    
+                if self.system == "windows":
+                    self._register_windows(browser, manifest_path)
+                    
+                installed_paths.append(str(manifest_path))
+                
+            except Exception as e:
+                errors.append(f"{target_dir}: {e}")
 
-        target_dir = paths[browser]
-
-        if browser == "firefox":
-
-            browser_check = target_dir.parent.parent.exists()
-
+        if installed_paths:
+            return True, f"Installed to {len(installed_paths)} locations"
+        elif errors:
+             return False, f"Failed: {', '.join(errors)}"
         else:
-
-            browser_check = target_dir.parent.exists()
-
-        if not browser_check:
-
-            return False, f"{browser.title()} not found"
-
-        try:
-
-            target_dir.mkdir(parents=True, exist_ok=True)
-
-            manifest = self.create_manifest(browser, chrome_extension_id)
-
-            manifest_path = target_dir / f"{HOST_NAME}.json"
-
-            with open(manifest_path, 'w') as f:
-
-                json.dump(manifest, f, indent=2)
-
-            if self.system == "windows":
-
-                self._register_windows(browser, manifest_path)
-
-            return True, f"Installed to {manifest_path}"
-
-        except Exception as e:
-
-            return False, f"Failed to install for {browser}: {e}"
+             return False, f"{browser.title()} config not found"
 
     def _register_windows(self, browser: str, manifest_path: Path):
 
@@ -359,34 +336,30 @@ fi
         return results
 
     def uninstall_for_browser(self, browser: str) -> Tuple[bool, str]:
-
-        paths = self.get_browser_paths()
-
-        if browser not in paths:
-
+        paths_map = self.get_browser_paths()
+        
+        if browser not in paths_map:
             return False, f"Unknown browser: {browser}"
+            
+        target_paths = paths_map[browser]
+        removed_count = 0
+        
+        for path in target_paths:
+            manifest_path = path / f"{HOST_NAME}.json"
+            try:
+                if manifest_path.exists():
+                    manifest_path.unlink()
+                    removed_count += 1
+            except:
+                pass
 
-        manifest_path = paths[browser] / f"{HOST_NAME}.json"
+        if self.system == "windows":
+            self._unregister_windows(browser)
 
-        try:
-
-            if manifest_path.exists():
-
-                manifest_path.unlink()
-
-                if self.system == "windows":
-
-                    self._unregister_windows(browser)
-
-                return True, f"Removed {manifest_path}"
-
-            else:
-
-                return False, "Manifest not found"
-
-        except Exception as e:
-
-            return False, f"Failed to uninstall: {e}"
+        if removed_count > 0:
+            return True, f"Removed from {removed_count} locations"
+        else:
+            return False, "Not found"
 
     def _unregister_windows(self, browser: str):
 
@@ -409,38 +382,25 @@ fi
             pass
 
     def check_installation(self) -> List[Tuple[str, bool, str]]:
-
         results = []
+        paths_map = self.get_browser_paths()
 
-        for browser, path in self.get_browser_paths().items():
-
-            manifest_path = path / f"{HOST_NAME}.json"
-
-            if manifest_path.exists():
-
-                try:
-
-                    with open(manifest_path) as f:
-
-                        manifest = json.load(f)
-
-                    host_path = Path(manifest.get("path", ""))
-
-                    if host_path.exists():
-
-                        results.append((browser, True, f"Installed: {manifest_path}"))
-
-                    else:
-
-                        results.append((browser, False, f"Manifest exists but host not found: {host_path}"))
-
-                except Exception as e:
-
-                    results.append((browser, False, f"Invalid manifest: {e}"))
-
+        for browser, paths in paths_map.items():
+            browser_installed = False
+            details = []
+            
+            for path in paths:
+                manifest_path = path / f"{HOST_NAME}.json"
+                if manifest_path.exists():
+                    browser_installed = True
+                    details.append(f"✓ {path}")
+                # else:
+                #     details.append(f"✗ {path}")
+            
+            if browser_installed:
+                results.append((browser, True, ", ".join(details)))
             else:
-
-                results.append((browser, False, "Not installed"))
+                results.append((browser, False, "Not Configured"))
 
         return results
 

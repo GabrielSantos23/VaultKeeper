@@ -149,25 +149,12 @@ class GeneralTab(QWidget):
 
     def _repair_connection(self):
         try:
-            from ...native.installer import NativeHostInstaller
-            installer = NativeHostInstaller()
-            installer.create_wrapper_script()
-            results = installer.install_all()
-            
-            installed = [browser.title() for browser, success, msg in results if success]
-            
-            if installed:
-                QMessageBox.information(
-                    self,
-                    "Connection Repaired",
-                    f"Successfully repaired connection for:\n\n• " + "\n• ".join(installed) + 
-                    "\n\nPlease restart your browser."
-                )
-            else:
-                QMessageBox.warning(self, "Repair Failed", "Could not find any compatible browsers.")
+            from .connection_dialog import BrowserRepairDialog
+            dialog = BrowserRepairDialog(self.window())
+            dialog.exec()
                 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to repair connection: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to open connection tool: {e}")
 
     def _setup_general_settings(self, layout):
 
