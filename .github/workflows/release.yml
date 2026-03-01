@@ -32,7 +32,7 @@ jobs:
           node-version: 20
 
       - name: Install Rust
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
@@ -83,40 +83,3 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-
-  update-manifest:
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Download release assets
-        uses: robinraju/release-downloader@v1
-        with:
-          tag: ${{ github.ref_name }}
-          fileName: "*"
-          out-file-path: "downloads"
-
-      - name: Generate latest.json
-        run: |
-          cat > latest.json << 'EOF'
-          {
-            "version": "${{ github.ref_name }}",
-            "notes": "See release notes on GitHub",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {}
-          }
-          EOF
-          
-          # Extract signatures and build manifest
-          # This is a simplified version - you may need to adjust for your needs
-          
-      - name: Upload latest.json
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.releaseUploadUrl }}
-          asset_path: ./latest.json
-          asset_name: latest.json
-          asset_content_type: application/json
