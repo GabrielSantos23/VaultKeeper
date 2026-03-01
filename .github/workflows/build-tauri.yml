@@ -35,3 +35,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: "vaultkeeper-tauri"
+          args: --bundles nsis
