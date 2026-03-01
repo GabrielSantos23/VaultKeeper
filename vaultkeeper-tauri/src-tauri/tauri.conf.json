@@ -51,12 +51,6 @@
       "wix": {
         "language": ["en-US", "pt-BR"]
       }
-    },
-    "macOS": {
-      "frameworks": [],
-      "minimumSystemVersion": "10.13",
-      "signingIdentity": null,
-      "entitlements": null
     }
   },
   "plugins": {

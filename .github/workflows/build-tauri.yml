@@ -29,10 +29,8 @@ jobs:
           toolchain: stable
           targets: x86_64-pc-windows-msvc
 
-      - name: Validate Tauri Build
-        uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri App
+        run: bun run tauri build --bundles nsis
+        working-directory: ./vaultkeeper-tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectPath: "vaultkeeper-tauri"
-          args: --bundles nsis
