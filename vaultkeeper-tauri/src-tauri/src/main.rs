@@ -5,6 +5,8 @@ use tauri::Manager;
 use vaultkeeper_lib::commands;
 use vaultkeeper_lib::AppState;
 
+mod native_host;
+
 fn load_icon() -> Option<tauri::image::Image<'static>> {
     let icon_bytes = include_bytes!("../icons/icon.png");
     let img = image::load_from_memory(icon_bytes).ok()?;
@@ -39,6 +41,8 @@ fn main() {
             if let Some(icon) = load_icon() {
                 let _ = window.set_icon(icon);
             }
+
+            native_host::check_native_host_installation();
 
             #[cfg(debug_assertions)]
             {
