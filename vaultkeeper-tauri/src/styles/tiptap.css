@@ -1,0 +1,122 @@
+.tiptap-editor {
+    color: var(--foreground);
+    font-size: 0.875rem;
+    line-height: 1.7;
+}
+
+.tiptap-editor p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--muted-foreground);
+    opacity: 0.5;
+    pointer-events: none;
+    float: left;
+    height: 0;
+}
+
+.tiptap-editor,
+.tiptap-view {
+    color: var(--foreground);
+    font-size: 0.875rem;
+    line-height: 1.7;
+}
+
+.tiptap-editor h1,
+.tiptap-view h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--foreground);
+    margin: 1rem 0 0.5rem;
+    line-height: 1.3;
+}
+
+.tiptap-editor h2,
+.tiptap-view h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0.875rem 0 0.4rem;
+    line-height: 1.3;
+}
+
+.tiptap-editor p,
+.tiptap-view p {
+    margin: 0.35rem 0;
+}
+
+.tiptap-editor strong,
+.tiptap-view strong {
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.tiptap-editor em,
+.tiptap-view em {
+    font-style: italic;
+}
+
+.tiptap-editor u,
+.tiptap-view u {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.tiptap-editor ul,
+.tiptap-view ul {
+    list-style-type: disc;
+    padding-left: 1.25rem;
+    margin: 0.4rem 0;
+}
+
+.tiptap-editor ol,
+.tiptap-view ol {
+    list-style-type: decimal;
+    padding-left: 1.25rem;
+    margin: 0.4rem 0;
+}
+
+.tiptap-editor li,
+.tiptap-view li {
+    margin: 0.15rem 0;
+}
+
+.tiptap-editor blockquote,
+.tiptap-view blockquote {
+    border-left: 3px solid var(--primary);
+    padding-left: 1rem;
+    margin: 0.6rem 0;
+    color: var(--muted-foreground);
+    font-style: italic;
+}
+
+.tiptap-editor hr,
+.tiptap-view hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1rem 0;
+}
+
+.tiptap-editor code,
+.tiptap-view code {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background-color: var(--accent);
+    color: var(--foreground);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+}
+
+.tiptap-editor pre,
+.tiptap-view pre {
+    background-color: var(--accent);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+}
+
+.tiptap-editor pre code,
+.tiptap-view pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.8rem;
+}

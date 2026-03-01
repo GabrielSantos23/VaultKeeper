@@ -61,3 +61,20 @@ dist/
 
 # Mobile
 mobile/
+node_modules
+
+
+# Rust
+target/
+
+# Tauri build outputs
+src-tauri/target/
+
+# Node
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db

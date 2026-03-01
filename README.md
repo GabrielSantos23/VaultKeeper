@@ -1,271 +1,235 @@
-# 🔐 VaultKeeper - Password Manager
+# 🔐 VaultKeeper 2.0 - Password Manager
 
-Um gerenciador de senhas desktop seguro com integração de extensão de navegador usando Native Messaging.
+A secure desktop password manager with browser extension integration. Built with **Rust + Tauri + React** for maximum performance and security.
 
-## 🧠 Visão Geral
+> 🎉 **Version 2.0 is here!** Completely rewritten in Rust with better performance, auto-updates, and seamless migration from the Python version.
+
+## 🚀 What's New in 2.0
+
+- ⚡ **Lightning fast** - Native binary, no Python runtime needed
+- 🔄 **Auto-updates** - Get new features automatically
+- 💾 **Zero migration** - Existing Python users keep all their data
+- 🎨 **Modern UI** - Beautiful new interface with dark mode
+- 🔒 **Same security** - Identical encryption (Argon2id + AES-256-GCM)
+- 🌐 **Browser extension** - Works with Chrome, Firefox, and Edge
+- 📱 **Cross-platform** - Windows, macOS, and Linux
+
+## 📦 Installation
+
+### Download Pre-built Binaries
+
+| Platform | Download |
+|----------|----------|
+| Windows | `VaultKeeper-Setup.exe` (Installer) |
+| macOS Intel | `VaultKeeper_x64.app.tar.gz` |
+| macOS Apple Silicon | `VaultKeeper_aarch64.app.tar.gz` |
+| Linux | `vaultkeeper.AppImage` (Portable) |
+
+Download from [GitHub Releases](https://github.com/Kilo-Org/kilocode/releases/latest)
+
+### Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/Kilo-Org/kilocode.git
+cd kilocode/vaultkeeper-tauri
+
+# Install dependencies
+npm install
+
+# Run in development mode
+npm run tauri:dev
+
+# Build for production
+npm run tauri:build
+```
+
+## 🔄 Migrating from Python Version
+
+**Good news: No data migration required!** 🎉
+
+The new Tauri version is **fully compatible** with the Python version:
+
+- ✅ Same database format (SQLite)
+- ✅ Same encryption (Argon2id + AES-256-GCM)
+- ✅ Same storage location (`~/.vaultkeeper/`)
+- ✅ Same master password
+
+### Migration Steps
+
+1. **Close the Python app** completely
+2. **Download and install** the Tauri version
+3. **Login with your existing master password**
+4. **Done!** All your data is automatically there
+
+See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for detailed instructions.
+
+## 🏗️ Architecture
 
 ```
 ┌────────────────┐      Native Messaging      ┌────────────────────┐
-│ Browser        │ ◀──────────────────────▶  │ App Desktop Python │
-│ Extension      │                            │ (Password Manager) │
+│ Browser        │ ◀──────────────────────▶  │ VaultKeeper App    │
+│ Extension      │                            │ (Rust + Tauri)     │
 └────────────────┘                            └────────────────────┘
+                                                       │
+                                                       ▼
+                                              ┌─────────────────┐
+                                              │ SQLite Database │
+                                              │ (Encrypted)     │
+                                              └─────────────────┘
 ```
 
-### Princípios de Segurança
+## 🛡️ Security
 
-- A **extensão nunca acessa o banco de dados**
-- A **extensão nunca armazena senhas**
-- Toda criptografia acontece **no app desktop**
-- Comunicação direta e local (sem HTTP)
-- Criptografia **AES-256-GCM**
-- Hash de senha mestra com **Argon2id**
+### Encryption
 
-## 📁 Estrutura do Projeto
+- **Master Password Hash**: Argon2id (OWASP recommended)
+- **Database Encryption**: AES-256-GCM
+- **Unique Salt**: Per credential (16 bytes)
+- **Key Derivation**: PBKDF2 with 600,000 iterations
 
-```
-VaultKeeper-v2/
-├── app/
-│   ├── core/
-│   │   ├── crypto.py        # Criptografia AES-256-GCM
-│   │   ├── auth.py          # Master password (Argon2)
-│   │   └── vault.py         # Regras de negócio
-│   ├── db/                  # SQLite (gerado automaticamente)
-│   ├── native/
-│   │   └── host.py          # Native Messaging host
-│   ├── ui/
-│   │   └── main_window.py   # Interface gráfica PySide6
-│   └── main.py              # Entry point
-├── extension/
-│   ├── manifest.json        # Manifest V3
-│   ├── background.js        # Service Worker
-│   ├── content.js           # Detecção de formulários
-│   ├── popup.html/css/js    # Interface do popup
-│   └── icons/
-├── native_host/
-│   ├── com.vaultkeeper.host.json
-│   └── install_linux.sh
-└── requirements.txt
-```
+### Protections
 
-## 🚀 Instalação
+- 🔒 Auto-lock after inactivity
+- 🧹 Clipboard auto-clear (10 seconds)
+- 🚫 Key never stored on disk
+- 🔐 All encryption happens locally
 
-### 1. Dependências Python
+## 📁 Data Storage
 
-#### Linux / macOS (Bash/Zsh)
+Data is stored in your home directory:
+
+| Platform | Location |
+|----------|----------|
+| Windows | `%USERPROFILE%\.vaultkeeper\` |
+| macOS | `~/.vaultkeeper/` |
+| Linux | `~/.vaultkeeper/` |
+
+Files:
+- `vault.db` - SQLite database (encrypted)
+- `auth.json` - Authentication config
+- `native_host.log` - Debug logs
+
+## 🔌 Browser Extension
+
+### Installation
+
+1. Open your browser's extension page:
+   - Chrome: `chrome://extensions/`
+   - Firefox: `about:addons`
+   - Edge: `edge://extensions/`
+
+2. Enable **Developer Mode**
+
+3. Click **Load Unpacked** and select the `extension/` folder
+
+4. The extension will automatically connect to the desktop app
+
+### Features
+
+- 🔍 Auto-detect login forms
+- 📝 Auto-fill credentials
+- 🔎 Search passwords
+- 📋 Copy passwords to clipboard
+- ➕ Save new credentials
+
+## 🛠️ Development
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18+
+- [Rust](https://rustup.rs/)
+- [Tauri CLI](https://tauri.app/v1/guides/getting-started/prerequisites)
+
+### Setup
 
 ```bash
-# Criar ambiente virtual (recomendado)
-python3 -m venv .venv
-source .venv/bin/activate
+cd vaultkeeper-tauri
 
-# Instalar dependências
-pip install -r requirements.txt
+# Install dependencies
+npm install
+
+# Run development server
+npm run tauri:dev
+
+# Build for production
+npm run tauri:build
 ```
 
-#### Linux (Fish Shell)
+### Project Structure
 
-```fish
-# Criar ambiente virtual (recomendado)
-python3 -m venv .venv
-source .venv/bin/activate.fish
-
-# Instalar dependências
-pip install -r requirements.txt
+```
+vaultkeeper-tauri/
+├── src/
+│   ├── components/     # React components
+│   ├── stores/         # Zustand state management
+│   ├── views/          # Page views
+│   └── hooks/          # Custom React hooks
+├── src-tauri/
+│   ├── src/            # Rust backend code
+│   └── Cargo.toml      # Rust dependencies
+├── extension/          # Browser extension
+└── package.json
 ```
 
-#### Windows
+## 🔄 Auto-Updates
 
-```powershell
-# Criar ambiente virtual (recomendado)
-# Se o comando 'python' não funcionar, tente 'py'
-python -m venv .venv
-.\.venv\Scripts\Activate
+VaultKeeper includes an auto-updater that checks for new versions on GitHub. When an update is available:
 
-# Instalar dependências
-pip install -r requirements.txt
-```
+1. You'll see a notification in the app
+2. Click "Update Now" to download
+3. The app will restart automatically
 
-### 2. Executar o App Desktop
+Updates are signed with our private key for security.
 
-#### Linux / macOS (Bash/Zsh)
+## 🐛 Troubleshooting
 
-```bash
-# Ative o ambiente virtual primeiro (se não estiver ativo)
-source .venv/bin/activate
+### App won't start
 
-# Execute o app
-python3 app/main.py
-```
+- Check that `~/.vaultkeeper/` has write permissions
+- Try running as administrator (Windows) or with `sudo` (Linux/macOS)
 
-#### Linux (Fish Shell)
+### Data not appearing after migration
 
-```fish
-# Ative o ambiente virtual primeiro (se não estiver ativo)
-source .venv/bin/activate.fish
+1. Verify the Python app was closed before installing
+2. Check that data exists in `~/.vaultkeeper/vault.db`
+3. Try logging out and back in
 
-# Execute o app
-python3 app/main.py
-```
+### Extension not connecting
 
-#### Windows
+1. Make sure the desktop app is running
+2. Check the browser console for errors
+3. Reinstall the Native Host:
+   ```bash
+   python -m app.native.installer install
+   ```
 
-```powershell
-# Ative o ambiente virtual primeiro (se não estiver ativo)
-.\.venv\Scripts\Activate
+### Update fails
 
-# Execute o app
-python app\main.py
-```
+1. Check your internet connection
+2. Try downloading manually from GitHub Releases
+3. Report the issue with logs from `~/.vaultkeeper/logs/`
 
-Na primeira execução, você criará sua **senha mestra**.
+## 📝 Changelog
 
-### 3. Instalar a Extensão no Chrome
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
-1. Abra `chrome://extensions/`
-2. Ative o **Modo do desenvolvedor**
-3. Clique em **Carregar sem compactação**
-4. Selecione a pasta `extension/`
+## 🤝 Contributing
 
-> **Nota**: O Native Messaging Host é instalado automaticamente quando o app desktop é executado. Não é necessária configuração manual.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-### 4. Usar
+## 📄 License
 
-1. Execute o app desktop (veja comandos acima para seu shell)
-2. Na primeira execução, o Native Host será configurado automaticamente
-3. Clique no ícone da extensão VaultKeeper no navegador
-4. A extensão deve mostrar que está conectada!
+MIT License - see [LICENSE](LICENSE) file for details.
 
-### Instalação Manual do Native Host (opcional)
+## 🙏 Acknowledgments
 
-Se precisar reinstalar manualmente o Native Host:
+- Built with [Tauri](https://tauri.app/)
+- UI powered by [React](https://react.dev/) and [Tailwind CSS](https://tailwindcss.com/)
+- Icons by [HugeIcons](https://hugeicons.com/)
 
-```bash
-# Bash/Zsh
-source .venv/bin/activate && python -m app.native.installer install
+---
 
-# Fish Shell
-source .venv/bin/activate.fish && python -m app.native.installer install
-```
-
-Para verificar o status:
-
-```bash
-# Bash/Zsh
-source .venv/bin/activate && python -m app.native.installer check
-
-# Fish Shell
-source .venv/bin/activate.fish && python -m app.native.installer check
-```
-
-## 🔐 Funcionalidades
-
-### App Desktop
-
-- ✅ Login com senha mestra
-- ✅ Adicionar/editar/excluir credenciais
-- ✅ Gerador de senhas seguras
-- ✅ Busca de credenciais
-- ✅ Auto-lock por inatividade
-- ✅ Cópia para clipboard com limpeza automática
-
-### Extensão
-
-- ✅ Detecção automática de formulários de login
-- ✅ Preenchimento automático (autofill)
-- ✅ Busca de credenciais
-- ✅ Cópia de senhas
-- ✅ Adicionar novas credenciais
-
-## 🛡️ Segurança
-
-### Master Password
-
-- Hash com **Argon2id** (OWASP recommended)
-- 600.000 iterações PBKDF2 para derivação de chave
-- Proteção contra brute-force (lockout após 5 tentativas)
-
-### Criptografia
-
-- **AES-256-GCM** para todas as senhas
-- Salt único por credencial (16 bytes)
-- Nonce aleatório (12 bytes)
-
-### Proteções
-
-- Timeout de inatividade (5 minutos)
-- Limpeza de clipboard após 10 segundos
-- Chave nunca é salva em disco
-- Banco de dados com senhas criptografadas
-
-## 📝 API do Native Host
-
-### Ações Suportadas
-
-| Ação                  | Descrição                                |
-| --------------------- | ---------------------------------------- |
-| `ping`                | Verificar conexão                        |
-| `status`              | Status do cofre (bloqueado/desbloqueado) |
-| `unlock`              | Desbloquear com senha mestra             |
-| `lock`                | Bloquear o cofre                         |
-| `get_credentials`     | Obter credenciais por domínio            |
-| `save_credentials`    | Salvar nova credencial                   |
-| `delete_credentials`  | Excluir credencial                       |
-| `get_all_credentials` | Listar todas as credenciais              |
-| `search`              | Buscar credenciais                       |
-
-### Exemplo de Mensagem
-
-```json
-{
-  "action": "get_credentials",
-  "domain": "github.com"
-}
-```
-
-### Exemplo de Resposta
-
-```json
-{
-  "success": true,
-  "credentials": [
-    {
-      "id": 1,
-      "domain": "github.com",
-      "username": "user@email.com",
-      "password": "DECRYPTED_PASSWORD"
-    }
-  ]
-}
-```
-
-## 🔧 Desenvolvimento
-
-### Logs do Native Host
-
-```bash
-tail -f ~/.vaultkeeper/native_host.log
-```
-
-### Banco de Dados
-
-```bash
-# Localização
-~/.vaultkeeper/vault.db
-
-# Visualizar (senhas criptografadas)
-sqlite3 ~/.vaultkeeper/vault.db "SELECT id, domain, username FROM vault;"
-```
-
-## 📈 Roadmap
-
-- [ ] Biometria (fingerprint)
-- [x] Backup criptografado para cloud
-- [ ] Importação de CSV
-- [ ] Detecção de senhas vazadas (HIBP)
-- [x] Suporte a TOTP (2FA)
-- [x] Geração de senhas personalizável
-- [x] Extensão para Firefox
-
-## 📄 Licença
-
-MIT License
+<p align="center">
+  Made with ❤️ by the VaultKeeper Team
+</p>

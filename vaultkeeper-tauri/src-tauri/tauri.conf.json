@@ -1,0 +1,72 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "VaultKeeper",
+  "identifier": "com.vaultkeeper.app",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "VaultKeeper",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1100,
+        "minHeight": 700,
+        "center": true,
+        "theme": "Dark",
+        "decorations": false,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": ["'self'", "data:"],
+        "img-src": ["'self'", "data:", "https:"],
+        "connect-src": ["'self'", "https:"]
+      },
+      "dangerousDisableAssetCspModification": false
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "wix": {
+        "language": ["en-US", "pt-BR"]
+      }
+    },
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.13",
+      "signingIdentity": null,
+      "entitlements": null
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "endpoints": [
+        "https://github.com/Kilo-Org/kilocode/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEwMzkxQzk1MUM5QUVFQkMKUldTODdwb2NsUnc1RUdRaUg0UGZINU9ZRmREN2RkcDVKK3hBSVhLUVdCb20zSjVObGQrdjFQcDEK"
+    }
+  }
+}

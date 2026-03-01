@@ -1,0 +1,71 @@
+[package]
+name = "vaultkeeper-tauri"
+version = "2.0.0"
+description = "VaultKeeper - Modern Password Manager"
+authors = ["VaultKeeper Team"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "vaultkeeper_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+path = "src/lib.rs"
+
+[[bin]]
+name = "vaultkeeper-tauri"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-http = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-os = "2"
+tauri-plugin-process = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+ring = "0.17"
+image = { version = "0.25", default-features = false, features = ["png"] }
+rusqlite = { version = "0.32", features = ["bundled", "chrono"] }
+base64 = "0.22"
+base32 = "0.5"
+url = "2"
+argon2 = "0.5"
+aes-gcm = "0.10"
+scrypt = "0.11"
+rand = "0.8"
+sha2 = "0.10"
+hmac = "0.12"
+anyhow = "1"
+thiserror = "1"
+zeroize = { version = "1", features = ["derive"] }
+dirs = "5"
+lazy_static = "1"
+rayon = "1"
+totp-rs = { version = "5", features = ["otpauth"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-autostart = "2"
+tauri-plugin-updater = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.5"
+objc2-app-kit = "0.2"
+objc2-foundation = "0.2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

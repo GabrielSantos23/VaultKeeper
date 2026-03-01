@@ -1,4 +1,3 @@
-
 import os
 import json
 import time
@@ -6,6 +5,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import VerifyMismatchError, InvalidHash
+
 
 class AuthManager:
     TIME_COST = 3
@@ -19,7 +19,7 @@ class AuthManager:
 
     def __init__(self, config_path: Optional[Path] = None):
         if config_path is None:
-            config_path = Path.home() / '.vaultkeeper' / 'auth.json'
+            config_path = Path.home() / ".vaultkeeper" / "auth.json"
         self.config_path = config_path
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -29,7 +29,7 @@ class AuthManager:
             parallelism=self.PARALLELISM,
             hash_len=self.HASH_LEN,
             salt_len=self.SALT_LEN,
-            type=Type.ID
+            type=Type.ID,
         )
 
         self._is_unlocked = False
@@ -44,24 +44,25 @@ class AuthManager:
 
     def _load_config(self) -> dict:
         if self.config_path.exists():
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path, "r") as f:
                 return json.load(f)
         return {}
 
     def _save_config(self, config: dict):
-        with open(self.config_path, 'w') as f:
+        with open(self.config_path, "w") as f:
             json.dump(config, f, indent=2)
 
     def is_first_run(self) -> bool:
         config = self._load_config()
-        return 'master_hash' not in config
+        return "master_hash" not in config
 
     def create_master_password(self, password: str) -> bool:
         self._validate_password_strength(password)
         password_hash = self._hasher.hash(password)
         config = self._load_config()
-        config['master_hash'] = password_hash
-        config['created_at'] = time.time()
+        config["master_hash"] = password_hash
+        config["created_at"] = time.time()
+        config["password_hint"] = None
         self._save_config(config)
 
         self._is_unlocked = True
@@ -72,11 +73,11 @@ class AuthManager:
     def _validate_password_strength(self, password: str):
         if len(password) < 8:
             raise ValueError("Password must be at least 8 characters long")
-        
+
         has_upper = any(c.isupper() for c in password)
         has_lower = any(c.islower() for c in password)
         has_digit = any(c.isdigit() for c in password)
-        has_special = any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in password)
+        has_special = any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password)
 
         if not (has_upper and has_lower and has_digit):
             raise ValueError(
@@ -90,13 +91,13 @@ class AuthManager:
             raise ValueError(f"Account locked. Try again in {remaining} seconds.")
 
         config = self._load_config()
-        if 'master_hash' not in config:
+        if "master_hash" not in config:
             raise ValueError("No master password set. Run setup first.")
 
         try:
-            self._hasher.verify(config['master_hash'], password)
-            if self._hasher.check_needs_rehash(config['master_hash']):
-                config['master_hash'] = self._hasher.hash(password)
+            self._hasher.verify(config["master_hash"], password)
+            if self._hasher.check_needs_rehash(config["master_hash"]):
+                config["master_hash"] = self._hasher.hash(password)
                 self._save_config(config)
 
             self._failed_attempts = 0
@@ -113,7 +114,7 @@ class AuthManager:
                 raise ValueError(
                     f"Too many failed attempts. Locked for {self.LOCKOUT_TIME} seconds."
                 )
-            
+
             remaining = self.MAX_ATTEMPTS - self._failed_attempts
             raise ValueError(f"Invalid password. {remaining} attempts remaining.")
 
@@ -141,12 +142,12 @@ class AuthManager:
     def change_master_password(self, old_password: str, new_password: str) -> bool:
         self.verify_master_password(old_password)
         self._validate_password_strength(new_password)
-        
+
         config = self._load_config()
-        config['master_hash'] = self._hasher.hash(new_password)
-        config['changed_at'] = time.time()
+        config["master_hash"] = self._hasher.hash(new_password)
+        config["changed_at"] = time.time()
         self._save_config(config)
-        
+
         self._master_password = new_password
         return True
 
@@ -164,3 +165,15 @@ class AuthManager:
     @property
     def failed_attempts(self) -> int:
         return self._failed_attempts
+
+    def set_password_hint(self, hint: str) -> bool:
+        """Set a password hint to help remember the master password."""
+        config = self._load_config()
+        config["password_hint"] = hint
+        self._save_config(config)
+        return True
+
+    def get_password_hint(self) -> Optional[str]:
+        """Get the password hint if one exists."""
+        config = self._load_config()
+        return config.get("password_hint", None)
