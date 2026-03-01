@@ -19,7 +19,7 @@ import {
   Settings05Icon,
   ArrowDown01Icon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HugeiconsIcon, IconSvgElement } from "@hugeicons/react";
 import { Switch } from "@/components/ui/switch";
 import { useThemeStore } from "../stores/themeStore";
 import { useSettingsStore } from "../stores/settingsStore";
@@ -41,7 +41,7 @@ import {
 
 type Tab = "general" | "security" | "data";
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
+const TABS: { id: Tab; label: string; icon: IconSvgElement }[] = [
   { id: "general", label: "General", icon: Settings02Icon },
   { id: "security", label: "Security", icon: CheckmarkCircle01Icon },
   { id: "data", label: "Data Management", icon: Database02Icon },
@@ -62,7 +62,7 @@ function SectionHeader({
   label,
   color = "var(--primary)",
 }: {
-  icon: React.ComponentType<any>;
+  icon: IconSvgElement;
   label: string;
   color?: string;
 }) {
@@ -126,7 +126,7 @@ function ActionButton({
   label: string;
   onClick?: () => void;
   danger?: boolean;
-  icon?: React.ComponentType<any>;
+  icon?: IconSvgElement;
   disabled?: boolean;
 }) {
   return (

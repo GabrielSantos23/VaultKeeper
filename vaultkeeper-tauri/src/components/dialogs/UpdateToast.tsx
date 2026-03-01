@@ -10,14 +10,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { 
   DownloadIcon, 
-  XIcon, 
+  Cancel01Icon, 
   SparklesIcon, 
-  AlertTriangleIcon,
+  Alert02Icon,
   CheckmarkCircle01Icon 
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-shell";
+import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { check } from "@tauri-apps/plugin-updater";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { Loader2 } from "lucide-react";
@@ -134,7 +134,7 @@ export function UpdateToast({ open, onOpenChange }: UpdateToastProps) {
   };
 
   const handleManualDownload = async () => {
-    await open("https://github.com/Kilo-Org/kilocode/releases/latest");
+    await openUrl("https://github.com/Kilo-Org/kilocode/releases/latest");
   };
 
   if (updateState === "none" && open) {
@@ -189,7 +189,7 @@ export function UpdateToast({ open, onOpenChange }: UpdateToastProps) {
                 onClick={handleDismiss}
                 className="text-white/60 hover:text-white transition-colors p-1"
               >
-                <HugeiconsIcon icon={XIcon} size={18} />
+                <HugeiconsIcon icon={Cancel01Icon} size={18} />
               </button>
             )}
           </div>
@@ -222,7 +222,7 @@ export function UpdateToast({ open, onOpenChange }: UpdateToastProps) {
               </div>
 
               <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
-                <HugeiconsIcon icon={AlertTriangleIcon} size={14} className="flex-shrink-0 mt-0.5" />
+                <HugeiconsIcon icon={Alert02Icon} size={14} className="flex-shrink-0 mt-0.5" />
                 <p>
                   The app will restart automatically after the update is installed.
                 </p>

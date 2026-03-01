@@ -15,7 +15,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useVaultStore } from "@/stores/vaultStore";
 import { Loader2 } from "lucide-react";
 
@@ -59,7 +59,7 @@ export function ImportVaultDialog({
     setImportState("selecting");
 
     try {
-      const selected = await open({
+      const selected = await openDialog({
         filters: [
           { name: "JSON", extensions: ["json"] },
           { name: "All Files", extensions: ["*"] },
@@ -180,7 +180,7 @@ export function ImportVaultDialog({
             </div>
             <div className="mt-4 flex items-start gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
               <HugeiconsIcon
-                icon={AlertTriangleIcon}
+                icon={Alert02Icon}
                 size={16}
                 className="flex-shrink-0 mt-0.5"
               />

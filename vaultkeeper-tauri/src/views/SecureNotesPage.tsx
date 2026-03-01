@@ -25,7 +25,7 @@ import {
   ArrowTurnForwardIcon,
   Loading03Icon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HugeiconsIcon, IconSvgElement } from "@hugeicons/react";
 import { useVaultStore, SecureNote } from "../stores/vaultStore";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -55,7 +55,7 @@ function ToolbarButton({
   active?: boolean;
   disabled?: boolean;
   title: string;
-  icon: React.ComponentType<any>;
+  icon: IconSvgElement;
 }) {
   return (
     <button

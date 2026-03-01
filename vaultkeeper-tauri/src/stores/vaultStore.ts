@@ -57,7 +57,7 @@ interface VaultState {
   isLoading: boolean
   
   // Actions
-  loadVaultData: () => Promise<void>
+  loadVaultData: () => Promise<{ credentials: Credential[]; secureNotes: SecureNote[]; creditCards: CreditCard[]; folders: Folder[]; isLoading: boolean; }>
   setSelectedItem: (item: Credential | SecureNote | CreditCard | null) => void
   setSelectedCategory: (category: string) => void
   setSearchQuery: (query: string) => void

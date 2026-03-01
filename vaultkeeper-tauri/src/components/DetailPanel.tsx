@@ -32,7 +32,7 @@ import {
   Time04Icon,
   CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HugeiconsIcon, IconSvgElement } from "@hugeicons/react";
 
 interface TotpResponse {
   success: boolean;
@@ -476,7 +476,7 @@ function Field({
   children,
 }: {
   label: string;
-  icon?: React.ComponentType<any>;
+  icon?: IconSvgElement;
   children: React.ReactNode;
 }) {
   return (
@@ -581,7 +581,7 @@ function ActionButton({
   active = false,
   activeColor,
 }: {
-  icon: React.ComponentType<any>;
+  icon: IconSvgElement;
   tooltip: string;
   onClick?: () => void;
   danger?: boolean;

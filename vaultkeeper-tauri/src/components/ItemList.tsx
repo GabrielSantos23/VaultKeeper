@@ -152,11 +152,11 @@ export function ItemList() {
     if (!idMatch) return false;
 
     let selectedType = "";
-    if (selectedItem.domain) selectedType = "credential";
-    else if (selectedItem.card_number) selectedType = "card";
-    else if (selectedItem.content) selectedType = "note";
+    if ('domain' in selectedItem) selectedType = "credential";
+    else if ('card_number' in selectedItem) selectedType = "card";
+    else if ('content' in selectedItem) selectedType = "note";
 
-    return (selectedItem.type || selectedType) === item.type;
+    return (('type' in selectedItem && selectedItem.type) || selectedType) === item.type;
   };
 
   return (

@@ -20,16 +20,19 @@
         "center": true,
         "theme": "Dark",
         "decorations": false,
-        "transparent": false
+        "transparent": false,
+        "devtools": false
       }
     ],
     "security": {
       "csp": {
         "default-src": "'self'",
+        "script-src": "'self'",
         "style-src": "'self' 'unsafe-inline'",
         "font-src": ["'self'", "data:"],
         "img-src": ["'self'", "data:", "https:"],
-        "connect-src": ["'self'", "https:"]
+        "connect-src": ["'self'", "https:"],
+        "media-src": ["'self'", "data:", "https:"]
       },
       "dangerousDisableAssetCspModification": false
     }

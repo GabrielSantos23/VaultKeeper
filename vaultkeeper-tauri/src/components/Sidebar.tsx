@@ -306,7 +306,6 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
                             <HugeiconsIcon
                               icon={item.icon}
                               size={16}
-                              variant={active ? "solid" : "stroke"}
                               className={active ? "fill-current" : ""}
                             />
                             <span>{item.label}</span>
@@ -359,7 +358,6 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
                             <HugeiconsIcon
                               icon={FolderIcon}
                               size={16}
-                              variant={active ? "solid" : "stroke"}
                               className={active ? "fill-current" : ""}
                             />
                             <span className="flex-1 truncate">
@@ -417,7 +415,6 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
                       <HugeiconsIcon
                         icon={icon}
                         size={16}
-                        variant={activeView === view ? "solid" : "stroke"}
                         className={activeView === view ? "fill-current" : ""}
                       />
                       <span>{label}</span>
@@ -444,7 +441,6 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
                     <HugeiconsIcon
                       icon={Settings02Icon}
                       size={16}
-                      variant={activeView === "settings" ? "solid" : "stroke"}
                       className={
                         activeView === "settings" ? "fill-current" : ""
                       }

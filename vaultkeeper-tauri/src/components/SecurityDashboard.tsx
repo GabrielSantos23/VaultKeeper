@@ -9,7 +9,7 @@ import {
   Link01Icon,
   ShieldUserIcon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HugeiconsIcon, IconSvgElement } from "@hugeicons/react";
 import { useVaultStore, Credential } from "../stores/vaultStore";
 import { open } from "@tauri-apps/plugin-shell";
 
@@ -144,7 +144,7 @@ interface HealthCardProps {
   subtitle?: string;
   progress?: number;
   progressColor?: string;
-  icon: React.ComponentType<any>;
+  icon: IconSvgElement;
 }
 
 function HealthCard({
