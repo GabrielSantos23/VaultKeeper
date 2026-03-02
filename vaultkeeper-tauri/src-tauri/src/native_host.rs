@@ -2,13 +2,15 @@ use std::fs;
 use std::path::PathBuf;
 use serde_json::json;
 
+use tauri::{AppHandle, Manager};
+
 const HOST_NAME: &str = "com.vaultkeeper.host";
 const HOST_DESCRIPTION: &str = "VaultKeeper Native Messaging Host";
 const CHROME_EXTENSION_ID: &str = "bklgfpmbbpfboanbdjakcgmlldhmlkco";
 const FIREFOX_EXTENSION_ID: &str = "vaultkeeper@example.com";
 
-pub fn check_native_host_installation() {
-    let result = install_all();
+pub fn check_native_host_installation(app: &AppHandle) {
+    let result = install_all(app);
     if let Err(e) = result {
         println!("⚠️ Native host setup warning: {}", e);
     } else {
@@ -16,9 +18,16 @@ pub fn check_native_host_installation() {
     }
 }
 
-fn install_all() -> Result<(), Box<dyn std::error::Error>> {
-    let current_exe = std::env::current_exe()?;
-    let exe_path = current_exe.to_string_lossy().to_string();
+fn install_all(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let resource_dir = app.path().resource_dir()?;
+    
+    #[cfg(target_os = "windows")]
+    let host_exe = resource_dir.join("bin").join("vk_host.exe");
+    
+    #[cfg(not(target_os = "windows"))]
+    let host_exe = resource_dir.join("bin").join("vk_host");
+    
+    let exe_path = host_exe.to_string_lossy().to_string();
 
     #[cfg(target_os = "windows")]
     {

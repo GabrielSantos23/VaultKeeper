@@ -42,7 +42,7 @@ fn main() {
                 let _ = window.set_icon(icon);
             }
 
-            native_host::check_native_host_installation();
+            native_host::check_native_host_installation(app.handle());
 
             #[cfg(debug_assertions)]
             {
