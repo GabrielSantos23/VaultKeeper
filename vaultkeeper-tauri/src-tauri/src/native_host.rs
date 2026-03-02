@@ -27,7 +27,13 @@ fn install_all(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(target_os = "windows"))]
     let host_exe = resource_dir.join("bin").join("vk_host");
     
-    let exe_path = host_exe.to_string_lossy().to_string();
+    let mut exe_path = host_exe.to_string_lossy().to_string();
+    
+    // Chrome and Firefox native messaging reject UNC paths (\\?\) on Windows
+    #[cfg(target_os = "windows")]
+    if exe_path.starts_with("\\\\?\\") {
+        exe_path = exe_path.replace("\\\\?\\", "");
+    }
 
     #[cfg(target_os = "windows")]
     {
