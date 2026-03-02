@@ -52,9 +52,10 @@ LangString UNINSTALL_OLD_PROMPT ${LANG_PORTUGUESEBR} "Uma versão antiga do Vaul
     done_uninstall:
   ${EndIf}
   
-  ; Ensure no Python processes are locking files
+  ; Ensure no Python/VaultKeeper processes are locking files
   ExecWait 'taskkill /F /IM VaultKeeper.exe /T'
-  Sleep 500
+  ExecWait 'taskkill /F /IM vk_host.exe /T'
+  Sleep 1000
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
