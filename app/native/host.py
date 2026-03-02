@@ -10,6 +10,12 @@ from pathlib import Path
 # from breaking Native Messaging protocol.
 # This must be done before any other imports that might print.
 # We save the original stdout to send actual messages to the extension.
+
+if sys.platform == "win32":
+    import os, msvcrt
+    msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+    msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+
 STDOUT = sys.stdout
 sys.stdout = sys.stderr
 
