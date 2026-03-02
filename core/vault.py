@@ -911,3 +911,90 @@ class VaultManager:
             created_at=row.get('created_at'),
             updated_at=row.get('updated_at')
         )
+
+    def change_master_password(self, old_password: str, new_password: str) -> bool:
+        if not self.auth.verify_master_password(old_password):
+            return False
+            
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # 1. Vault
+            cursor.execute("SELECT id, password, notes, totp_secret, backup_codes FROM vault")
+            creds = cursor.fetchall()
+            for c_id, pw_raw, notes_raw, totp_raw, backup_raw in creds:
+                def try_decrypt(val):
+                    if not val: return val
+                    if len(val) < 40: return val
+                    try: return self.crypto.decrypt(val, old_password)
+                    except: return val
+                    
+                pw = try_decrypt(pw_raw)
+                notes = try_decrypt(notes_raw)
+                totp = try_decrypt(totp_raw)
+                backup = try_decrypt(backup_raw)
+                
+                from .crypto import CryptoManager
+                new_crypto = CryptoManager()
+                new_crypto.derive_key(new_password)
+                
+                new_pw_enc = new_crypto.encrypt(pw)
+                new_notes_enc = new_crypto.encrypt(notes) if notes else None
+                new_totp_enc = new_crypto.encrypt(totp) if totp else None
+                new_backup_enc = new_crypto.encrypt(backup) if backup else None
+                
+                cursor.execute('''UPDATE vault SET password=?, notes=?, totp_secret=?, backup_codes=? WHERE id=?''',
+                              (new_pw_enc, new_notes_enc, new_totp_enc, new_backup_enc, c_id))
+
+            # 2. Secure Notes
+            cursor.execute("SELECT id, content FROM secure_notes")
+            notes_rows = cursor.fetchall()
+            for n_id, content_raw in notes_rows:
+                def try_decrypt(val):
+                    if not val: return val
+                    if len(val) < 40: return val
+                    try: return self.crypto.decrypt(val, old_password)
+                    except: return val
+                    
+                content = try_decrypt(content_raw)
+                
+                from .crypto import CryptoManager
+                new_crypto = CryptoManager()
+                new_crypto.derive_key(new_password)
+                
+                new_content = new_crypto.encrypt(content)
+                cursor.execute("UPDATE secure_notes SET content=? WHERE id=?", (new_content, n_id))
+                
+            # 3. Credit Cards
+            cursor.execute("SELECT id, card_number, cardholder_name, expiry_date, cvv, notes FROM credit_cards")
+            cards = cursor.fetchall()
+            for c_id, num_raw, name_raw, exp_raw, cvv_raw, c_notes_raw in cards:
+                def try_decrypt(val):
+                    if not val: return val
+                    if len(val) < 40: return val
+                    try: return self.crypto.decrypt(val, old_password)
+                    except: return val
+                    
+                num = try_decrypt(num_raw)
+                name = try_decrypt(name_raw)
+                exp = try_decrypt(exp_raw)
+                cvv = try_decrypt(cvv_raw)
+                c_notes = try_decrypt(c_notes_raw)
+                
+                from .crypto import CryptoManager
+                new_crypto = CryptoManager()
+                new_crypto.derive_key(new_password)
+                
+                new_num = new_crypto.encrypt(num)
+                new_name = new_crypto.encrypt(name)
+                new_exp = new_crypto.encrypt(exp)
+                new_cvv = new_crypto.encrypt(cvv)
+                new_c_notes = new_crypto.encrypt(c_notes) if c_notes else None
+                
+                cursor.execute('''UPDATE credit_cards SET card_number=?, cardholder_name=?, expiry_date=?, cvv=?, notes=? WHERE id=?''',
+                              (new_num, new_name, new_exp, new_cvv, new_c_notes, c_id))
+            conn.commit()
+
+        success = self.auth.change_master_password(old_password, new_password)
+        self._trigger_auto_sync()
+        return success
