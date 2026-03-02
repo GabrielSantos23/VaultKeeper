@@ -49,8 +49,9 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "wix": {
-        "language": ["en-US", "pt-BR"]
+      "nsis": {
+        "languages": ["English", "PortugueseBR"],
+        "installerHooks": "nsis-hooks.nsh"
       }
     }
   },
@@ -62,7 +63,7 @@
       "active": true,
       "dialog": false,
       "endpoints": [
-        "https://github.com/Kilo-Org/kilocode/releases/latest/download/latest.json"
+        "https://github.com/GabrielSantos23/VaultKeeper/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEwMzkxQzk1MUM5QUVFQkMKUldTODdwb2NsUnc1RUdRaUg0UGZINU9ZRmREN2RkcDVKK3hBSVhLUVdCb20zSjVObGQrdjFQcDEK"
     }

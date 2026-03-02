@@ -228,19 +228,9 @@ function GeneralSettings() {
               ))}
             </div>
           </SettingRow>
-          <SettingRow
-            label="Language"
-            description="Select your display language"
-            last
-          >
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-background border border-border text-foreground hover:bg-accent transition-colors">
-              <HugeiconsIcon icon={Globe02Icon} size={13} />
-              English
-            </button>
-          </SettingRow>
         </div>
       </div>
-
+      {/* 
       <div className="rounded-xl border border-border overflow-hidden">
         <SectionHeader icon={Notification02Icon} label="Notifications" />
         <div className="bg-muted">
@@ -264,7 +254,7 @@ function GeneralSettings() {
             />
           </SettingRow>
         </div>
-      </div>
+      </div> */}
 
       <div className="rounded-xl border border-border overflow-hidden">
         <SectionHeader icon={Clock01Icon} label="Auto-lock" />
@@ -399,8 +389,8 @@ function DataSettings() {
             label="Export Vault"
             description="Download an encrypted backup of your vault"
           >
-            <ActionButton 
-              label="Export" 
+            <ActionButton
+              label="Export"
               icon={DownloadCircle01Icon}
               onClick={() => setShowExport(true)}
             />
@@ -410,8 +400,8 @@ function DataSettings() {
             description="Restore your vault from a previous backup"
             last
           >
-            <ActionButton 
-              label="Import" 
+            <ActionButton
+              label="Import"
               icon={UploadCircle01Icon}
               onClick={() => setShowImport(true)}
             />
@@ -441,7 +431,7 @@ function DataSettings() {
             label="Clear Clipboard"
             description="Remove all copied passwords from the clipboard"
           >
-            <ActionButton 
+            <ActionButton
               label="Clear"
               onClick={() => setShowClearClipboard(true)}
             />
@@ -452,9 +442,9 @@ function DataSettings() {
             danger
             last
           >
-            <ActionButton 
-              label="Delete All" 
-              danger 
+            <ActionButton
+              label="Delete All"
+              danger
               icon={Delete02Icon}
               onClick={() => setShowDeleteAll(true)}
             />
@@ -464,8 +454,14 @@ function DataSettings() {
 
       <ExportVaultDialog open={showExport} onOpenChange={setShowExport} />
       <ImportVaultDialog open={showImport} onOpenChange={setShowImport} />
-      <ClearClipboardDialog open={showClearClipboard} onOpenChange={setShowClearClipboard} />
-      <DeleteAllDataDialog open={showDeleteAll} onOpenChange={setShowDeleteAll} />
+      <ClearClipboardDialog
+        open={showClearClipboard}
+        onOpenChange={setShowClearClipboard}
+      />
+      <DeleteAllDataDialog
+        open={showDeleteAll}
+        onOpenChange={setShowDeleteAll}
+      />
     </div>
   );
 }
