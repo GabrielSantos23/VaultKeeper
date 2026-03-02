@@ -18,22 +18,164 @@ pub fn check_native_host_installation(app: &AppHandle) {
     }
 }
 
-fn install_all(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+#[tauri::command]
+pub fn reconnect_native_host(app: AppHandle) -> Result<String, String> {
+    install_all(&app).map_err(|e| format!("Failed to reconnect: {}", e))?;
+    Ok("Native host reconnected successfully to all browsers.".to_string())
+}
+
+#[tauri::command]
+pub fn install_native_host_for_browser(app: AppHandle, browser: String) -> Result<String, String> {
+    let exe_path = get_exe_path(&app).map_err(|e| format!("{}", e))?;
+    let is_firefox = matches!(browser.as_str(), "firefox" | "zen" | "librewolf" | "waterfox");
+    
+    #[cfg(target_os = "windows")]
+    {
+        let manifest_dir = dirs::data_local_dir()
+            .map(|mut p| { p.push("VaultKeeper"); p })
+            .unwrap_or_else(|| PathBuf::from("C:\\ProgramData\\VaultKeeper"));
+        if !manifest_dir.exists() {
+            let _ = fs::create_dir_all(&manifest_dir);
+        }
+        
+        let manifest_path = manifest_dir.join(format!("{}_{}.json", HOST_NAME, browser));
+        create_manifest(&manifest_path, &exe_path, is_firefox)
+            .map_err(|e| format!("Failed to create manifest: {}", e))?;
+        
+        let reg_key = match browser.as_str() {
+            "firefox" | "zen" | "librewolf" | "waterfox" => "mozilla",
+            "edge" => "microsoft\\edge",
+            "brave" => "bravesoftware\\brave-browser",
+            "opera" => "opera software\\opera stable",
+            "vivaldi" => "vivaldi",
+            _ => "google\\chrome",
+        };
+        register_windows(reg_key, &manifest_path)
+            .map_err(|e| format!("Failed to register: {}", e))?;
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(home) = dirs::home_dir() {
+            let dir = match browser.as_str() {
+                "firefox" => home.join(".mozilla/native-messaging-hosts"),
+                "zen" => home.join(".zen/native-messaging-hosts"),
+                "chrome" => home.join(".config/google-chrome/NativeMessagingHosts"),
+                "chromium" => home.join(".config/chromium/NativeMessagingHosts"),
+                "brave" => home.join(".config/BraveSoftware/Brave-Browser/NativeMessagingHosts"),
+                "edge" => home.join(".config/microsoft-edge/NativeMessagingHosts"),
+                "vivaldi" => home.join(".config/vivaldi/NativeMessagingHosts"),
+                "opera" => home.join(".config/opera/NativeMessagingHosts"),
+                _ => return Err(format!("Unknown browser: {}", browser)),
+            };
+            install_linux_mac(&dir, &exe_path, is_firefox)
+                .map_err(|e| format!("Failed: {}", e))?;
+        }
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(home) = dirs::home_dir() {
+            let dir = match browser.as_str() {
+                "firefox" => home.join("Library/Application Support/Mozilla/NativeMessagingHosts"),
+                "chrome" => home.join("Library/Application Support/Google/Chrome/NativeMessagingHosts"),
+                "chromium" => home.join("Library/Application Support/Chromium/NativeMessagingHosts"),
+                "brave" => home.join("Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts"),
+                "edge" => home.join("Library/Application Support/Microsoft Edge/NativeMessagingHosts"),
+                _ => return Err(format!("Unknown browser: {}", browser)),
+            };
+            install_linux_mac(&dir, &exe_path, is_firefox)
+                .map_err(|e| format!("Failed: {}", e))?;
+        }
+    }
+    
+    Ok(format!("Installed native host for {}", browser))
+}
+
+#[tauri::command]
+pub fn install_native_host_custom_path(app: AppHandle, browser: String, path: String) -> Result<String, String> {
+    let exe_path = get_exe_path(&app).map_err(|e| format!("{}", e))?;
+    let is_firefox = matches!(browser.as_str(), "firefox" | "zen" | "librewolf" | "waterfox");
+    let dir = PathBuf::from(&path);
+    
+    if !dir.exists() {
+        let _ = fs::create_dir_all(&dir);
+    }
+    if !dir.exists() {
+        return Err("Directory does not exist and could not be created.".to_string());
+    }
+    
+    let manifest_path = dir.join(format!("{}.json", HOST_NAME));
+    create_manifest(&manifest_path, &exe_path, is_firefox)
+        .map_err(|e| format!("Failed to create manifest: {}", e))?;
+    
+    #[cfg(target_os = "windows")]
+    {
+        let reg_key = if is_firefox { "mozilla" } else { "google\\chrome" };
+        register_windows(reg_key, &manifest_path)
+            .map_err(|e| format!("Failed to register: {}", e))?;
+    }
+    
+    Ok(format!("Installed native host at {}", path))
+}
+
+fn get_exe_path(app: &AppHandle) -> Result<String, Box<dyn std::error::Error>> {
     let resource_dir = app.path().resource_dir()?;
     
     #[cfg(target_os = "windows")]
-    let host_exe = resource_dir.join("bin").join("vk_host.exe");
+    {
+        let host_exe = resource_dir.join("bin").join("vk_host.exe");
+        let mut exe_path = host_exe.to_string_lossy().to_string();
+        if exe_path.starts_with("\\\\?\\") {
+            exe_path = exe_path.replace("\\\\?\\", "");
+        }
+        Ok(exe_path)
+    }
     
     #[cfg(not(target_os = "windows"))]
-    let host_exe = resource_dir.join("bin").join("vk_host");
-    
-    let mut exe_path = host_exe.to_string_lossy().to_string();
-    
-    // Chrome and Firefox native messaging reject UNC paths (\\?\) on Windows
-    #[cfg(target_os = "windows")]
-    if exe_path.starts_with("\\\\?\\") {
-        exe_path = exe_path.replace("\\\\?\\", "");
+    {
+        let host_exe_source = resource_dir.join("bin").join("vk_host");
+        
+        // On Linux (AppImage) and macOS, the resource dir is inside a temporary mount.
+        // We copy vk_host to a stable, persistent location so the native messaging
+        // manifest always points to a path that exists even when the app is closed.
+        let persistent_dir = dirs::data_local_dir()
+            .or_else(|| dirs::home_dir().map(|h| h.join(".local/share")))
+            .map(|d| d.join("vaultkeeper").join("bin"))
+            .ok_or("Could not determine persistent data directory")?;
+        
+        fs::create_dir_all(&persistent_dir)?;
+        
+        let persistent_exe = persistent_dir.join("vk_host");
+        
+        // Always copy/update the binary from the app bundle to the persistent location
+        if host_exe_source.exists() {
+            fs::copy(&host_exe_source, &persistent_exe)?;
+            
+            // Make executable on Unix
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = fs::metadata(&persistent_exe)?.permissions();
+                perms.set_mode(0o755);
+                fs::set_permissions(&persistent_exe, perms)?;
+            }
+            
+            println!("📦 vk_host copied to: {}", persistent_exe.display());
+        } else if !persistent_exe.exists() {
+            return Err(format!(
+                "vk_host not found at source ({}) or persistent location ({})",
+                host_exe_source.display(),
+                persistent_exe.display()
+            ).into());
+        }
+        
+        Ok(persistent_exe.to_string_lossy().to_string())
     }
+}
+
+fn install_all(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let exe_path = get_exe_path(app)?;
 
     #[cfg(target_os = "windows")]
     {
@@ -63,20 +205,32 @@ fn install_all(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_os = "linux")]
     {
         if let Some(home) = dirs::home_dir() {
-            // Firefox
+            // Firefox (standard, Snap, Flatpak)
             install_linux_mac(&home.join(".mozilla/native-messaging-hosts"), &exe_path, true)?;
+            install_linux_mac(&home.join("snap/firefox/common/.mozilla/native-messaging-hosts"), &exe_path, true)?;
+            install_linux_mac(&home.join(".var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts"), &exe_path, true)?;
+            
+            // Zen Browser
+            install_linux_mac(&home.join(".zen/native-messaging-hosts"), &exe_path, true)?;
             
             // Chrome
             install_linux_mac(&home.join(".config/google-chrome/NativeMessagingHosts"), &exe_path, false)?;
             
-            // Chromium
+            // Chromium (standard, Snap, Flatpak)
             install_linux_mac(&home.join(".config/chromium/NativeMessagingHosts"), &exe_path, false)?;
+            install_linux_mac(&home.join("snap/chromium/common/.chromium/NativeMessagingHosts"), &exe_path, false)?;
 
             // Brave
             install_linux_mac(&home.join(".config/BraveSoftware/Brave-Browser/NativeMessagingHosts"), &exe_path, false)?;
 
             // Edge
             install_linux_mac(&home.join(".config/microsoft-edge/NativeMessagingHosts"), &exe_path, false)?;
+            
+            // Vivaldi
+            install_linux_mac(&home.join(".config/vivaldi/NativeMessagingHosts"), &exe_path, false)?;
+            
+            // Opera
+            install_linux_mac(&home.join(".config/opera/NativeMessagingHosts"), &exe_path, false)?;
         }
     }
 

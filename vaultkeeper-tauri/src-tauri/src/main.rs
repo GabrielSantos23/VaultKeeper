@@ -87,6 +87,9 @@ fn main() {
             commands::generate_totp_code,
             commands::validate_totp_secret,
             commands::parse_totp_uri,
+            native_host::reconnect_native_host,
+            native_host::install_native_host_for_browser,
+            native_host::install_native_host_custom_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

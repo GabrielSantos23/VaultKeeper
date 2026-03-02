@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   Settings02Icon,
   Database02Icon,
@@ -168,6 +169,17 @@ function ActionButton({
   );
 }
 
+const BROWSER_OPTIONS = [
+  { id: "firefox", label: "Firefox" },
+  { id: "chrome", label: "Chrome" },
+  { id: "chromium", label: "Chromium" },
+  { id: "brave", label: "Brave" },
+  { id: "edge", label: "Edge" },
+  { id: "vivaldi", label: "Vivaldi" },
+  { id: "opera", label: "Opera" },
+  { id: "zen", label: "Zen" },
+] as const;
+
 function GeneralSettings() {
   const { theme, setTheme } = useThemeStore();
   const {
@@ -178,6 +190,76 @@ function GeneralSettings() {
     autoLockTimeout,
     setAutoLockTimeout,
   } = useSettingsStore();
+
+  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectStatus, setReconnectStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
+  const [reconnectMessage, setReconnectMessage] = useState("");
+
+  const handleReconnect = async () => {
+    setReconnecting(true);
+    setReconnectStatus("idle");
+    try {
+      const msg = await invoke<string>("reconnect_native_host");
+      setReconnectStatus("success");
+      setReconnectMessage(msg);
+    } catch (err: any) {
+      setReconnectStatus("error");
+      setReconnectMessage(String(err));
+    } finally {
+      setReconnecting(false);
+      setTimeout(() => setReconnectStatus("idle"), 5000);
+    }
+  };
+
+  const [installingBrowser, setInstallingBrowser] = useState(false);
+  const [browserInstallStatus, setBrowserInstallStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
+  const [browserInstallMsg, setBrowserInstallMsg] = useState("");
+
+  const handleInstallBrowser = async (browserId: string) => {
+    setInstallingBrowser(true);
+    setBrowserInstallStatus("idle");
+    try {
+      await invoke<string>("install_native_host_for_browser", {
+        browser: browserId,
+      });
+      setBrowserInstallStatus("success");
+      setBrowserInstallMsg(`Installed for ${browserId}`);
+    } catch (err: any) {
+      setBrowserInstallStatus("error");
+      setBrowserInstallMsg(String(err));
+    } finally {
+      setInstallingBrowser(false);
+      setTimeout(() => setBrowserInstallStatus("idle"), 5000);
+    }
+  };
+
+  const [customBrowserType, setCustomBrowserType] = useState("chrome");
+  const [customPath, setCustomPath] = useState("");
+  const [installingCustom, setInstallingCustom] = useState(false);
+
+  const handleInstallCustom = async () => {
+    if (!customPath.trim()) return;
+    setInstallingCustom(true);
+    try {
+      await invoke<string>("install_native_host_custom_path", {
+        browser: customBrowserType,
+        path: customPath.trim(),
+      });
+      setBrowserInstallStatus("success");
+      setBrowserInstallMsg("Installed at custom path");
+      setCustomPath("");
+    } catch (err: any) {
+      setBrowserInstallStatus("error");
+      setBrowserInstallMsg(String(err));
+    } finally {
+      setInstallingCustom(false);
+      setTimeout(() => setBrowserInstallStatus("idle"), 5000);
+    }
+  };
 
   const themeOptions = [
     { id: "dark", label: "Dark", icon: Moon02Icon },
@@ -285,6 +367,127 @@ function GeneralSettings() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+          </SettingRow>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border overflow-hidden">
+        <SectionHeader icon={Globe02Icon} label="Browser Extension" />
+        <div className="bg-muted">
+          <SettingRow
+            label="Reconnect All Browsers"
+            description="Re-install native messaging manifests for all detected browsers"
+          >
+            <div className="flex items-center gap-2">
+              {reconnectStatus === "success" && (
+                <span className="text-xs text-green-500 flex items-center gap-1">
+                  <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} />
+                  Connected
+                </span>
+              )}
+              {reconnectStatus === "error" && (
+                <span className="text-xs text-destructive flex items-center gap-1">
+                  <HugeiconsIcon icon={Alert02Icon} size={12} />
+                  Failed
+                </span>
+              )}
+              <ActionButton
+                label={reconnecting ? "Reconnecting..." : "Reconnect All"}
+                icon={Globe02Icon}
+                onClick={handleReconnect}
+                disabled={reconnecting}
+              />
+            </div>
+          </SettingRow>
+
+          <SettingRow
+            label="Install for Specific Browser"
+            description="Manually connect to a specific browser"
+          >
+            <div className="flex items-center gap-2">
+              {browserInstallStatus === "success" && (
+                <span className="text-xs text-green-500 flex items-center gap-1">
+                  <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} />
+                  Installed
+                </span>
+              )}
+              {browserInstallStatus === "error" && (
+                <span
+                  className="text-xs text-destructive flex items-center gap-1 max-w-[180px] truncate"
+                  title={browserInstallMsg}
+                >
+                  <HugeiconsIcon icon={Alert02Icon} size={12} />
+                  Failed
+                </span>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    disabled={installingBrowser}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-background border border-border text-foreground hover:bg-accent transition-colors min-w-[120px] justify-between disabled:opacity-50"
+                  >
+                    <span>
+                      {installingBrowser ? "Installing..." : "Select Browser"}
+                    </span>
+                    <HugeiconsIcon icon={ArrowDown01Icon} size={14} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[140px]">
+                  {BROWSER_OPTIONS.map((b) => (
+                    <DropdownMenuItem
+                      key={b.id}
+                      onClick={() => handleInstallBrowser(b.id)}
+                      className="text-xs cursor-pointer"
+                    >
+                      {b.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </SettingRow>
+
+          <SettingRow
+            label="Custom Path (Advanced)"
+            description="Install native host manifest to a custom directory"
+            last
+          >
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-background border border-border text-foreground hover:bg-accent transition-colors min-w-[90px] justify-between">
+                    <span>
+                      {BROWSER_OPTIONS.find((b) => b.id === customBrowserType)
+                        ?.label || "Chrome"}
+                    </span>
+                    <HugeiconsIcon icon={ArrowDown01Icon} size={12} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[120px]">
+                  {BROWSER_OPTIONS.map((b) => (
+                    <DropdownMenuItem
+                      key={b.id}
+                      onClick={() => setCustomBrowserType(b.id)}
+                      className={`text-xs cursor-pointer ${customBrowserType === b.id ? "bg-primary/10" : ""}`}
+                    >
+                      {b.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <input
+                type="text"
+                value={customPath}
+                onChange={(e) => setCustomPath(e.target.value)}
+                placeholder="Path to NativeMessagingHosts"
+                className="px-2.5 py-1.5 rounded-lg text-xs bg-background border border-border text-foreground w-[200px] focus:outline-none focus:border-primary"
+              />
+              <ActionButton
+                label={installingCustom ? "Installing..." : "Install"}
+                onClick={handleInstallCustom}
+                disabled={installingCustom || !customPath.trim()}
+              />
+            </div>
           </SettingRow>
         </div>
       </div>
