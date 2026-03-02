@@ -39,9 +39,7 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller cryptography argon2-cffi
           pyinstaller --noconfirm --onefile --console --name vk_host app/native/host.py
-          mkdir -p vaultkeeper-tauri/src-tauri/bin
-          # Support both windows (.exe) and linux extensions
-          cp dist/vk_host* vaultkeeper-tauri/src-tauri/bin/ || true
+          python -c "import os, shutil; os.makedirs('vaultkeeper-tauri/src-tauri/bin', exist_ok=True); [shutil.copy(os.path.join('dist', f), 'vaultkeeper-tauri/src-tauri/bin') for f in os.listdir('dist') if f.startswith('vk_host')]"
 
       - name: Install dependencies
         run: bun install
