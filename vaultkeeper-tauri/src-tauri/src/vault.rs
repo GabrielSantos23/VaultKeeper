@@ -1236,6 +1236,81 @@ impl VaultManager {
             .map_err(|e| format!("Failed to hash password: {}", e))?
             .to_string();
 
+        // ---------- RE-ENCRYPT ALL DATA ----------
+        let conn = Connection::open(&self.db_path)?;
+        
+        // 1. Re-encrypt vault credentials
+        let mut stmt = conn.prepare("SELECT id, password, notes, totp_secret, backup_codes FROM vault")?;
+        let creds: Vec<(i64, String, Option<String>, Option<String>, Option<String>)> = stmt.query_map([], |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?
+            ))
+        })?.filter_map(|r| r.ok()).collect();
+
+        for (id, pw_raw, notes_raw, totp_raw, backup_raw) in creds {
+            let pw = crate::crypto::decrypt_if_encrypted(&pw_raw, old_password).unwrap_or(pw_raw);
+            let notes = notes_raw.map(|n| crate::crypto::decrypt_if_encrypted(&n, old_password).unwrap_or(n));
+            let totp = totp_raw.map(|t| crate::crypto::decrypt_if_encrypted(&t, old_password).unwrap_or(t));
+            let backup = backup_raw.map(|b| crate::crypto::decrypt_if_encrypted(&b, old_password).unwrap_or(b));
+
+            let new_pw = crate::crypto::encrypt(&pw, new_password)?;
+            let new_notes = notes.map(|n| crate::crypto::encrypt(&n, new_password)).transpose()?;
+            let new_totp = totp.map(|t| crate::crypto::encrypt(&t, new_password)).transpose()?;
+            let new_backup = backup.map(|b| crate::crypto::encrypt(&b, new_password)).transpose()?;
+
+            conn.execute(
+                "UPDATE vault SET password = ?1, notes = ?2, totp_secret = ?3, backup_codes = ?4 WHERE id = ?5",
+                params![new_pw, new_notes, new_totp, new_backup, id],
+            )?;
+        }
+
+        // 2. Re-encrypt secure notes
+        let mut stmt = conn.prepare("SELECT id, content FROM secure_notes")?;
+        let notes: Vec<(i64, String)> = stmt.query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?.filter_map(|r| r.ok()).collect();
+
+        for (id, content_raw) in notes {
+            let content = crate::crypto::decrypt_if_encrypted(&content_raw, old_password).unwrap_or(content_raw);
+            let new_content = crate::crypto::encrypt(&content, new_password)?;
+            conn.execute(
+                "UPDATE secure_notes SET content = ?1 WHERE id = ?2",
+                params![new_content, id],
+            )?;
+        }
+
+        // 3. Re-encrypt credit cards
+        let mut stmt = conn.prepare("SELECT id, card_number, cardholder_name, expiry_date, cvv, notes FROM credit_cards")?;
+        let cards: Vec<(i64, String, String, String, String, Option<String>)> = stmt.query_map([], |row| {
+            Ok((
+                row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?
+            ))
+        })?.filter_map(|r| r.ok()).collect();
+
+        for (id, number_raw, name_raw, expiry_raw, cvv_raw, notes_raw) in cards {
+            let number = crate::crypto::decrypt_if_encrypted(&number_raw, old_password).unwrap_or(number_raw);
+            let name = crate::crypto::decrypt_if_encrypted(&name_raw, old_password).unwrap_or(name_raw);
+            let expiry = crate::crypto::decrypt_if_encrypted(&expiry_raw, old_password).unwrap_or(expiry_raw);
+            let cvv = crate::crypto::decrypt_if_encrypted(&cvv_raw, old_password).unwrap_or(cvv_raw);
+            let n_raw = notes_raw.map(|n| crate::crypto::decrypt_if_encrypted(&n, old_password).unwrap_or(n));
+
+            let new_number = crate::crypto::encrypt(&number, new_password)?;
+            let new_name = crate::crypto::encrypt(&name, new_password)?;
+            let new_expiry = crate::crypto::encrypt(&expiry, new_password)?;
+            let new_cvv = crate::crypto::encrypt(&cvv, new_password)?;
+            let new_notes = n_raw.map(|n| crate::crypto::encrypt(&n, new_password)).transpose()?;
+
+            conn.execute(
+                "UPDATE credit_cards SET card_number = ?1, cardholder_name = ?2, expiry_date = ?3, cvv = ?4, notes = ?5 WHERE id = ?6",
+                params![new_number, new_name, new_expiry, new_cvv, new_notes, id],
+            )?;
+        }
+        // -----------------------------------------
+
         // Read current config
         let config_json = std::fs::read_to_string(&self.auth_path)?;
         let mut config: AuthConfig = serde_json::from_str(&config_json)?;
