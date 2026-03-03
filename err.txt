@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "app\native\host.py", line 405, in <module>
+    main()
+    ~~~~^^
+  File "app\native\host.py", line 402, in main
+    host.run()
+    ~~~~~~~~^^
+  File "app\native\host.py", line 390, in run
+    message = self.read_message()
+  File "app\native\host.py", line 49, in read_message
+    length_bytes = sys.stdin.buffer.read(4)
+KeyboardInterrupt
+[PYI-20432:ERROR] Failed to execute script 'host' due to unhandled exception!

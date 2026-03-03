@@ -38,7 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller cryptography argon2-cffi
-          pyinstaller --noconfirm --onefile --console --name vk_host app/native/host.py
+          pyinstaller --noconfirm --onefile --console --name vk_host --hidden-import=argon2 app/native/host.py
           python -c "import os, shutil; os.makedirs('vaultkeeper-tauri/src-tauri/bin', exist_ok=True); [shutil.copy(os.path.join('dist', f), 'vaultkeeper-tauri/src-tauri/bin') for f in os.listdir('dist') if f.startswith('vk_host')]"
 
       - name: Install dependencies
