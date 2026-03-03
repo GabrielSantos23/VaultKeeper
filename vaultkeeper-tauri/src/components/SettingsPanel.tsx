@@ -182,14 +182,7 @@ const BROWSER_OPTIONS = [
 
 function GeneralSettings() {
   const { theme, setTheme } = useThemeStore();
-  const {
-    securityAlerts,
-    setSecurityAlerts,
-    passwordExpiry,
-    setPasswordExpiry,
-    autoLockTimeout,
-    setAutoLockTimeout,
-  } = useSettingsStore();
+  const { autoLockTimeout, setAutoLockTimeout } = useSettingsStore();
 
   const [reconnecting, setReconnecting] = useState(false);
   const [reconnectStatus, setReconnectStatus] = useState<

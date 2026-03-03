@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Sparkles,
   HelpCircleIcon,
+  AlertCircle,
 } from "lucide-react";
 import { useAuthStore } from "../stores/authStore";
 import { invoke } from "@tauri-apps/api/core";
@@ -21,8 +22,12 @@ export function LoginView() {
   const [passwordHint, setPasswordHint] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
 
-  const { login, createVault, isLoading, error, clearError, isFirstRun } =
+  const { login, createVault, isLoading, error, clearError, isFirstRun, checkFirstRun } =
     useAuthStore();
+
+  useEffect(() => {
+    checkFirstRun();
+  }, [checkFirstRun]);
 
   useEffect(() => {
     if (isFirstRun) setIsSetupMode(true);
@@ -181,6 +186,42 @@ export function LoginView() {
                   </button>
                 </div>
               </div>
+
+              {isSetupMode && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground-secondary">
+                    Confirm Password
+                  </label>
+
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-muted group-focus-within:text-primary" />
+
+                    <input
+                      type={showConfirm ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm your password"
+                      className="w-full bg-background-tertiary border border-border rounded-xl py-3.5 pl-12 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      disabled={isLoading}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(!showConfirm)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground"
+                    >
+                      {showConfirm ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-error/10 border border-error/20 text-error text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <p>{error}</p>
+                </div>
+              )}
 
               <button
                 type="submit"

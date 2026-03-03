@@ -1,235 +1,302 @@
-# 🔐 VaultKeeper 2.0 - Password Manager
+<p align="center">
+  <img src="logo.png" alt="VaultKeeper Logo" width="120" />
+</p>
 
-A secure desktop password manager with browser extension integration. Built with **Rust + Tauri + React** for maximum performance and security.
+<h1 align="center">VaultKeeper 2.0</h1>
 
-> 🎉 **Version 2.0 is here!** Completely rewritten in Rust with better performance, auto-updates, and seamless migration from the Python version.
+<p align="center">
+  Gerenciador de senhas desktop seguro com integração nativa para extensão de navegador.<br />
+  Construído com <strong>Rust + Tauri + React</strong> para máxima performance e segurança.
+</p>
 
-## 🚀 What's New in 2.0
+<p align="center">
+  <a href="https://github.com/GabrielSantos23/VaultKeeper/releases/latest">
+    <img src="https://img.shields.io/github/v/release/GabrielSantos23/VaultKeeper?style=for-the-badge&color=f97316&label=Download" alt="Download" />
+  </a>
+  <img src="https://img.shields.io/badge/Plataformas-Windows%20%7C%20Linux-blue?style=for-the-badge" alt="Plataformas" />
+  <img src="https://img.shields.io/github/license/GabrielSantos23/VaultKeeper?style=for-the-badge" alt="Licença" />
+</p>
 
-- ⚡ **Lightning fast** - Native binary, no Python runtime needed
-- 🔄 **Auto-updates** - Get new features automatically
-- 💾 **Zero migration** - Existing Python users keep all their data
-- 🎨 **Modern UI** - Beautiful new interface with dark mode
-- 🔒 **Same security** - Identical encryption (Argon2id + AES-256-GCM)
-- 🌐 **Browser extension** - Works with Chrome, Firefox, and Edge
-- 📱 **Cross-platform** - Windows, macOS, and Linux
+---
 
-## 📦 Installation
+## 📸 Screenshots
 
-### Download Pre-built Binaries
+<!-- Adicione screenshots do app aqui -->
+<!-- <p align="center">
+  <img src="screenshots/login.png" alt="Tela de Login" width="400" />
+  <img src="screenshots/vault.png" alt="Cofre" width="400" />
+</p> -->
 
-| Platform | Download |
-|----------|----------|
-| Windows | `VaultKeeper-Setup.exe` (Installer) |
-| macOS Intel | `VaultKeeper_x64.app.tar.gz` |
-| macOS Apple Silicon | `VaultKeeper_aarch64.app.tar.gz` |
-| Linux | `vaultkeeper.AppImage` (Portable) |
+> 🖼️ _Screenshots em breve_
 
-Download from [GitHub Releases](https://github.com/Kilo-Org/kilocode/releases/latest)
+---
 
-### Build from Source
+## 🚀 O que há de novo na versão 2.0
+
+- ⚡ **Ultra rápido** — Binário nativo em Rust, sem necessidade de Python
+- 🔄 **Atualizações automáticas** — Receba novas versões automaticamente
+- 💾 **Migração zero** — Usuários da versão Python mantêm todos os dados
+- 🎨 **Interface moderna** — UI premium com modo escuro e animações
+- 🔒 **Mesma segurança** — Criptografia idêntica (Argon2id + AES-256-GCM)
+- 🌐 **Extensão para navegador** — Chrome, Firefox, Edge, Brave, Vivaldi, Opera, Zen
+- 📱 **Multiplataforma** — Windows e Linux
+- 🔌 **Conexão persistente** — No Linux, o native host funciona mesmo sem o app aberto
+
+---
+
+## 📦 Instalação
+
+### Baixar binários pré-compilados
+
+| Plataforma | Download                                            |
+| ---------- | --------------------------------------------------- |
+| Windows    | `VaultKeeper_2.x.x_x64-setup.exe` (Instalador NSIS) |
+| Linux      | `VaultKeeper_2.x.x_amd64.AppImage` (Portátil)       |
+
+👉 Baixe na página de [Releases do GitHub](https://github.com/GabrielSantos23/VaultKeeper/releases/latest)
+
+### Compilar a partir do código fonte
 
 ```bash
-# Clone the repository
-git clone https://github.com/Kilo-Org/kilocode.git
-cd kilocode/vaultkeeper-tauri
+# Clone o repositório
+git clone https://github.com/GabrielSantos23/VaultKeeper.git
+cd VaultKeeper/vaultkeeper-tauri
 
-# Install dependencies
-npm install
+# Instale as dependências
+bun install
 
-# Run in development mode
-npm run tauri:dev
+# Rode em modo de desenvolvimento
+bun run tauri:dev
 
-# Build for production
-npm run tauri:build
+# Compile para produção
+bun run tauri:build
 ```
 
-## 🔄 Migrating from Python Version
+**Pré-requisitos:** [Bun](https://bun.sh/), [Rust](https://rustup.rs/), [Python 3.11+](https://python.org/) (para compilar o native host)
 
-**Good news: No data migration required!** 🎉
+---
 
-The new Tauri version is **fully compatible** with the Python version:
+## 🔄 Migração da versão Python
 
-- ✅ Same database format (SQLite)
-- ✅ Same encryption (Argon2id + AES-256-GCM)
-- ✅ Same storage location (`~/.vaultkeeper/`)
-- ✅ Same master password
+**Boa notícia: Não é necessária migração de dados!** 🎉
 
-### Migration Steps
+A versão Tauri é **totalmente compatível** com a versão Python:
 
-1. **Close the Python app** completely
-2. **Download and install** the Tauri version
-3. **Login with your existing master password**
-4. **Done!** All your data is automatically there
+- ✅ Mesmo formato de banco de dados (SQLite)
+- ✅ Mesma criptografia (Argon2id + AES-256-GCM)
+- ✅ Mesmo local de armazenamento (`~/.vaultkeeper/`)
+- ✅ Mesma senha mestre
 
-See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for detailed instructions.
+### Como migrar
 
-## 🏗️ Architecture
+1. **O instalador detecta** a versão Python automaticamente
+2. **Pergunta se deseja desinstalar** a versão antiga
+3. **Instala a versão Tauri** no lugar
+4. **Faça login com a mesma senha mestre** — seus dados já estarão lá
+
+> No Windows, o instalador NSIS usa hooks personalizados para detectar e remover a versão Python (Inno Setup) automaticamente, incluindo suporte a registros de 32-bit (WOW6432Node).
+
+---
+
+## 🏗️ Arquitetura
 
 ```
-┌────────────────┐      Native Messaging      ┌────────────────────┐
-│ Browser        │ ◀──────────────────────▶  │ VaultKeeper App    │
-│ Extension      │                            │ (Rust + Tauri)     │
-└────────────────┘                            └────────────────────┘
-                                                       │
-                                                       ▼
-                                              ┌─────────────────┐
-                                              │ SQLite Database │
-                                              │ (Encrypted)     │
-                                              └─────────────────┘
+┌──────────────────┐     Native Messaging      ┌─────────────────────┐
+│ Extensão do      │ ◀────────────────────────▶ │ vk_host             │
+│ Navegador        │        (stdio)             │ (Python, autônomo)  │
+└──────────────────┘                            └─────────┬───────────┘
+                                                          │
+                                                          ▼
+┌──────────────────┐                            ┌─────────────────────┐
+│ VaultKeeper App  │──── configura manifestos ──│ SQLite Database     │
+│ (Rust + Tauri)   │    e registros ao iniciar  │ (Criptografado)     │
+└──────────────────┘                            └─────────────────────┘
 ```
 
-## 🛡️ Security
+### Como o `vk_host` funciona
 
-### Encryption
+O `vk_host` é um binário Python empacotado (PyInstaller) que serve como ponte entre a extensão do navegador e o banco de dados do VaultKeeper via **Native Messaging Protocol** (stdio).
 
-- **Master Password Hash**: Argon2id (OWASP recommended)
-- **Database Encryption**: AES-256-GCM
-- **Unique Salt**: Per credential (16 bytes)
-- **Key Derivation**: PBKDF2 with 600,000 iterations
+**No Windows:**
 
-### Protections
+- O instalador coloca o `vk_host.exe` em `AppData\Local\VaultKeeper\bin\`
+- Manifestos e chaves de registro são criados automaticamente ao abrir o app
+- Funciona imediatamente com qualquer navegador suportado
 
-- 🔒 Auto-lock after inactivity
-- 🧹 Clipboard auto-clear (10 seconds)
-- 🚫 Key never stored on disk
-- 🔐 All encryption happens locally
+**No Linux (AppImage):**
 
-## 📁 Data Storage
+- Como o AppImage monta em um diretório temporário, o app **copia o `vk_host`** para `~/.local/share/vaultkeeper/bin/vk_host` — um local fixo e persistente
+- Os manifestos dos navegadores apontam para esse caminho fixo
+- Resultado: **a extensão funciona mesmo sem o app de desktop aberto**
+- A cada abertura do app, o binário é atualizado automaticamente
 
-Data is stored in your home directory:
+---
 
-| Platform | Location |
-|----------|----------|
-| Windows | `%USERPROFILE%\.vaultkeeper\` |
-| macOS | `~/.vaultkeeper/` |
-| Linux | `~/.vaultkeeper/` |
+## 🛡️ Segurança
 
-Files:
-- `vault.db` - SQLite database (encrypted)
-- `auth.json` - Authentication config
-- `native_host.log` - Debug logs
+### Criptografia
 
-## 🔌 Browser Extension
+| Componente            | Tecnologia                      |
+| --------------------- | ------------------------------- |
+| Hash da Senha Mestre  | Argon2id (recomendado OWASP)    |
+| Criptografia do Banco | AES-256-GCM                     |
+| Salt                  | Único por credencial (16 bytes) |
+| Derivação de Chave    | PBKDF2 com 600.000 iterações    |
 
-### Installation
+### Proteções
 
-1. Open your browser's extension page:
+- 🔒 Bloqueio automático após inatividade
+- 🧹 Limpeza automática da área de transferência
+- 🚫 Chave de criptografia nunca salva em disco
+- 🔐 Toda criptografia acontece localmente
+
+---
+
+## 📁 Armazenamento
+
+| Plataforma | Local                         |
+| ---------- | ----------------------------- |
+| Windows    | `%USERPROFILE%\.vaultkeeper\` |
+| Linux      | `~/.vaultkeeper/`             |
+
+**Arquivos:**
+
+- `vault.db` — Banco de dados SQLite (criptografado)
+- `auth.json` — Configurações de autenticação
+- `native_host.log` — Logs de debug do native host
+
+---
+
+## 🔌 Extensão do Navegador
+
+### Navegadores suportados
+
+| Navegador | Windows | Linux               |
+| --------- | ------- | ------------------- |
+| Chrome    | ✅      | ✅                  |
+| Firefox   | ✅      | ✅ (+ Snap/Flatpak) |
+| Edge      | ✅      | ✅                  |
+| Brave     | ✅      | ✅                  |
+| Chromium  | ✅      | ✅ (+ Snap)         |
+| Vivaldi   | ✅      | ✅                  |
+| Opera     | ✅      | ✅                  |
+| Zen       | ✅      | ✅                  |
+
+### Instalação da extensão
+
+1. Abra a página de extensões do seu navegador:
    - Chrome: `chrome://extensions/`
    - Firefox: `about:addons`
    - Edge: `edge://extensions/`
 
-2. Enable **Developer Mode**
+2. Ative o **Modo Desenvolvedor**
 
-3. Click **Load Unpacked** and select the `extension/` folder
+3. Clique em **Carregar sem compactação** e selecione a pasta `extension/`
 
-4. The extension will automatically connect to the desktop app
+4. A extensão conecta automaticamente ao app desktop
 
-### Features
+### Reconectar manualmente
 
-- 🔍 Auto-detect login forms
-- 📝 Auto-fill credentials
-- 🔎 Search passwords
-- 📋 Copy passwords to clipboard
-- ➕ Save new credentials
+Se a extensão não conectar, abra o app Tauri e vá em **Settings > General > Browser Extension**:
 
-## 🛠️ Development
+- **Reconnect All** — Reinstala os manifestos para todos os navegadores detectados
+- **Select Browser** — Instala para um navegador específico
+- **Custom Path** — Instalação manual em um diretório personalizado
 
-### Prerequisites
+### Funcionalidades
 
-- [Node.js](https://nodejs.org/) 18+
-- [Rust](https://rustup.rs/)
-- [Tauri CLI](https://tauri.app/v1/guides/getting-started/prerequisites)
+- 🔍 Detecção automática de formulários de login
+- 📝 Preenchimento automático de credenciais
+- 🔎 Busca de senhas
+- 📋 Copiar senhas para a área de transferência
+- ➕ Salvar novas credenciais
+- 🔑 Suporte a TOTP (autenticação em dois fatores)
+- 💳 Cartões de crédito e notas seguras
 
-### Setup
+---
 
-```bash
-cd vaultkeeper-tauri
+## 🔄 Atualizações Automáticas
 
-# Install dependencies
-npm install
+O VaultKeeper verifica automaticamente por novas versões no GitHub ao iniciar:
 
-# Run development server
-npm run tauri:dev
+1. Um toast aparece quando há uma atualização disponível
+2. Clique em **"Atualizar Agora"** para baixar
+3. O app reinicia automaticamente
 
-# Build for production
-npm run tauri:build
+As atualizações são assinadas com chave privada para segurança.
+
+---
+
+## 🐛 Solução de Problemas
+
+### App não abre
+
+- Verifique se `~/.vaultkeeper/` tem permissões de escrita
+- Windows: tente executar como administrador
+
+### Extensão não conecta
+
+1. Certifique-se de que o app desktop foi aberto pelo menos uma vez (para criar os manifestos)
+2. Abra **Settings > Browser Extension > Reconnect All** no app
+3. Reinicie o navegador
+4. Verifique o console do navegador para erros
+
+### Versão Python não foi removida (Windows)
+
+1. Desinstale manualmente pelo Painel de Controle
+2. Ou baixe o instalador da v2.0.2+ que detecta e remove automaticamente
+
+### Atualização falha
+
+1. Verifique sua conexão com a internet
+2. Baixe manualmente da página de [Releases](https://github.com/GabrielSantos23/VaultKeeper/releases)
+
+---
+
+## 🛠️ Desenvolvimento
+
+### Estrutura do Projeto
+
+```
+VaultKeeper/
+├── vaultkeeper-tauri/          # App desktop (Tauri v2)
+│   ├── src/                    # Frontend React
+│   │   ├── components/         # Componentes React
+│   │   ├── stores/             # Estado (Zustand)
+│   │   ├── views/              # Páginas
+│   │   └── hooks/              # Hooks personalizados
+│   ├── src-tauri/              # Backend Rust
+│   │   ├── src/
+│   │   │   ├── main.rs         # Entry point
+│   │   │   ├── native_host.rs  # Configuração do native messaging
+│   │   │   └── lib.rs          # Módulos compartilhados
+│   │   └── icons/              # Ícones do app
+│   └── package.json
+├── app/                        # Código Python (native host + vault)
+│   ├── native/
+│   │   ├── host.py             # Native messaging host
+│   │   └── installer.py        # Instalador dos manifestos
+│   └── core/
+│       ├── vault.py            # Gerenciador de credenciais
+│       └── auth.py             # Autenticação
+├── extension/                  # Extensão do navegador
+└── logo.png                    # Logo do VaultKeeper
 ```
 
-### Project Structure
+---
 
-```
-vaultkeeper-tauri/
-├── src/
-│   ├── components/     # React components
-│   ├── stores/         # Zustand state management
-│   ├── views/          # Page views
-│   └── hooks/          # Custom React hooks
-├── src-tauri/
-│   ├── src/            # Rust backend code
-│   └── Cargo.toml      # Rust dependencies
-├── extension/          # Browser extension
-└── package.json
-```
+## 📄 Licença
 
-## 🔄 Auto-Updates
+MIT License — veja o arquivo [LICENSE](LICENSE) para detalhes.
 
-VaultKeeper includes an auto-updater that checks for new versions on GitHub. When an update is available:
+## 🙏 Agradecimentos
 
-1. You'll see a notification in the app
-2. Click "Update Now" to download
-3. The app will restart automatically
-
-Updates are signed with our private key for security.
-
-## 🐛 Troubleshooting
-
-### App won't start
-
-- Check that `~/.vaultkeeper/` has write permissions
-- Try running as administrator (Windows) or with `sudo` (Linux/macOS)
-
-### Data not appearing after migration
-
-1. Verify the Python app was closed before installing
-2. Check that data exists in `~/.vaultkeeper/vault.db`
-3. Try logging out and back in
-
-### Extension not connecting
-
-1. Make sure the desktop app is running
-2. Check the browser console for errors
-3. Reinstall the Native Host:
-   ```bash
-   python -m app.native.installer install
-   ```
-
-### Update fails
-
-1. Check your internet connection
-2. Try downloading manually from GitHub Releases
-3. Report the issue with logs from `~/.vaultkeeper/logs/`
-
-## 📝 Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history.
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Built with [Tauri](https://tauri.app/)
-- UI powered by [React](https://react.dev/) and [Tailwind CSS](https://tailwindcss.com/)
-- Icons by [HugeIcons](https://hugeicons.com/)
+- Construído com [Tauri](https://tauri.app/)
+- UI com [React](https://react.dev/) e [Tailwind CSS](https://tailwindcss.com/)
+- Ícones por [HugeIcons](https://hugeicons.com/)
 
 ---
 
 <p align="center">
-  Made with ❤️ by the VaultKeeper Team
+  Feito com ❤️ por <a href="https://github.com/GabrielSantos23">Gabriel Santos</a>
 </p>
