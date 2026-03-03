@@ -28,6 +28,18 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Python Native Host
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller cryptography argon2-cffi
+          pyinstaller --noconfirm --onefile --console --name vk_host app/native/host.py
+          python -c "import os, shutil; os.makedirs('vaultkeeper-tauri/src-tauri/bin', exist_ok=True); [shutil.copy(os.path.join('dist', f), 'vaultkeeper-tauri/src-tauri/bin') for f in os.listdir('dist') if f.startswith('vk_host')]"
 
       - name: Install dependencies
         run: bun install
