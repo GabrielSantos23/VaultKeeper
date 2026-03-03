@@ -275,56 +275,7 @@ impl VaultManager {
             .ok_or_else(|| "Vault is locked".into())
     }
 
-    fn row_to_credential(&self, row: &Row) -> SqliteResult<Credential> {
-        let id: i64 = row.get(0)?;
-        let domain: String = row.get(1)?;
-        let username: String = row.get(2)?;
-        // Password might be TEXT or BLOB
-        let password_raw: String = row.get(3)?;
-        let notes_raw: Option<String> = row.get(4)?;
-        let favorite: bool = row.get(5)?;
-        let folder_id: Option<i64> = row.get(6)?;
-        let created_at: String = row.get(7)?;
-        let updated_at: String = row.get(8)?;
 
-        // Fast path: if password is short, it's plaintext
-        let password = if password_raw.len() < 40 {
-            password_raw
-        } else {
-            // Try to decrypt password - fallback to raw string if decryption fails
-            self.get_master_password()
-                .ok()
-                .and_then(|master_pw| {
-                    crate::crypto::decrypt_if_encrypted(&password_raw, master_pw).ok()
-                })
-                .unwrap_or(password_raw)
-        };
-
-        // Fast path for notes
-        let notes = notes_raw.and_then(|notes_str| {
-            if notes_str.len() < 40 {
-                Some(notes_str)
-            } else {
-                self.get_master_password().ok().and_then(|master_pw| {
-                    crate::crypto::decrypt_if_encrypted(&notes_str, master_pw).ok()
-                })
-            }
-        });
-
-        Ok(Credential {
-            id,
-            domain,
-            username,
-            password,
-            notes,
-            totp_secret: None,
-            backup_codes: None,
-            favorite,
-            folder_id,
-            created_at,
-            updated_at,
-        })
-    }
 
     pub fn get_credentials(&self) -> Result<Vec<Credential>, Box<dyn std::error::Error>> {
         let start = std::time::Instant::now();
@@ -633,39 +584,7 @@ impl VaultManager {
         Ok(())
     }
 
-    fn row_to_note(&self, row: &Row) -> SqliteResult<SecureNote> {
-        let id: i64 = row.get(0)?;
-        let title: String = row.get(1)?;
-        // Content might be TEXT or BLOB in the database
-        let content_raw: String = row.get(2)?;
-        let folder_id: Option<i64> = row.get(3)?;
-        let favorite: bool = row.get(4)?;
-        let created_at: String = row.get(5)?;
-        let updated_at: String = row.get(6)?;
 
-        // Fast path: if content is short, it's plaintext
-        let content = if content_raw.len() < 40 {
-            content_raw
-        } else {
-            // Try to decrypt content - fallback to raw string if decryption fails
-            self.get_master_password()
-                .ok()
-                .and_then(|master_pw| {
-                    crate::crypto::decrypt_if_encrypted(&content_raw, master_pw).ok()
-                })
-                .unwrap_or(content_raw)
-        };
-
-        Ok(SecureNote {
-            id,
-            title,
-            content,
-            folder_id,
-            favorite,
-            created_at,
-            updated_at,
-        })
-    }
 
     pub fn get_secure_notes(&self) -> Result<Vec<SecureNote>, Box<dyn std::error::Error>> {
         let start = std::time::Instant::now();
@@ -805,61 +724,7 @@ impl VaultManager {
         Ok(())
     }
 
-    fn row_to_card(&self, row: &Row) -> SqliteResult<CreditCard> {
-        let id: i64 = row.get(0)?;
-        let title: String = row.get(1)?;
-        // Card fields might be TEXT or BLOB
-        let card_number_raw: String = row.get(2)?;
-        let cardholder_name_raw: String = row.get(3)?;
-        let expiry_date_raw: String = row.get(4)?;
-        let cvv_raw: String = row.get(5)?;
-        let notes_raw: Option<String> = row.get(6)?;
-        let favorite: bool = row.get(7)?;
-        let folder_id: Option<i64> = row.get(8)?;
-        let created_at: String = row.get(9)?;
-        let updated_at: String = row.get(10)?;
 
-        let master_pw = self.get_master_password().ok();
-
-        // Helper to decrypt field - fast path for short strings
-        let decrypt_field = |raw: String| -> String {
-            if raw.len() < 40 {
-                return raw;
-            }
-            if let Some(pw) = &master_pw {
-                crate::crypto::decrypt_if_encrypted(&raw, pw)
-                    .ok()
-                    .unwrap_or(raw)
-            } else {
-                raw
-            }
-        };
-
-        // Decrypt notes if present
-        let notes = notes_raw.and_then(|raw| {
-            if raw.len() < 40 {
-                Some(raw)
-            } else if let Some(pw) = &master_pw {
-                crate::crypto::decrypt_if_encrypted(&raw, pw).ok()
-            } else {
-                Some(raw)
-            }
-        });
-
-        Ok(CreditCard {
-            id,
-            title,
-            card_number: decrypt_field(card_number_raw),
-            cardholder_name: decrypt_field(cardholder_name_raw),
-            expiry_date: decrypt_field(expiry_date_raw),
-            cvv: decrypt_field(cvv_raw),
-            notes,
-            favorite,
-            folder_id,
-            created_at,
-            updated_at,
-        })
-    }
 
     pub fn get_credit_cards(&self) -> Result<Vec<CreditCard>, Box<dyn std::error::Error>> {
         let start = std::time::Instant::now();
