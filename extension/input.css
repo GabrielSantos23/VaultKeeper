@@ -1,0 +1,29 @@
+@import "tailwindcss";
+@source "./popup.html";
+@source "./popup.js";
+@source "./cards.js";
+@source "./notes.js";
+
+@theme {
+  --color-vk-bg-primary: var(--vk-bg-primary);
+  --color-vk-bg-secondary: var(--vk-bg-secondary);
+  --color-vk-bg-tertiary: var(--vk-bg-tertiary);
+  --color-vk-bg-hover: var(--vk-bg-hover);
+  --color-vk-bg-selected: var(--vk-bg-selected);
+
+  --color-vk-text-primary: var(--vk-text-primary);
+  --color-vk-text-secondary: var(--vk-text-secondary);
+  --color-vk-text-tertiary: var(--vk-text-tertiary);
+  --color-vk-text-white: var(--vk-text-white);
+  --color-vk-text-link: var(--vk-text-link);
+
+  --color-vk-border-color: var(--vk-border-color);
+  --color-vk-border-light: var(--vk-border-light);
+
+  --color-vk-accent-blue: var(--vk-accent-blue);
+  --color-vk-accent-primary: var(--vk-accent-primary);
+  --color-vk-accent-green: var(--vk-accent-green);
+  --color-vk-accent-red: var(--vk-accent-red);
+  --color-vk-accent-orange: var(--vk-accent-orange);
+  --color-vk-accent-warning: var(--vk-accent-warning);
+}

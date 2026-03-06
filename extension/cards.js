@@ -1,6 +1,7 @@
 (() => {
   const api =
-    window.browserAPI || (typeof browser !== "undefined" ? browser : chrome);
+    window.browserAPI ||
+    (typeof browser !== "undefined" && browser.runtime ? browser : chrome);
 
   let currentCards = [];
   let selectedCard = null;
@@ -55,7 +56,8 @@
 
     currentCards.forEach((card) => {
       const item = document.createElement("div");
-      item.className = "card-item";
+      item.className =
+        "flex flex-col gap-1 p-3 mb-1 cursor-pointer rounded-[var(--vk-radius-md)] border border-transparent transition-all hover:bg-[var(--vk-bg-hover)] active:scale-[0.98]";
       item.dataset.id = card.id;
       if (selectedCard && selectedCard.id === card.id) {
         item.classList.add("selected");
@@ -113,15 +115,15 @@
   function selectCard(card) {
     selectedCard = card;
 
-    document.querySelectorAll(".card-item").forEach((item) => {
+    document.querySelectorAll("[data-id]").forEach((item) => {
       item.classList.remove("selected");
       if (item.dataset.id == card.id) {
         item.classList.add("selected");
       }
     });
 
-    if (cardEmptyState) cardEmptyState.classList.add("hidden");
-    if (cardDetailPanel) cardDetailPanel.classList.remove("hidden");
+    if (cardEmptyState) cardEmptyState.classList.add("!hidden");
+    if (cardDetailPanel) cardDetailPanel.classList.remove("!hidden");
 
     document.getElementById("card-detail-title").textContent = card.title;
     document.getElementById("card-detail-holder").textContent =
@@ -218,8 +220,8 @@
       });
       if (response.success) {
         selectedCard = null;
-        if (cardEmptyState) cardEmptyState.classList.remove("hidden");
-        if (cardDetailPanel) cardDetailPanel.classList.add("hidden");
+        if (cardEmptyState) cardEmptyState.classList.remove("!hidden");
+        if (cardDetailPanel) cardDetailPanel.classList.add("!hidden");
         await loadCards();
       }
     } catch (error) {
@@ -241,9 +243,9 @@
     const editorTitle = document.getElementById("card-editor-title");
     const form = document.getElementById("card-form");
 
-    if (cardEmptyState) cardEmptyState.classList.add("hidden");
-    if (cardDetailPanel) cardDetailPanel.classList.add("hidden");
-    if (cardEditor) cardEditor.classList.remove("hidden");
+    if (cardEmptyState) cardEmptyState.classList.add("!hidden");
+    if (cardDetailPanel) cardDetailPanel.classList.add("!hidden");
+    if (cardEditor) cardEditor.classList.remove("!hidden");
 
     if (card) {
       editorTitle.textContent = "Edit Credit Card";
@@ -266,12 +268,12 @@
     const cardEmptyState = document.getElementById("card-empty-state");
     const cardDetailPanel = document.getElementById("card-detail-panel");
 
-    if (cardEditor) cardEditor.classList.add("hidden");
+    if (cardEditor) cardEditor.classList.add("!hidden");
 
     if (selectedCard) {
-      if (cardDetailPanel) cardDetailPanel.classList.remove("hidden");
+      if (cardDetailPanel) cardDetailPanel.classList.remove("!hidden");
     } else {
-      if (cardEmptyState) cardEmptyState.classList.remove("hidden");
+      if (cardEmptyState) cardEmptyState.classList.remove("!hidden");
     }
   }
 
@@ -327,15 +329,15 @@
   }
 
   function openCardsView() {
-    document.getElementById("unlocked-view")?.classList.add("hidden");
-    document.getElementById("notes-view")?.classList.add("hidden");
-    document.getElementById("cards-view")?.classList.remove("hidden");
+    document.getElementById("unlocked-view")?.classList.add("!hidden");
+    document.getElementById("notes-view")?.classList.add("!hidden");
+    document.getElementById("cards-view")?.classList.remove("!hidden");
     loadCards();
   }
 
   function closeCardsView() {
-    document.getElementById("cards-view")?.classList.add("hidden");
-    document.getElementById("unlocked-view")?.classList.remove("hidden");
+    document.getElementById("cards-view")?.classList.add("!hidden");
+    document.getElementById("unlocked-view")?.classList.remove("!hidden");
   }
 
   document.addEventListener("DOMContentLoaded", () => {

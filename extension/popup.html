@@ -5,21 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VaultKeeper</title>
     <link rel="stylesheet" href="variables.css" />
+    <link rel="stylesheet" href="tailwind.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
-  <body>
-    <div class="app">
-      <div id="loading-view" class="view loading-view">
-        <div class="spinner"></div>
+  <body
+    class="font-sans text-[13px] leading-[1.4] text-[var(--vk-text-primary)] bg-[var(--vk-bg-primary)] w-[680px] h-[480px] overflow-hidden m-0 p-0"
+  >
+    <div class="w-full h-full flex flex-col">
+      <div
+        id="loading-view"
+        class="w-full h-full flex flex-col items-center justify-center gap-4 text-[var(--vk-text-secondary)]"
+      >
+        <div
+          class="w-8 h-8 border-[3px] border-[var(--vk-border-color)] border-t-[var(--vk-accent-blue)] rounded-full animate-spin"
+        ></div>
         <p>Connecting...</p>
       </div>
 
-      <div id="locked-view" class="view locked-view hidden">
-        <div class="lock-container">
-          <div class="lock-icon">🔐</div>
+      <div
+        id="locked-view"
+        class="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--vk-bg-secondary)] to-[var(--vk-bg-primary)] !hidden"
+      >
+        <div class="text-center max-w-[280px]">
+          <div class="text-5xl mb-4">🔐</div>
           <h2>VaultKeeper</h2>
-          <p class="subtitle">Enter your master password</p>
-          <div class="input-group">
+          <p class="text-[var(--vk-text-secondary)] mb-6 tracking-wide">
+            Enter your master password
+          </p>
+          <div class="mb-4">
             <input
               type="password"
               id="master-password"
@@ -27,22 +40,43 @@
               autofocus
             />
           </div>
-          <button id="unlock-btn" class="btn-primary full-width">Unlock</button>
-          <p id="error-message" class="error hidden"></p>
+          <button
+            id="unlock-btn"
+            class="bg-[var(--vk-accent-blue)] text-[var(--vk-text-white)] border-none px-6 py-2.5 rounded-[var(--vk-radius-md)] text-sm font-medium cursor-pointer hover:brightness-110 active:brightness-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full"
+          >
+            Unlock
+          </button>
+          <p
+            id="error-message"
+            class="text-[var(--vk-accent-red)] text-[12px] mt-3 !hidden"
+          ></p>
         </div>
       </div>
 
-      <div id="disconnected-view" class="view disconnected-view hidden">
-        <div class="disconnect-container">
-          <div class="disconnect-icon">⚠️</div>
+      <div
+        id="disconnected-view"
+        class="w-full h-full flex items-center justify-center !hidden"
+      >
+        <div class="text-center">
+          <div class="text-[40px] mb-3">⚠️</div>
           <h3>Connection Failed</h3>
           <p>Could not connect to VaultKeeper app</p>
-          <button id="retry-btn" class="btn-secondary">Retry</button>
+          <button
+            id="retry-btn"
+            class="bg-[var(--vk-bg-tertiary)] text-[var(--vk-text-primary)] border border-[var(--vk-border-color)] px-5 py-2.5 rounded-[var(--vk-radius-md)] text-[13px] font-medium cursor-pointer hover:bg-[var(--vk-bg-hover)] active:bg-[var(--vk-border-color)] transition-all"
+          >
+            Retry
+          </button>
         </div>
       </div>
 
-      <div id="setup-view" class="view setup-view hidden">
-        <div class="setup-hero-icon">
+      <div
+        id="setup-view"
+        class="w-full h-full flex flex-col h-full pt-[60px] pb-10 px-10 overflow-y-auto !hidden"
+      >
+        <div
+          class="w-16 h-16 rounded-[var(--vk-radius-lg)] bg-[var(--vk-accent-blue)]/10 text-[var(--vk-accent-blue)] flex items-center justify-center mb-6 mx-auto"
+        >
           <svg
             width="24"
             height="24"
@@ -59,44 +93,75 @@
           </svg>
         </div>
 
-        <h2 class="setup-title">Welcome to VaultKeeper</h2>
-        <p class="setup-description">
+        <h2 class="text-2xl font-bold text-center mb-2">
+          Welcome to VaultKeeper
+        </h2>
+        <p
+          class="text-center text-[var(--vk-text-secondary)] mb-10 max-w-[400px] mx-auto"
+        >
           Your secure vault is almost ready. Follow these steps to complete the
           setup.
         </p>
 
-        <div class="setup-steps">
-          <div class="setup-step">
-            <div class="step-number">1</div>
-            <div class="step-text">
+        <div class="flex flex-col gap-4 max-w-[400px] mx-auto w-full mb-10">
+          <div
+            class="flex items-center gap-4 p-4 rounded-[var(--vk-radius-md)] bg-[var(--vk-bg-secondary)] border border-[var(--vk-border-color)]"
+          >
+            <div
+              class="w-8 h-8 rounded-full bg-[var(--vk-accent-blue)] text-white flex items-center justify-center font-bold text-sm shrink-0"
+            >
+              1
+            </div>
+            <div class="text-sm text-[var(--vk-text-primary)]">
               Open the <strong>VaultKeeper Desktop App</strong>
             </div>
           </div>
-          <div class="setup-step">
-            <div class="step-number">2</div>
-            <div class="step-text">
+          <div
+            class="flex items-center gap-4 p-4 rounded-[var(--vk-radius-md)] bg-[var(--vk-bg-secondary)] border border-[var(--vk-border-color)]"
+          >
+            <div
+              class="w-8 h-8 rounded-full bg-[var(--vk-accent-blue)] text-white flex items-center justify-center font-bold text-sm shrink-0"
+            >
+              2
+            </div>
+            <div class="text-sm text-[var(--vk-text-primary)]">
               Create your <strong>Master Password</strong>
             </div>
           </div>
-          <div class="setup-step">
-            <div class="step-number">3</div>
-            <div class="step-text">
+          <div
+            class="flex items-center gap-4 p-4 rounded-[var(--vk-radius-md)] bg-[var(--vk-bg-secondary)] border border-[var(--vk-border-color)]"
+          >
+            <div
+              class="w-8 h-8 rounded-full bg-[var(--vk-accent-blue)] text-white flex items-center justify-center font-bold text-sm shrink-0"
+            >
+              3
+            </div>
+            <div class="text-sm text-[var(--vk-text-primary)]">
               Return here to start using the extension
             </div>
           </div>
         </div>
 
-        <div class="status-indicator">
-          <div class="status-dot"></div>
-          <span class="status-text">Waiting for setup...</span>
+        <div class="flex items-center justify-center gap-3 mt-auto">
+          <div
+            class="w-2.5 h-2.5 rounded-full bg-[var(--vk-accent-blue)] animate-pulse shadow-[0_0_8px_rgba(212,135,42,0.5)]"
+          ></div>
+          <span class="text-[13px] font-medium text-[var(--vk-text-secondary)]"
+            >Waiting for setup...</span
+          >
         </div>
       </div>
 
-      <div id="unlocked-view" class="view unlocked-view hidden">
-        <header class="top-bar">
-          <div class="search-container">
+      <div
+        id="unlocked-view"
+        class="w-full h-full flex flex-col h-full !hidden"
+      >
+        <header
+          class="flex items-center justify-between px-4 py-3 bg-[var(--vk-bg-secondary)] border-b border-[var(--vk-border-color)] gap-3"
+        >
+          <div class="flex-1 relative max-w-[320px]">
             <svg
-              class="search-icon"
+              class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--vk-text-tertiary)] pointer-events-none"
               width="16"
               height="16"
               viewBox="0 0 24 24"
@@ -113,8 +178,12 @@
               placeholder="Search VaultKeeper"
             />
           </div>
-          <div class="top-actions">
-            <button id="refresh-btn" class="icon-btn" title="Sync / Refresh">
+          <div class="flex items-center gap-2">
+            <button
+              id="refresh-btn"
+              class="bg-transparent border-none p-2 rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
+              title="Sync / Refresh"
+            >
               <svg
                 width="18"
                 height="18"
@@ -132,7 +201,7 @@
             </button>
             <button
               id="generator-btn"
-              class="icon-btn"
+              class="bg-transparent border-none p-2 rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
               title="Password Generator"
             >
               <svg
@@ -147,7 +216,11 @@
                 />
               </svg>
             </button>
-            <button id="lock-btn" class="icon-btn" title="Lock">
+            <button
+              id="lock-btn"
+              class="bg-transparent border-none p-2 rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
+              title="Lock"
+            >
               <svg
                 width="18"
                 height="18"
@@ -159,7 +232,10 @@
                 />
               </svg>
             </button>
-            <button id="add-btn" class="btn-primary-small">
+            <button
+              id="add-btn"
+              class="flex items-center gap-1.5 bg-[var(--vk-accent-blue)] text-white border-none px-3.5 py-2 rounded-[var(--vk-radius-md)] text-[13px] font-medium cursor-pointer hover:brightness-110 active:brightness-95 transition-all shadow-sm whitespace-nowrap"
+            >
               <svg
                 width="14"
                 height="14"
@@ -175,10 +251,16 @@
           </div>
         </header>
 
-        <div class="split-view">
-          <aside class="sidebar">
-            <div class="nav-tabs">
-              <button class="nav-tab active">
+        <div class="flex flex-1 overflow-hidden">
+          <aside
+            class="w-[240px] border-r border-[var(--vk-border-color)] flex flex-col bg-[var(--vk-bg-primary)] shrink-0"
+          >
+            <div
+              class="flex flex-col gap-1 p-2 border-b border-[var(--vk-border-light)]"
+            >
+              <button
+                class="flex items-center gap-2.5 px-3 py-2 border-none bg-transparent rounded-[var(--vk-radius-sm)] text-[13px] font-medium text-[var(--vk-text-secondary)] cursor-pointer hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] text-left transition-colors w-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--vk-accent-blue)] active"
+              >
                 <svg
                   width="16"
                   height="16"
@@ -199,7 +281,10 @@
                 </svg>
                 All Items
               </button>
-              <button id="nav-cards-btn" class="nav-tab">
+              <button
+                id="nav-cards-btn"
+                class="flex items-center gap-2.5 px-3 py-2 border-none bg-transparent rounded-[var(--vk-radius-sm)] text-[13px] font-medium text-[var(--vk-text-secondary)] cursor-pointer hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] text-left transition-colors w-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--vk-accent-blue)]"
+              >
                 <svg
                   width="16"
                   height="16"
@@ -213,7 +298,10 @@
                 </svg>
                 Cards
               </button>
-              <button id="nav-notes-btn" class="nav-tab">
+              <button
+                id="nav-notes-btn"
+                class="flex items-center gap-2.5 px-3 py-2 border-none bg-transparent rounded-[var(--vk-radius-sm)] text-[13px] font-medium text-[var(--vk-text-secondary)] cursor-pointer hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] text-left transition-colors w-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--vk-accent-blue)]"
+              >
                 <svg
                   width="16"
                   height="16"
@@ -233,8 +321,14 @@
                 Notes
               </button>
             </div>
-            <div id="credentials-list" class="credentials-list">
-              <div id="credentials-loading" class="credentials-loading">
+            <div
+              id="credentials-list"
+              class="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-[var(--vk-border-color)] scrollbar-track-transparent hover:scrollbar-thumb-[var(--vk-text-tertiary)]"
+            >
+              <div
+                id="credentials-loading"
+                class="flex flex-col items-center justify-center h-full gap-3 text-sm text-[var(--vk-text-tertiary)]"
+              >
                 <svg class="loading-spinner-svg" viewBox="0 0 50 50">
                   <circle
                     class="spinner-path"
@@ -250,37 +344,64 @@
             </div>
           </aside>
 
-          <main class="detail-panel">
-            <div id="empty-state" class="empty-detail">
-              <div class="empty-icon">🔐</div>
+          <main
+            class="flex-1 flex flex-col bg-[var(--vk-bg-primary)] overflow-y-auto overflow-x-hidden min-w-0 scrollbar-thin scrollbar-thumb-[var(--vk-border-color)]"
+          >
+            <div
+              id="empty-state"
+              class="flex flex-col items-center justify-center h-full text-[var(--vk-text-tertiary)]"
+            >
+              <div class="text-5xl mb-3 opacity-50">🔐</div>
               <p>Select an item to view details</p>
             </div>
 
-            <div id="detail-content" class="detail-content hidden">
-              <div class="detail-header">
-                <div class="detail-header-row">
-                  <span class="breadcrumb">Private</span>
-                  <div class="detail-actions">
-                    <button id="fill-btn" class="btn-outline">
+            <div id="detail-content" class="p-5 !hidden">
+              <div class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                  <span
+                    class="flex items-center gap-1.5 text-xs text-[var(--vk-text-secondary)] before:content-['🔒'] before:text-sm"
+                    >Private</span
+                  >
+                  <div class="flex gap-2 relative">
+                    <button
+                      id="fill-btn"
+                      class="bg-transparent text-[var(--vk-accent-blue)] border border-[var(--vk-accent-blue)] px-4 py-2 rounded-[var(--vk-radius-md)] text-[13px] font-medium cursor-pointer hover:bg-[var(--vk-accent-blue)]/10 active:bg-[var(--vk-accent-blue)]/20 transition-all whitespace-nowrap"
+                    >
                       Open & Fill
                     </button>
-                    <button id="menu-btn" class="icon-btn-small">⋮</button>
+                    <button
+                      id="menu-btn"
+                      class="bg-transparent border-none p-1.5 cursor-pointer text-[var(--vk-text-secondary)] text-lg rounded-[var(--vk-radius-sm)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
+                    >
+                      ⋮
+                    </button>
                   </div>
                 </div>
-                <div class="detail-title-row">
-                  <div id="detail-favicon" class="detail-favicon">🌐</div>
-                  <div class="detail-title-info">
+                <div class="flex items-center gap-4">
+                  <div
+                    id="detail-favicon"
+                    class="w-12 h-12 rounded-[var(--vk-radius-md)] bg-[var(--vk-bg-tertiary)] flex items-center justify-center text-2xl shrink-0 overflow-hidden"
+                  >
+                    🌐
+                  </div>
+                  <div class="flex flex-col min-w-0 flex-1">
                     <h2 id="detail-title">Title</h2>
                   </div>
                 </div>
               </div>
 
-              <div class="detail-fields">
-                <div class="field-group">
+              <div class="flex flex-col gap-5">
+                <div
+                  class="border border-[var(--vk-border-color)] rounded-[var(--vk-radius-md)] px-4 py-3 bg-[var(--vk-bg-primary)] hover:border-[var(--vk-border-light)] transition-colors"
+                >
                   <label>username</label>
-                  <div class="field-value">
+                  <div class="flex items-center justify-between gap-2">
                     <span id="detail-username">username@example.com</span>
-                    <button class="copy-btn" data-copy="username" title="Copy">
+                    <button
+                      class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] flex items-center justify-center hover:text-[var(--vk-accent-blue)] hover:bg-[var(--vk-accent-blue)]/10 rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
+                      data-copy="username"
+                      title="Copy"
+                    >
                       <svg
                         width="16"
                         height="16"
@@ -298,17 +419,22 @@
                   </div>
                 </div>
 
-                <div class="field-group">
+                <div
+                  class="border border-[var(--vk-border-color)] rounded-[var(--vk-radius-md)] px-4 py-3 bg-[var(--vk-bg-primary)] hover:border-[var(--vk-border-light)] transition-colors"
+                >
                   <label>password</label>
-                  <div class="field-value">
-                    <span id="detail-password" class="password-masked"
+                  <div class="flex items-center justify-between gap-2">
+                    <span id="detail-password" class="font-mono tracking-[2px]"
                       >••••••••••</span
                     >
-                    <div class="password-actions">
-                      <span class="strength-badge good">Fantastic</span>
+                    <div class="flex items-center gap-2">
+                      <span
+                        id="strength-badge" class="strength-badge text-[11px] px-2 py-1 rounded-[4px] font-medium tracking-wide good"
+                        >Fantastic</span
+                      >
                       <button
                         id="toggle-password"
-                        class="icon-btn-tiny"
+                        class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] border-[var(--vk-border-color)] flex items-center justify-center hover:text-[var(--vk-text-primary)] hover:bg-[var(--vk-bg-hover)] rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
                         title="Show"
                       >
                         <svg
@@ -326,7 +452,7 @@
                         </svg>
                       </button>
                       <button
-                        class="copy-btn"
+                        class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] flex items-center justify-center hover:text-[var(--vk-accent-blue)] hover:bg-[var(--vk-accent-blue)]/10 rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
                         data-copy="password"
                         title="Copy"
                       >
@@ -354,13 +480,23 @@
                   </div>
                 </div>
 
-                <div class="field-group">
+                <div
+                  class="border border-[var(--vk-border-color)] rounded-[var(--vk-radius-md)] px-4 py-3 bg-[var(--vk-bg-primary)] hover:border-[var(--vk-border-light)] transition-colors"
+                >
                   <label>website</label>
-                  <div class="field-value">
-                    <a id="detail-url" href="#" target="_blank" class="url-link"
+                  <div class="flex items-center justify-between gap-2">
+                    <a
+                      id="detail-url"
+                      href="#"
+                      target="_blank"
+                      class="text-[var(--vk-text-link)] no-underline hover:underline text-[14px] truncate break-all"
                       >https://example.com</a
                     >
-                    <button class="copy-btn" data-copy="url" title="Copy">
+                    <button
+                      class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] flex items-center justify-center hover:text-[var(--vk-accent-blue)] hover:bg-[var(--vk-accent-blue)]/10 rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
+                      data-copy="url"
+                      title="Copy"
+                    >
                       <svg
                         width="16"
                         height="16"
@@ -378,23 +514,36 @@
                   </div>
                 </div>
 
-                <div id="totp-field-group" class="field-group hidden">
+                <div
+                  id="totp-field-group"
+                  class="border border-[var(--vk-border-color)] rounded-[var(--vk-radius-md)] px-4 py-3 bg-[var(--vk-bg-primary)] hover:border-[var(--vk-border-light)] transition-colors !hidden"
+                >
                   <label>two-factor code</label>
-                  <div class="field-value totp-value">
-                    <span id="detail-totp-code" class="totp-code">--- ---</span>
-                    <div class="totp-timer">
-                      <span id="detail-totp-countdown" class="totp-countdown"
+                  <div
+                    class="flex items-center justify-between gap-2 flex flex-col items-center gap-3 w-full py-2"
+                  >
+                    <span
+                      id="detail-totp-code"
+                      class="font-mono text-3xl font-medium tracking-[0.2em] text-[var(--vk-text-primary)] transition-colors duration-200 select-all"
+                      >--- ---</span
+                    >
+                    <div
+                      class="flex items-center justify-center gap-3 relative"
+                    >
+                      <span
+                        id="detail-totp-countdown"
+                        class="font-mono text-lg font-medium text-[var(--vk-text-secondary)] w-[3ch] text-right"
                         >30s</span
                       >
                       <svg
                         id="totp-progress"
-                        class="totp-progress-ring"
+                        class="rotate-[-90deg] drop-shadow-sm"
                         width="24"
                         height="24"
                         viewBox="0 0 24 24"
                       >
                         <circle
-                          class="totp-progress-bg"
+                          class="stroke-[var(--vk-border-color)]/30"
                           cx="12"
                           cy="12"
                           r="10"
@@ -403,7 +552,7 @@
                         />
                         <circle
                           id="totp-progress-circle"
-                          class="totp-progress-circle"
+                          class="stroke-[var(--vk-accent-green)] transition-[stroke-dashoffset,stroke] duration-1000 ease-linear"
                           cx="12"
                           cy="12"
                           r="10"
@@ -413,7 +562,11 @@
                         />
                       </svg>
                     </div>
-                    <button class="copy-btn" data-copy="totp" title="Copy TOTP">
+                    <button
+                      class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] flex items-center justify-center hover:text-[var(--vk-accent-blue)] hover:bg-[var(--vk-accent-blue)]/10 rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
+                      data-copy="totp"
+                      title="Copy TOTP"
+                    >
                       <svg
                         width="16"
                         height="16"
@@ -431,15 +584,20 @@
                   </div>
                 </div>
 
-                <div id="backup-field-group" class="field-group hidden">
+                <div
+                  id="backup-field-group"
+                  class="border border-[var(--vk-border-color)] rounded-[var(--vk-radius-md)] px-4 py-3 bg-[var(--vk-bg-primary)] hover:border-[var(--vk-border-light)] transition-colors !hidden"
+                >
                   <label>backup 2fa code</label>
-                  <div class="field-value">
-                    <span id="detail-backup-codes" class="backup-codes-masked"
+                  <div class="flex items-center justify-between gap-2">
+                    <span
+                      id="detail-backup-codes"
+                      class="font-mono tracking-[4px] leading-relaxed break-all select-none text-[var(--vk-text-secondary)]"
                       >••••••••••••••••</span
                     >
                     <button
                       id="toggle-backup"
-                      class="icon-btn-tiny"
+                      class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] border-[var(--vk-border-color)] flex items-center justify-center hover:text-[var(--vk-text-primary)] hover:bg-[var(--vk-bg-hover)] rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
                       title="Show/Hide"
                     >
                       <svg
@@ -457,7 +615,7 @@
                       </svg>
                     </button>
                     <button
-                      class="copy-btn"
+                      class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] flex items-center justify-center hover:text-[var(--vk-accent-blue)] hover:bg-[var(--vk-accent-blue)]/10 rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
                       data-copy="backup"
                       title="Copy Backup Codes"
                     >
@@ -483,10 +641,21 @@
         </div>
       </div>
 
-      <div id="generator-view" class="view generator-view hidden">
-        <div class="generator-container">
-          <div class="generator-header">
-            <button id="generator-back-btn" class="icon-btn" title="Back">
+      <div
+        id="generator-view"
+        class="w-full h-full flex justify-center pt-8 bg-[var(--vk-bg-secondary)] !hidden"
+      >
+        <div
+          class="w-full max-w-[400px] bg-[var(--vk-bg-primary)] border border-[var(--vk-border-color)] rounded-[var(--vk-radius-lg)] shadow-xl flex flex-col items-center"
+        >
+          <div
+            class="flex items-center w-full px-4 py-3 bg-[var(--vk-bg-secondary)] border-b border-[var(--vk-border-color)] rounded-t-[var(--vk-radius-lg)]"
+          >
+            <button
+              id="generator-back-btn"
+              class="bg-transparent border-none p-2 rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
+              title="Back"
+            >
               <svg
                 width="18"
                 height="18"
@@ -501,10 +670,19 @@
             <h2>Password Generator</h2>
           </div>
 
-          <div class="generator-content">
-            <div class="generator-actions-top">
-              <button id="gen-copy-btn" class="btn-outline-gen">Copy</button>
-              <button id="gen-refresh-btn" class="icon-btn" title="Regenerate">
+          <div class="w-full p-5 flex flex-col gap-5">
+            <div class="flex gap-3">
+              <button
+                id="gen-copy-btn"
+                class="flex-1 bg-transparent border border-[var(--vk-accent-blue)] text-[var(--vk-accent-blue)] py-2 rounded-[var(--vk-radius-md)] text-sm font-medium cursor-pointer hover:bg-[var(--vk-accent-blue)]/10 active:bg-[var(--vk-accent-blue)]/20 transition-all"
+              >
+                Copy
+              </button>
+              <button
+                id="gen-refresh-btn"
+                class="bg-transparent border-none p-2 rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
+                title="Regenerate"
+              >
                 <svg
                   width="18"
                   height="18"
@@ -519,20 +697,33 @@
                   />
                 </svg>
               </button>
-              <button id="gen-autofill-btn" class="btn-primary-gen">
+              <button
+                id="gen-autofill-btn"
+                class="flex-1 bg-[var(--vk-accent-blue)] text-white py-2 rounded-[var(--vk-radius-md)] text-sm font-medium cursor-pointer hover:brightness-110 active:brightness-95 transition-all shadow-sm"
+              >
                 Autofill
               </button>
             </div>
 
-            <div class="generator-password-display">
-              <span id="gen-password-text" class="gen-password-text"></span>
-              <div class="gen-strength-bar">
-                <div id="gen-strength-fill" class="gen-strength-fill"></div>
+            <div
+              class="w-full min-h-[72px] bg-[#1a1c23] border border-[#2a2d35] rounded-[var(--vk-radius-md)] flex flex-col justify-center px-4 relative mt-2 overflow-hidden shadow-inner"
+            >
+              <span
+                id="gen-password-text"
+                class="text-[16px] font-mono tracking-wider break-all text-center pb-2 select-all text-[#e8eaed]"
+              ></span>
+              <div class="absolute bottom-0 left-0 right-0 h-1 bg-black/20">
+                <div
+                  id="gen-strength-fill"
+                  class="h-full w-0 transition-all duration-300 ease-out"
+                ></div>
               </div>
             </div>
 
-            <div class="generator-options">
-              <div class="gen-option-row">
+            <div class="flex flex-col gap-4 mt-2">
+              <div
+                class="flex items-center justify-between gap-4 py-2 border-b border-[var(--vk-border-light)] last:border-0"
+              >
                 <label>Type</label>
                 <select id="gen-type-select">
                   <option value="random">Random Password</option>
@@ -540,9 +731,11 @@
                 </select>
               </div>
 
-              <div class="gen-option-row">
+              <div
+                class="flex items-center justify-between gap-4 py-2 border-b border-[var(--vk-border-light)] last:border-0"
+              >
                 <label>Characters</label>
-                <div class="gen-slider-container">
+                <div class="flex items-center gap-3 w-3/5">
                   <input
                     type="range"
                     id="gen-length-slider"
@@ -560,7 +753,9 @@
                 </div>
               </div>
 
-              <div class="gen-option-row gen-toggle-row">
+              <div
+                class="flex items-center justify-between gap-4 py-2 border-b border-[var(--vk-border-light)] last:border-0 py-2.5"
+              >
                 <label>Numbers</label>
                 <label class="gen-toggle">
                   <input type="checkbox" id="gen-numbers-toggle" checked />
@@ -568,7 +763,9 @@
                 </label>
               </div>
 
-              <div class="gen-option-row gen-toggle-row">
+              <div
+                class="flex items-center justify-between gap-4 py-2 border-b border-[var(--vk-border-light)] last:border-0 py-2.5"
+              >
                 <label>Symbols</label>
                 <label class="gen-toggle">
                   <input type="checkbox" id="gen-symbols-toggle" checked />
@@ -581,10 +778,16 @@
       </div>
 
       <!-- Credit Cards View -->
-      <div id="cards-view" class="view cards-view hidden">
-        <div class="cards-container">
-          <div class="cards-header">
-            <button id="cards-back-btn" class="icon-btn" title="Back">
+      <div id="cards-view" class="w-full h-full flex flex-col h-full !hidden">
+        <div class="flex flex-col h-full">
+          <div
+            class="flex items-center justify-between px-4 py-3 bg-[var(--vk-bg-secondary)] border-b border-[var(--vk-border-color)] shrink-0"
+          >
+            <button
+              id="cards-back-btn"
+              class="bg-transparent border-none p-2 rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
+              title="Back"
+            >
               <svg
                 width="18"
                 height="18"
@@ -597,7 +800,10 @@
               </svg>
             </button>
             <h2>Credit Cards</h2>
-            <button id="add-card-btn" class="btn-primary-small">
+            <button
+              id="add-card-btn"
+              class="flex items-center gap-1.5 bg-[var(--vk-accent-blue)] text-white border-none px-3.5 py-2 rounded-[var(--vk-radius-md)] text-[13px] font-medium cursor-pointer hover:brightness-110 active:brightness-95 transition-all shadow-sm whitespace-nowrap"
+            >
               <svg
                 width="14"
                 height="14"
@@ -611,10 +817,17 @@
               Add
             </button>
           </div>
-          <div class="cards-split-view">
-            <aside class="cards-sidebar">
-              <div class="nav-tabs">
-                <button id="nav-home-from-cards" class="nav-tab">
+          <div class="flex flex-1 overflow-hidden">
+            <aside
+              class="w-[240px] border-r border-[var(--vk-border-color)] flex flex-col bg-[var(--vk-bg-primary)] shrink-0"
+            >
+              <div
+                class="flex flex-col gap-1 p-2 border-b border-[var(--vk-border-light)]"
+              >
+                <button
+                  id="nav-home-from-cards"
+                  class="flex items-center gap-2.5 px-3 py-2 border-none bg-transparent rounded-[var(--vk-radius-sm)] text-[13px] font-medium text-[var(--vk-text-secondary)] cursor-pointer hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] text-left transition-colors w-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--vk-accent-blue)]"
+                >
                   <svg
                     width="16"
                     height="16"
@@ -635,7 +848,9 @@
                   </svg>
                   All Items
                 </button>
-                <button class="nav-tab active">
+                <button
+                  class="flex items-center gap-2.5 px-3 py-2 border-none bg-transparent rounded-[var(--vk-radius-sm)] text-[13px] font-medium text-[var(--vk-text-secondary)] cursor-pointer hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] text-left transition-colors w-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--vk-accent-blue)] active"
+                >
                   <svg
                     width="16"
                     height="16"
@@ -649,7 +864,10 @@
                   </svg>
                   Cards
                 </button>
-                <button id="nav-notes-from-cards" class="nav-tab">
+                <button
+                  id="nav-notes-from-cards"
+                  class="flex items-center gap-2.5 px-3 py-2 border-none bg-transparent rounded-[var(--vk-radius-sm)] text-[13px] font-medium text-[var(--vk-text-secondary)] cursor-pointer hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] text-left transition-colors w-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--vk-accent-blue)]"
+                >
                   <svg
                     width="16"
                     height="16"
@@ -669,8 +887,14 @@
                   Notes
                 </button>
               </div>
-              <div id="cards-list" class="cards-list">
-                <div id="cards-loading" class="credentials-loading">
+              <div
+                id="cards-list"
+                class="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-[var(--vk-border-color)] scrollbar-track-transparent h-[calc(100vh-100px)] lg:h-[calc(100vh-140px)]"
+              >
+                <div
+                  id="cards-loading"
+                  class="flex flex-col items-center justify-center h-full gap-3 text-sm text-[var(--vk-text-tertiary)]"
+                >
                   <svg class="loading-spinner-svg" viewBox="0 0 50 50">
                     <circle
                       class="spinner-path"
@@ -685,42 +909,64 @@
                 </div>
               </div>
             </aside>
-            <main class="cards-detail-panel">
-              <div id="card-empty-state" class="empty-detail">
-                <div class="empty-icon">💳</div>
+            <main
+              class="flex-1 flex flex-col bg-[var(--vk-bg-primary)] overflow-y-auto min-w-0 scrollbar-thin scrollbar-thumb-[var(--vk-border-color)]"
+            >
+              <div
+                id="card-empty-state"
+                class="flex flex-col items-center justify-center h-full text-[var(--vk-text-tertiary)]"
+              >
+                <div class="text-5xl mb-3 opacity-50">💳</div>
                 <p>Select a card to view details</p>
               </div>
-              <div id="card-detail-panel" class="detail-content hidden">
-                <div class="card-visual">
-                  <div class="card-visual-bg">
-                    <div class="card-visual-number" id="card-detail-number">
+              <div id="card-detail-panel" class="p-5 !hidden">
+                <div
+                  class="mb-8 max-w-[360px] mx-auto transform hover:scale-[1.02] transition-transform duration-300"
+                >
+                  <div
+                    class="aspect-[1.58] bg-gradient-to-br from-[#2a303c] to-[#1e2329] rounded-[var(--vk-radius-lg)] p-6 flex flex-col justify-between shadow-[0_8px_20px_rgba(0,0,0,0.4)] relative overflow-hidden border border-white/5"
+                  >
+                    <div
+                      class="font-mono text-xl tracking-[0.2em] text-white mt-8 shadow-sm text-shadow-sm"
+                      id="card-detail-number"
+                    >
                       •••• •••• •••• ••••
                     </div>
-                    <div class="card-visual-info">
-                      <div class="card-visual-holder">
-                        <span class="label">CARDHOLDER</span>
+                    <div class="flex justify-between items-end">
+                      <div class="flex flex-col gap-1 max-w-[70%]">
+                        <span
+                          class="text-[9px] text-white/50 tracking-widest uppercase font-semibold"
+                          >CARDHOLDER</span
+                        >
                         <span id="card-detail-holder">Name</span>
                       </div>
-                      <div class="card-visual-expiry">
-                        <span class="label">EXPIRES</span>
+                      <div class="flex flex-col items-end gap-1">
+                        <span
+                          class="text-[9px] text-white/50 tracking-widest uppercase font-semibold"
+                          >EXPIRES</span
+                        >
                         <span id="card-detail-expiry">MM/YY</span>
                       </div>
                     </div>
                   </div>
                 </div>
-                <div class="card-fields">
-                  <div class="field-group">
+                <div class="flex flex-col gap-4 max-w-[400px] mx-auto w-full">
+                  <div
+                    class="border border-[var(--vk-border-color)] rounded-[var(--vk-radius-md)] px-4 py-3 bg-[var(--vk-bg-primary)] hover:border-[var(--vk-border-light)] transition-colors"
+                  >
                     <label>Card Title</label>
-                    <div class="field-value">
+                    <div class="flex items-center justify-between gap-2">
                       <span id="card-detail-title">Card Name</span>
                     </div>
                   </div>
-                  <div class="field-group">
+                  <div
+                    class="border border-[var(--vk-border-color)] rounded-[var(--vk-radius-md)] px-4 py-3 bg-[var(--vk-bg-primary)] hover:border-[var(--vk-border-light)] transition-colors"
+                  >
                     <label>Card Number</label>
-                    <div class="field-value">
+                    <div class="flex items-center justify-between gap-2">
                       <span id="card-number-display">•••• •••• •••• ••••</span>
                       <button
-                        class="copy-btn"
+                        class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] flex items-center justify-center hover:text-[var(--vk-accent-blue)] hover:bg-[var(--vk-accent-blue)]/10 rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
                         data-copy-card="number"
                         title="Copy"
                       >
@@ -746,13 +992,15 @@
                       </button>
                     </div>
                   </div>
-                  <div class="field-group">
+                  <div
+                    class="border border-[var(--vk-border-color)] rounded-[var(--vk-radius-md)] px-4 py-3 bg-[var(--vk-bg-primary)] hover:border-[var(--vk-border-light)] transition-colors"
+                  >
                     <label>CVV</label>
-                    <div class="field-value">
+                    <div class="flex items-center justify-between gap-2">
                       <span id="card-detail-cvv">•••</span>
                       <button
                         id="toggle-card-cvv"
-                        class="icon-btn-tiny"
+                        class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] border-[var(--vk-border-color)] flex items-center justify-center hover:text-[var(--vk-text-primary)] hover:bg-[var(--vk-bg-hover)] rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
                         title="Show"
                       >
                         <svg
@@ -770,7 +1018,7 @@
                         </svg>
                       </button>
                       <button
-                        class="copy-btn"
+                        class="bg-transparent border-none p-1 cursor-pointer text-[var(--vk-text-tertiary)] flex items-center justify-center hover:text-[var(--vk-accent-blue)] hover:bg-[var(--vk-accent-blue)]/10 rounded-[var(--vk-radius-sm)] transition-colors shrink-0"
                         data-copy-card="cvv"
                         title="Copy"
                       >
@@ -797,19 +1045,30 @@
                     </div>
                   </div>
                 </div>
-                <div class="card-actions">
-                  <button id="autofill-card-btn" class="btn-primary">
+                <div
+                  class="flex gap-3 justify-end mt-8 pt-5 border-t border-[var(--vk-border-light)] max-w-[400px] mx-auto w-full"
+                >
+                  <button
+                    id="autofill-card-btn"
+                    class="bg-[var(--vk-accent-blue)] text-[var(--vk-text-white)] border-none px-6 py-2.5 rounded-[var(--vk-radius-md)] text-sm font-medium cursor-pointer hover:brightness-110 active:brightness-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     Autofill Card
                   </button>
-                  <button id="delete-card-btn" class="btn-ghost danger">
+                  <button
+                    id="delete-card-btn"
+                    class="bg-transparent border-none text-[var(--vk-text-secondary)] px-4 py-2 text-sm font-medium cursor-pointer hover:text-[var(--vk-text-primary)] hover:bg-[var(--vk-bg-hover)] rounded-[var(--vk-radius-md)] transition-all text-[var(--vk-accent-red)]"
+                  >
                     Delete
                   </button>
                 </div>
               </div>
-              <div id="card-editor" class="card-editor hidden">
+              <div
+                id="card-editor"
+                class="p-5 max-w-[500px] mx-auto w-full !hidden"
+              >
                 <h3 id="card-editor-title">Add Credit Card</h3>
                 <form id="card-form">
-                  <div class="form-group">
+                  <div class="mb-4">
                     <label>Card Title</label>
                     <input
                       type="text"
@@ -818,7 +1077,7 @@
                       required
                     />
                   </div>
-                  <div class="form-group">
+                  <div class="mb-4">
                     <label>Cardholder Name</label>
                     <input
                       type="text"
@@ -827,7 +1086,7 @@
                       required
                     />
                   </div>
-                  <div class="form-group">
+                  <div class="mb-4">
                     <label>Card Number</label>
                     <input
                       type="text"
@@ -837,8 +1096,8 @@
                       required
                     />
                   </div>
-                  <div class="form-row">
-                    <div class="form-group">
+                  <div class="flex gap-4 mb-4">
+                    <div class="mb-4">
                       <label>Expiry Date</label>
                       <input
                         type="text"
@@ -848,7 +1107,7 @@
                         required
                       />
                     </div>
-                    <div class="form-group">
+                    <div class="mb-4">
                       <label>CVV</label>
                       <input
                         type="text"
@@ -859,7 +1118,7 @@
                       />
                     </div>
                   </div>
-                  <div class="form-group">
+                  <div class="mb-4">
                     <label>Notes (optional)</label>
                     <textarea
                       id="card-notes-input"
@@ -867,15 +1126,22 @@
                       placeholder="Additional notes..."
                     ></textarea>
                   </div>
-                  <div class="card-editor-actions">
+                  <div
+                    class="flex justify-end gap-3 mt-8 pt-5 border-t border-[var(--vk-border-light)]"
+                  >
                     <button
                       type="button"
                       id="cancel-card-btn"
-                      class="btn-ghost"
+                      class="bg-transparent border-none text-[var(--vk-text-secondary)] px-4 py-2 text-sm font-medium cursor-pointer hover:text-[var(--vk-text-primary)] hover:bg-[var(--vk-bg-hover)] rounded-[var(--vk-radius-md)] transition-all"
                     >
                       Cancel
                     </button>
-                    <button type="submit" class="btn-primary">Save Card</button>
+                    <button
+                      type="submit"
+                      class="bg-[var(--vk-accent-blue)] text-[var(--vk-text-white)] border-none px-6 py-2.5 rounded-[var(--vk-radius-md)] text-sm font-medium cursor-pointer hover:brightness-110 active:brightness-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Save Card
+                    </button>
                   </div>
                 </form>
               </div>
@@ -884,10 +1150,16 @@
         </div>
       </div>
 
-      <div id="notes-view" class="view notes-view hidden">
-        <div class="notes-container">
-          <div class="notes-header">
-            <button id="notes-back-btn" class="icon-btn" title="Back">
+      <div id="notes-view" class="w-full h-full flex flex-col h-full !hidden">
+        <div class="flex flex-col h-full">
+          <div
+            class="flex items-center justify-between px-4 py-3 bg-[var(--vk-bg-secondary)] border-b border-[var(--vk-border-color)] shrink-0"
+          >
+            <button
+              id="notes-back-btn"
+              class="bg-transparent border-none p-2 rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
+              title="Back"
+            >
               <svg
                 width="18"
                 height="18"
@@ -900,7 +1172,10 @@
               </svg>
             </button>
             <h2>Secure Notes</h2>
-            <button id="add-note-btn" class="btn-primary-small">
+            <button
+              id="add-note-btn"
+              class="flex items-center gap-1.5 bg-[var(--vk-accent-blue)] text-white border-none px-3.5 py-2 rounded-[var(--vk-radius-md)] text-[13px] font-medium cursor-pointer hover:brightness-110 active:brightness-95 transition-all shadow-sm whitespace-nowrap"
+            >
               <svg
                 width="14"
                 height="14"
@@ -914,10 +1189,17 @@
               Add
             </button>
           </div>
-          <div class="notes-split-view">
-            <aside class="notes-sidebar">
-              <div class="nav-tabs">
-                <button id="nav-home-from-notes" class="nav-tab">
+          <div class="flex flex-1 overflow-hidden">
+            <aside
+              class="w-[240px] border-r border-[var(--vk-border-color)] flex flex-col bg-[var(--vk-bg-primary)] shrink-0"
+            >
+              <div
+                class="flex flex-col gap-1 p-2 border-b border-[var(--vk-border-light)]"
+              >
+                <button
+                  id="nav-home-from-notes"
+                  class="flex items-center gap-2.5 px-3 py-2 border-none bg-transparent rounded-[var(--vk-radius-sm)] text-[13px] font-medium text-[var(--vk-text-secondary)] cursor-pointer hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] text-left transition-colors w-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--vk-accent-blue)]"
+                >
                   <svg
                     width="16"
                     height="16"
@@ -938,7 +1220,10 @@
                   </svg>
                   All Items
                 </button>
-                <button id="nav-cards-from-notes" class="nav-tab">
+                <button
+                  id="nav-cards-from-notes"
+                  class="flex items-center gap-2.5 px-3 py-2 border-none bg-transparent rounded-[var(--vk-radius-sm)] text-[13px] font-medium text-[var(--vk-text-secondary)] cursor-pointer hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] text-left transition-colors w-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--vk-accent-blue)]"
+                >
                   <svg
                     width="16"
                     height="16"
@@ -952,7 +1237,9 @@
                   </svg>
                   Cards
                 </button>
-                <button class="nav-tab active">
+                <button
+                  class="flex items-center gap-2.5 px-3 py-2 border-none bg-transparent rounded-[var(--vk-radius-sm)] text-[13px] font-medium text-[var(--vk-text-secondary)] cursor-pointer hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] text-left transition-colors w-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--vk-accent-blue)] active"
+                >
                   <svg
                     width="16"
                     height="16"
@@ -972,8 +1259,14 @@
                   Notes
                 </button>
               </div>
-              <div id="notes-list" class="notes-list">
-                <div id="notes-loading" class="credentials-loading">
+              <div
+                id="notes-list"
+                class="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-[var(--vk-border-color)] scrollbar-track-transparent"
+              >
+                <div
+                  id="notes-loading"
+                  class="flex flex-col items-center justify-center h-full gap-3 text-sm text-[var(--vk-text-tertiary)]"
+                >
                   <svg class="loading-spinner-svg" viewBox="0 0 50 50">
                     <circle
                       class="spinner-path"
@@ -988,20 +1281,30 @@
                 </div>
               </div>
             </aside>
-            <main class="notes-detail-panel">
-              <div id="note-empty-state" class="empty-detail">
-                <div class="empty-icon">📝</div>
+            <main
+              class="flex-1 flex flex-col bg-[var(--vk-bg-primary)] overflow-hidden relative min-w-0"
+            >
+              <div
+                id="note-empty-state"
+                class="flex flex-col items-center justify-center h-full text-[var(--vk-text-tertiary)]"
+              >
+                <div class="text-5xl mb-3 opacity-50">📝</div>
                 <p>Select a note to view details</p>
               </div>
-              <div id="note-detail-panel" class="detail-content hidden">
-                <div class="note-detail-header">
-                  <div class="header-main">
+              <div id="note-detail-panel" class="p-5 !hidden">
+                <div
+                  class="flex justify-between items-start py-5 px-6 border-b border-[var(--vk-border-light)] bg-[var(--vk-bg-primary)] sticky top-0 z-10 shrink-0"
+                >
+                  <div class="flex flex-col gap-1.5 flex-1 min-w-0 pr-4">
                     <h3 id="note-detail-title">Note Title</h3>
-                    <span id="note-detail-date" class="note-date"></span>
+                    <span
+                      id="note-detail-date"
+                      class="text-xs text-[var(--vk-text-tertiary)] flex items-center gap-1 before:content-['📅'] before:text-[10px]"
+                    ></span>
                   </div>
-                  <div class="note-actions-inline">
+                  <div class="flex gap-2 self-start shrink-0">
                     <button
-                      class="icon-btn-small"
+                      class="bg-transparent border-none p-1.5 cursor-pointer text-[var(--vk-text-secondary)] text-lg rounded-[var(--vk-radius-sm)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
                       id="copy-md-note-btn"
                       title="Copy as MD"
                     >
@@ -1027,7 +1330,7 @@
                       </svg>
                     </button>
                     <button
-                      class="icon-btn-small"
+                      class="bg-transparent border-none p-1.5 cursor-pointer text-[var(--vk-text-secondary)] text-lg rounded-[var(--vk-radius-sm)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
                       id="edit-note-btn"
                       title="Edit"
                     >
@@ -1048,7 +1351,7 @@
                       </svg>
                     </button>
                     <button
-                      class="icon-btn-small danger"
+                      class="bg-transparent border-none p-1.5 cursor-pointer text-[var(--vk-text-secondary)] text-lg rounded-[var(--vk-radius-sm)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0 text-[var(--vk-accent-red)]"
                       id="delete-note-btn"
                       title="Delete"
                     >
@@ -1068,19 +1371,33 @@
                     </button>
                   </div>
                 </div>
-                <div id="note-detail-content" class="note-content"></div>
+                <div
+                  id="note-detail-content"
+                  class="p-6 text-[14px] leading-[1.6] whitespace-pre-wrap overflow-y-auto flex-1 break-words pb-10 text-[var(--vk-text-primary)] markdown-body"
+                ></div>
               </div>
-              <div id="note-editor" class="note-editor hidden">
-                <div class="note-editor-header">
+              <div
+                id="note-editor"
+                class="flex flex-col h-full bg-[var(--vk-bg-primary)] absolute inset-0 z-10 animate-[fade-in_0.2s_ease] !hidden"
+              >
+                <div
+                  class="px-5 py-4 border-b border-[var(--vk-border-light)] shrink-0 bg-[var(--vk-bg-primary)]"
+                >
                   <input
                     type="text"
                     id="note-editor-title"
                     placeholder="Note title"
-                    class="note-title-input"
+                    class="w-full border-none bg-transparent text-xl font-semibold outline-none text-[var(--vk-text-primary)] placeholder-[var(--vk-text-tertiary)] transition-colors focus:placeholder-transparent"
                   />
                 </div>
-                <div class="note-editor-toolbar">
-                  <button id="format-bold" class="toolbar-btn" title="Bold">
+                <div
+                  class="flex items-center gap-1.5 p-2.5 border-b border-[var(--vk-border-light)] bg-[var(--vk-bg-secondary)] shrink-0 overflow-x-auto shadow-sm sticky top-[73px] z-20"
+                >
+                  <button
+                    id="format-bold"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
+                    title="Bold"
+                  >
                     <svg
                       width="14"
                       height="14"
@@ -1092,7 +1409,11 @@
                       />
                     </svg>
                   </button>
-                  <button id="format-italic" class="toolbar-btn" title="Italic">
+                  <button
+                    id="format-italic"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
+                    title="Italic"
+                  >
                     <svg
                       width="14"
                       height="14"
@@ -1106,7 +1427,7 @@
                   </button>
                   <button
                     id="format-underline"
-                    class="toolbar-btn"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
                     title="Underline"
                   >
                     <svg
@@ -1120,8 +1441,14 @@
                       />
                     </svg>
                   </button>
-                  <div class="toolbar-divider"></div>
-                  <button id="format-code" class="toolbar-btn" title="Code">
+                  <div
+                    class="w-px h-5 bg-[var(--vk-border-color)] mx-1.5 shrink-0"
+                  ></div>
+                  <button
+                    id="format-code"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
+                    title="Code"
+                  >
                     <svg
                       width="14"
                       height="14"
@@ -1134,10 +1461,12 @@
                       <polyline points="8 6 2 12 8 18"></polyline>
                     </svg>
                   </button>
-                  <div class="toolbar-divider"></div>
+                  <div
+                    class="w-px h-5 bg-[var(--vk-border-color)] mx-1.5 shrink-0"
+                  ></div>
                   <button
                     id="format-ul"
-                    class="toolbar-btn"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
                     title="Bullet List"
                   >
                     <svg
@@ -1153,7 +1482,7 @@
                   </button>
                   <button
                     id="format-ol"
-                    class="toolbar-btn"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
                     title="Numbered List"
                   >
                     <svg
@@ -1170,18 +1499,38 @@
                       />
                     </svg>
                   </button>
-                  <div class="toolbar-divider"></div>
-                  <button id="format-h1" class="toolbar-btn" title="Heading 1">
+                  <div
+                    class="w-px h-5 bg-[var(--vk-border-color)] mx-1.5 shrink-0"
+                  ></div>
+                  <button
+                    id="format-h1"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
+                    title="Heading 1"
+                  >
                     H1
                   </button>
-                  <button id="format-h2" class="toolbar-btn" title="Heading 2">
+                  <button
+                    id="format-h2"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
+                    title="Heading 2"
+                  >
                     H2
                   </button>
-                  <button id="format-h3" class="toolbar-btn" title="Heading 3">
+                  <button
+                    id="format-h3"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
+                    title="Heading 3"
+                  >
                     H3
                   </button>
-                  <div class="toolbar-divider"></div>
-                  <button id="format-link" class="toolbar-btn" title="Link">
+                  <div
+                    class="w-px h-5 bg-[var(--vk-border-color)] mx-1.5 shrink-0"
+                  ></div>
+                  <button
+                    id="format-link"
+                    class="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-[var(--vk-radius-sm)] cursor-pointer text-[var(--vk-text-secondary)] transition-all hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:scale-95"
+                    title="Link"
+                  >
                     <svg
                       width="14"
                       height="14"
@@ -1201,13 +1550,23 @@
                 </div>
                 <div
                   id="note-editor-content"
-                  class="note-editor-content"
+                  class="flex-1 p-6 overflow-y-auto outline-none text-[14px] leading-relaxed text-[var(--vk-text-primary)] bg-[var(--vk-bg-primary)] min-h-[300px]"
                   contenteditable="true"
                   placeholder="Write your note..."
                 ></div>
-                <div class="note-editor-actions">
-                  <button id="cancel-note-btn" class="btn-ghost">Cancel</button>
-                  <button id="save-note-btn" class="btn-primary">
+                <div
+                  class="p-4 border-t border-[var(--vk-border-light)] flex justify-end gap-3 shrink-0 bg-[var(--vk-bg-primary)] sticky bottom-0 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
+                >
+                  <button
+                    id="cancel-note-btn"
+                    class="bg-transparent border-none text-[var(--vk-text-secondary)] px-4 py-2 text-sm font-medium cursor-pointer hover:text-[var(--vk-text-primary)] hover:bg-[var(--vk-bg-hover)] rounded-[var(--vk-radius-md)] transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="save-note-btn"
+                    class="bg-[var(--vk-accent-blue)] text-[var(--vk-text-white)] border-none px-6 py-2.5 rounded-[var(--vk-radius-md)] text-sm font-medium cursor-pointer hover:brightness-110 active:brightness-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     Save Note
                   </button>
                 </div>
@@ -1217,15 +1576,30 @@
         </div>
       </div>
 
-      <div id="modal" class="modal hidden">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-          <div class="modal-header">
+      <div
+        id="modal"
+        class="fixed inset-0 flex items-center justify-center z-[100] !hidden"
+      >
+        <div
+          id="modal-backdrop"
+          class="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+        ></div>
+        <div
+          class="relative bg-[var(--vk-bg-primary)] rounded-[var(--vk-radius-lg)] w-[500px] max-h-[90%] overflow-y-auto shadow-2xl border border-[var(--vk-border-light)]"
+        >
+          <div
+            class="flex items-center justify-between px-5 py-4 border-b border-[var(--vk-border-light)] sticky top-0 bg-[var(--vk-bg-primary)] z-10"
+          >
             <h3 id="modal-title">New Item</h3>
-            <button id="modal-close" class="modal-close">&times;</button>
+            <button
+              id="modal-close"
+              class="bg-transparent border-none text-2xl cursor-pointer text-[var(--vk-text-tertiary)] hover:text-[var(--vk-text-primary)] transition-colors leading-none w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--vk-bg-hover)]"
+            >
+              &times;
+            </button>
           </div>
           <form id="credential-form">
-            <div class="form-group">
+            <div class="mb-4">
               <label>Website</label>
               <input
                 type="text"
@@ -1234,8 +1608,8 @@
                 required
               />
             </div>
-            <div class="form-row">
-              <div class="form-group">
+            <div class="flex gap-4 mb-4">
+              <div class="mb-4">
                 <label>Username</label>
                 <input
                   type="text"
@@ -1244,14 +1618,14 @@
                   required
                 />
               </div>
-              <div class="form-group">
+              <div class="mb-4">
                 <label>Password</label>
-                <div class="input-with-actions">
+                <div class="flex gap-2">
                   <input type="password" id="cred-password" required />
                   <button
                     type="button"
                     id="generate-btn"
-                    class="icon-btn-small"
+                    class="bg-transparent border-none p-1.5 cursor-pointer text-[var(--vk-text-secondary)] text-lg rounded-[var(--vk-radius-sm)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
                     title="Generate"
                   >
                     🎲
@@ -1259,7 +1633,7 @@
                   <button
                     type="button"
                     id="toggle-btn"
-                    class="icon-btn-small"
+                    class="bg-transparent border-none p-1.5 cursor-pointer text-[var(--vk-text-secondary)] text-lg rounded-[var(--vk-radius-sm)] flex items-center justify-center hover:bg-[var(--vk-bg-hover)] hover:text-[var(--vk-text-primary)] active:bg-[var(--vk-bg-tertiary)] transition-colors shrink-0"
                     title="Show"
                   >
                     👁
@@ -1267,8 +1641,8 @@
                 </div>
               </div>
             </div>
-            <div class="form-row">
-              <div class="form-group">
+            <div class="flex gap-4 mb-4">
+              <div class="mb-4">
                 <label>2FA Secret</label>
                 <input
                   type="text"
@@ -1276,20 +1650,35 @@
                   placeholder="JBSWY3DPEHPK3PXP"
                 />
               </div>
-              <div class="form-group">
-                 <label>Backup Codes</label>
-                 <textarea id="cred-backup" rows="1" placeholder="code1, code2..."></textarea>
+              <div class="mb-4">
+                <label>Backup Codes</label>
+                <textarea
+                  id="cred-backup"
+                  rows="1"
+                  placeholder="code1, code2..."
+                ></textarea>
               </div>
             </div>
-            <div class="form-group">
+            <div class="mb-4">
               <label>Notes (optional)</label>
               <textarea id="cred-notes" rows="2"></textarea>
             </div>
-            <div class="modal-actions">
-              <button type="button" id="cancel-btn" class="btn-ghost">
+            <div
+              class="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--vk-border-light)] sticky bottom-0 bg-[var(--vk-bg-primary)] py-4"
+            >
+              <button
+                type="button"
+                id="cancel-btn"
+                class="bg-transparent border-none text-[var(--vk-text-secondary)] px-4 py-2 text-sm font-medium cursor-pointer hover:text-[var(--vk-text-primary)] hover:bg-[var(--vk-bg-hover)] rounded-[var(--vk-radius-md)] transition-all"
+              >
                 Cancel
               </button>
-              <button type="submit" class="btn-primary">Save</button>
+              <button
+                type="submit"
+                class="bg-[var(--vk-accent-blue)] text-[var(--vk-text-white)] border-none px-6 py-2.5 rounded-[var(--vk-radius-md)] text-sm font-medium cursor-pointer hover:brightness-110 active:brightness-95 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save
+              </button>
             </div>
           </form>
         </div>

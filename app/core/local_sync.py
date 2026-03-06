@@ -1,6 +1,7 @@
 
 import os
 import json
+import secrets
 import logging
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -13,6 +14,18 @@ PORT = 12121  # Porta personalizada para o VaultKeeper
 
 class VaultRequestHandler(BaseHTTPRequestHandler):
     vault_path: Path = None
+    auth_token: str = None
+
+    def _check_auth(self) -> bool:
+        """Verify the Authorization header contains the correct token."""
+        if not self.auth_token:
+            return True  # No token set = no auth required (should not happen)
+        auth_header = self.headers.get('Authorization', '')
+        expected = f'Bearer {self.auth_token}'
+        if auth_header != expected:
+            self.send_error(401, 'Unauthorized')
+            return False
+        return True
 
     def _send_json(self, data, status=200):
         self.send_response(status)
@@ -21,6 +34,8 @@ class VaultRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode('utf-8'))
 
     def do_GET(self):
+        if not self._check_auth():
+            return
         # Endpoint de descoberta
         if self.path == '/status':
             if not self.vault_path or not self.vault_path.exists():
@@ -58,6 +73,8 @@ class VaultRequestHandler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self):
+        if not self._check_auth():
+            return
         # Upload do Banco de Dados (Mobile -> PC)
         if self.path == '/vault.db':
             content_length = int(self.headers['Content-Length'])
@@ -95,8 +112,10 @@ class LocalSyncServer:
         self.server: Optional[HTTPServer] = None
         self.thread: Optional[threading.Thread] = None
         self.vault_path = vault_path
+        self.auth_token = secrets.token_urlsafe(32)
         # Configurar o handler globalmente (limitação do TCPServer simples)
         VaultRequestHandler.vault_path = vault_path
+        VaultRequestHandler.auth_token = self.auth_token
 
     def start(self):
         if self.server:
@@ -104,8 +123,8 @@ class LocalSyncServer:
 
         def run():
             try:
-                logger.info(f"Starting Local P2P Server on port {PORT}...")
-                self.server = HTTPServer(('0.0.0.0', PORT), VaultRequestHandler)
+                logger.info(f"Starting Local Sync Server on 127.0.0.1:{PORT}...")
+                self.server = HTTPServer(('127.0.0.1', PORT), VaultRequestHandler)
                 self.server.serve_forever()
             except Exception as e:
                 logger.error(f"Failed to start local server: {e}")

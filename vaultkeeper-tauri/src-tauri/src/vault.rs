@@ -5,6 +5,7 @@ use argon2::{Algorithm, Argon2, Params, Version};
 use rusqlite::{params, Connection, Result as SqliteResult, Row};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use zeroize::Zeroize;
 
 use crate::crypto::{clear_key_cache, encrypt};
 
@@ -77,8 +78,8 @@ pub struct VaultManager {
     pub unlocked: bool,
     pub db_path: PathBuf,
     pub auth_path: PathBuf,
-    pub master_password: Option<String>,
-    pub crypto_key: Option<Vec<u8>>, // Cached encryption key (derived once on unlock)
+    pub master_password: Option<String>,  // Zeroized on lock/drop
+    pub crypto_key: Option<Vec<u8>>,
 }
 
 impl VaultManager {
@@ -205,17 +206,17 @@ impl VaultManager {
         let config: AuthConfig = serde_json::from_str(&content)?;
 
         if let Some(hash) = config.master_hash {
-            println!("DEBUG: Authenticating with hash: {}", hash);
+            // Authentication attempt (hash details omitted for security)
             let parsed_hash =
                 PasswordHash::new(&hash).map_err(|e| format!("Invalid password hash: {}", e))?;
             let argon2 = get_argon2()?;
             match argon2.verify_password(password.as_bytes(), &parsed_hash) {
                 Ok(_) => {
-                    println!("DEBUG: Authentication successful");
+                    eprintln!("DEBUG: Authentication successful");
                     Ok(true)
                 }
-                Err(e) => {
-                    println!("DEBUG: Authentication failed: {:?}", e);
+                Err(_e) => {
+                    eprintln!("DEBUG: Authentication failed");
                     Err("Invalid password".into())
                 }
             }
@@ -225,8 +226,8 @@ impl VaultManager {
     }
 
     pub fn create_new(&mut self, password: &str) -> Result<(), Box<dyn std::error::Error>> {
-        if password.len() < 8 {
-            return Err("Password must be at least 8 characters".into());
+        if password.len() < 12 {
+            return Err("Password must be at least 12 characters".into());
         }
 
         let salt = SaltString::generate(&mut OsRng);
@@ -235,7 +236,7 @@ impl VaultManager {
             .hash_password(password.as_bytes(), &salt)
             .map_err(|e| format!("Failed to hash password: {}", e))?
             .to_string();
-        println!("DEBUG: Created new vault with hash: {}", password_hash);
+        eprintln!("DEBUG: New vault created");
 
         let config = AuthConfig {
             master_hash: Some(password_hash),
@@ -255,7 +256,7 @@ impl VaultManager {
         if self.authenticate(password)? {
             self.unlocked = true;
             self.master_password = Some(password.to_string());
-            eprintln!("DEBUG: Vault unlocked, key cache ready");
+            eprintln!("DEBUG: Vault unlocked");
             Ok(())
         } else {
             Err("Authentication failed".into())
@@ -264,6 +265,10 @@ impl VaultManager {
 
     pub fn lock(&mut self) {
         self.unlocked = false;
+        // Zeroize master password before dropping
+        if let Some(ref mut pw) = self.master_password {
+            pw.zeroize();
+        }
         self.master_password = None;
         // Clear the key cache
         clear_key_cache();
@@ -618,7 +623,14 @@ impl VaultManager {
             .into_par_iter()
             .map(
                 |(id, title, content_raw, folder_id, favorite, created_at, updated_at)| {
-                    // Decrypt content using master password
+                    // Decrypt title and content using master password
+                    let decrypted_title = master_pw
+                        .as_ref()
+                        .and_then(|pw| {
+                            crate::crypto::decrypt_if_encrypted(&title, pw).ok()
+                        })
+                        .unwrap_or(title);
+
                     let content = if content_raw.len() < 40 {
                         content_raw
                     } else {
@@ -632,7 +644,7 @@ impl VaultManager {
 
                     SecureNote {
                         id,
-                        title,
+                        title: decrypted_title,
                         content,
                         folder_id,
                         favorite,
@@ -661,10 +673,11 @@ impl VaultManager {
         let master_pw = self.get_master_password()?;
 
         let encrypted_content = encrypt(&content, master_pw)?;
+        let encrypted_title = encrypt(&title, master_pw)?;
 
         conn.execute(
             "INSERT INTO secure_notes (title, content, folder_id) VALUES (?1, ?2, ?3)",
-            params![&title, &encrypted_content, folder_id],
+            params![&encrypted_title, &encrypted_content, folder_id],
         )?;
 
         let id = conn.last_insert_rowid();
@@ -691,9 +704,10 @@ impl VaultManager {
         let master_pw = self.get_master_password()?;
 
         if let Some(title) = title {
+            let encrypted_title = encrypt(&title, master_pw)?;
             conn.execute(
                 "UPDATE secure_notes SET title = ?1 WHERE id = ?2",
-                params![&title, id],
+                params![&encrypted_title, id],
             )?;
         }
         if let Some(content) = content {
@@ -808,9 +822,12 @@ impl VaultManager {
                         }
                     });
 
+                    // Decrypt title too
+                    let decrypted_title = decrypt_field(title);
+
                     CreditCard {
                         id,
-                        title,
+                        title: decrypted_title,
                         card_number: decrypt_field(card_number_raw),
                         cardholder_name: decrypt_field(cardholder_name_raw),
                         expiry_date: decrypt_field(expiry_date_raw),
@@ -847,7 +864,7 @@ impl VaultManager {
         conn.execute(
             "INSERT INTO credit_cards (title, card_number, cardholder_name, expiry_date, cvv) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
-                &title,
+                encrypt(&title, master_pw)?,
                 encrypt(&card_number, master_pw)?,
                 encrypt(&cardholder_name, master_pw)?,
                 encrypt(&expiry_date, master_pw)?,
@@ -888,7 +905,7 @@ impl VaultManager {
         if let Some(title) = title {
             conn.execute(
                 "UPDATE credit_cards SET title = ?1 WHERE id = ?2",
-                params![&title, id],
+                params![encrypt(&title, master_pw)?, id],
             )?;
         }
         if let Some(card_number) = card_number {
@@ -958,6 +975,8 @@ impl VaultManager {
         path: &str,
         _format: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let master_pw = self.get_master_password()?;
+
         // Get all vault data
         let credentials = self.get_credentials()?;
         let notes = self.get_secure_notes()?;
@@ -974,9 +993,12 @@ impl VaultManager {
             "folders": folders,
         });
 
-        // Write to file
+        // Encrypt the export data with the master password
         let export_json = serde_json::to_string_pretty(&export)?;
-        std::fs::write(path, export_json)?;
+        let encrypted = encrypt(&export_json, master_pw)?;
+
+        // Write encrypted data to file
+        std::fs::write(path, encrypted)?;
 
         Ok(())
     }
@@ -986,8 +1008,17 @@ impl VaultManager {
         path: &str,
         _format: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let master_pw = self.get_master_password()?.to_string();
+
         // Read file
-        let import_json = std::fs::read_to_string(path)?;
+        let file_content = std::fs::read_to_string(path)?;
+
+        // Try to decrypt first (encrypted export), fall back to plaintext JSON
+        let import_json = match crate::crypto::decrypt(&file_content, &master_pw) {
+            Ok(decrypted) => decrypted,
+            Err(_) => file_content, // Legacy plaintext export
+        };
+
         let import: serde_json::Value = serde_json::from_str(&import_json)?;
 
         // Import credentials
@@ -1089,8 +1120,8 @@ impl VaultManager {
         }
 
         // Validate new password strength
-        if new_password.len() < 8 {
-            return Err("New password must be at least 8 characters long".into());
+        if new_password.len() < 12 {
+            return Err("New password must be at least 12 characters long".into());
         }
 
         // Hash the new password
@@ -1101,79 +1132,89 @@ impl VaultManager {
             .map_err(|e| format!("Failed to hash password: {}", e))?
             .to_string();
 
-        // ---------- RE-ENCRYPT ALL DATA ----------
-        let conn = Connection::open(&self.db_path)?;
-        
+        // ---------- RE-ENCRYPT ALL DATA (atomic transaction) ----------
+        let mut conn = Connection::open(&self.db_path)?;
+        let tx = conn.transaction()?;
+
         // 1. Re-encrypt vault credentials
-        let mut stmt = conn.prepare("SELECT id, password, notes, totp_secret, backup_codes FROM vault")?;
-        let creds: Vec<(i64, String, Option<String>, Option<String>, Option<String>)> = stmt.query_map([], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?
-            ))
-        })?.filter_map(|r| r.ok()).collect();
+        {
+            let mut stmt = tx.prepare("SELECT id, password, notes, totp_secret, backup_codes FROM vault")?;
+            let creds: Vec<(i64, String, Option<String>, Option<String>, Option<String>)> = stmt.query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?
+                ))
+            })?.filter_map(|r| r.ok()).collect();
 
-        for (id, pw_raw, notes_raw, totp_raw, backup_raw) in creds {
-            let pw = crate::crypto::decrypt_if_encrypted(&pw_raw, old_password).unwrap_or(pw_raw);
-            let notes = notes_raw.map(|n| crate::crypto::decrypt_if_encrypted(&n, old_password).unwrap_or(n));
-            let totp = totp_raw.map(|t| crate::crypto::decrypt_if_encrypted(&t, old_password).unwrap_or(t));
-            let backup = backup_raw.map(|b| crate::crypto::decrypt_if_encrypted(&b, old_password).unwrap_or(b));
+            for (id, pw_raw, notes_raw, totp_raw, backup_raw) in creds {
+                let pw = crate::crypto::decrypt_if_encrypted(&pw_raw, old_password).unwrap_or(pw_raw);
+                let notes = notes_raw.map(|n| crate::crypto::decrypt_if_encrypted(&n, old_password).unwrap_or(n));
+                let totp = totp_raw.map(|t| crate::crypto::decrypt_if_encrypted(&t, old_password).unwrap_or(t));
+                let backup = backup_raw.map(|b| crate::crypto::decrypt_if_encrypted(&b, old_password).unwrap_or(b));
 
-            let new_pw = crate::crypto::encrypt(&pw, new_password)?;
-            let new_notes = notes.map(|n| crate::crypto::encrypt(&n, new_password)).transpose()?;
-            let new_totp = totp.map(|t| crate::crypto::encrypt(&t, new_password)).transpose()?;
-            let new_backup = backup.map(|b| crate::crypto::encrypt(&b, new_password)).transpose()?;
+                let new_pw = crate::crypto::encrypt(&pw, new_password)?;
+                let new_notes = notes.map(|n| crate::crypto::encrypt(&n, new_password)).transpose()?;
+                let new_totp = totp.map(|t| crate::crypto::encrypt(&t, new_password)).transpose()?;
+                let new_backup = backup.map(|b| crate::crypto::encrypt(&b, new_password)).transpose()?;
 
-            conn.execute(
-                "UPDATE vault SET password = ?1, notes = ?2, totp_secret = ?3, backup_codes = ?4 WHERE id = ?5",
-                params![new_pw, new_notes, new_totp, new_backup, id],
-            )?;
+                tx.execute(
+                    "UPDATE vault SET password = ?1, notes = ?2, totp_secret = ?3, backup_codes = ?4 WHERE id = ?5",
+                    params![new_pw, new_notes, new_totp, new_backup, id],
+                )?;
+            }
         }
 
         // 2. Re-encrypt secure notes
-        let mut stmt = conn.prepare("SELECT id, content FROM secure_notes")?;
-        let notes: Vec<(i64, String)> = stmt.query_map([], |row| {
-            Ok((row.get(0)?, row.get(1)?))
-        })?.filter_map(|r| r.ok()).collect();
+        {
+            let mut stmt = tx.prepare("SELECT id, content FROM secure_notes")?;
+            let notes: Vec<(i64, String)> = stmt.query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })?.filter_map(|r| r.ok()).collect();
 
-        for (id, content_raw) in notes {
-            let content = crate::crypto::decrypt_if_encrypted(&content_raw, old_password).unwrap_or(content_raw);
-            let new_content = crate::crypto::encrypt(&content, new_password)?;
-            conn.execute(
-                "UPDATE secure_notes SET content = ?1 WHERE id = ?2",
-                params![new_content, id],
-            )?;
+            for (id, content_raw) in notes {
+                let content = crate::crypto::decrypt_if_encrypted(&content_raw, old_password).unwrap_or(content_raw);
+                let new_content = crate::crypto::encrypt(&content, new_password)?;
+                tx.execute(
+                    "UPDATE secure_notes SET content = ?1 WHERE id = ?2",
+                    params![new_content, id],
+                )?;
+            }
         }
 
         // 3. Re-encrypt credit cards
-        let mut stmt = conn.prepare("SELECT id, card_number, cardholder_name, expiry_date, cvv, notes FROM credit_cards")?;
-        let cards: Vec<(i64, String, String, String, String, Option<String>)> = stmt.query_map([], |row| {
-            Ok((
-                row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?
-            ))
-        })?.filter_map(|r| r.ok()).collect();
+        {
+            let mut stmt = tx.prepare("SELECT id, card_number, cardholder_name, expiry_date, cvv, notes FROM credit_cards")?;
+            let cards: Vec<(i64, String, String, String, String, Option<String>)> = stmt.query_map([], |row| {
+                Ok((
+                    row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?
+                ))
+            })?.filter_map(|r| r.ok()).collect();
 
-        for (id, number_raw, name_raw, expiry_raw, cvv_raw, notes_raw) in cards {
-            let number = crate::crypto::decrypt_if_encrypted(&number_raw, old_password).unwrap_or(number_raw);
-            let name = crate::crypto::decrypt_if_encrypted(&name_raw, old_password).unwrap_or(name_raw);
-            let expiry = crate::crypto::decrypt_if_encrypted(&expiry_raw, old_password).unwrap_or(expiry_raw);
-            let cvv = crate::crypto::decrypt_if_encrypted(&cvv_raw, old_password).unwrap_or(cvv_raw);
-            let n_raw = notes_raw.map(|n| crate::crypto::decrypt_if_encrypted(&n, old_password).unwrap_or(n));
+            for (id, number_raw, name_raw, expiry_raw, cvv_raw, notes_raw) in cards {
+                let number = crate::crypto::decrypt_if_encrypted(&number_raw, old_password).unwrap_or(number_raw);
+                let name = crate::crypto::decrypt_if_encrypted(&name_raw, old_password).unwrap_or(name_raw);
+                let expiry = crate::crypto::decrypt_if_encrypted(&expiry_raw, old_password).unwrap_or(expiry_raw);
+                let cvv = crate::crypto::decrypt_if_encrypted(&cvv_raw, old_password).unwrap_or(cvv_raw);
+                let n_raw = notes_raw.map(|n| crate::crypto::decrypt_if_encrypted(&n, old_password).unwrap_or(n));
 
-            let new_number = crate::crypto::encrypt(&number, new_password)?;
-            let new_name = crate::crypto::encrypt(&name, new_password)?;
-            let new_expiry = crate::crypto::encrypt(&expiry, new_password)?;
-            let new_cvv = crate::crypto::encrypt(&cvv, new_password)?;
-            let new_notes = n_raw.map(|n| crate::crypto::encrypt(&n, new_password)).transpose()?;
+                let new_number = crate::crypto::encrypt(&number, new_password)?;
+                let new_name = crate::crypto::encrypt(&name, new_password)?;
+                let new_expiry = crate::crypto::encrypt(&expiry, new_password)?;
+                let new_cvv = crate::crypto::encrypt(&cvv, new_password)?;
+                let new_notes = n_raw.map(|n| crate::crypto::encrypt(&n, new_password)).transpose()?;
 
-            conn.execute(
-                "UPDATE credit_cards SET card_number = ?1, cardholder_name = ?2, expiry_date = ?3, cvv = ?4, notes = ?5 WHERE id = ?6",
-                params![new_number, new_name, new_expiry, new_cvv, new_notes, id],
-            )?;
+                tx.execute(
+                    "UPDATE credit_cards SET card_number = ?1, cardholder_name = ?2, expiry_date = ?3, cvv = ?4, notes = ?5 WHERE id = ?6",
+                    params![new_number, new_name, new_expiry, new_cvv, new_notes, id],
+                )?;
+            }
         }
+
+        // Commit all re-encryption changes atomically
+        tx.commit()?;
         // -----------------------------------------
 
         // Read current config
@@ -1216,5 +1257,18 @@ impl VaultManager {
 impl Default for VaultManager {
     fn default() -> Self {
         Self::new().expect("Failed to create VaultManager")
+    }
+}
+
+impl Drop for VaultManager {
+    fn drop(&mut self) {
+        // Zeroize master password when VaultManager is deallocated
+        if let Some(ref mut pw) = self.master_password {
+            pw.zeroize();
+        }
+        if let Some(ref mut key) = self.crypto_key {
+            key.zeroize();
+        }
+        clear_key_cache();
     }
 }

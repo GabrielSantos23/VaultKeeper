@@ -91,6 +91,10 @@ class UpdateManager(QObject):
 
                         portable_zip = url
 
+                    elif name in ("checksums.txt", "sha256sums.txt"):
+
+                        self._checksums_url = url
+
                 import sys
 
                 if sys.platform == "win32":
@@ -135,6 +139,8 @@ class UpdateManager(QObject):
 
             import os
 
+            import hashlib
+
             from urllib.parse import urlparse
 
             path = urlparse(url).path
@@ -159,6 +165,39 @@ class UpdateManager(QObject):
                     self.download_progress.emit(percent)
 
             urllib.request.urlretrieve(url, save_path, report)
+
+            # Verify download integrity (VULN-07)
+            sha256 = hashlib.sha256()
+            with open(save_path, "rb") as f:
+                for chunk in iter(lambda: f.read(8192), b""):
+                    sha256.update(chunk)
+            file_hash = sha256.hexdigest()
+
+            checksums_url = getattr(self, "_checksums_url", None)
+            if checksums_url:
+                try:
+                    req = urllib.request.Request(checksums_url)
+                    req.add_header("User-Agent", "VaultKeeper-App")
+                    with urllib.request.urlopen(req) as resp:
+                        checksums_data = resp.read().decode()
+                    
+                    # Parse checksums.txt format: "hash  filename" per line
+                    expected_hash = None
+                    for line in checksums_data.strip().splitlines():
+                        parts = line.strip().split()
+                        if len(parts) >= 2 and parts[1].strip("*") == filename:
+                            expected_hash = parts[0]
+                            break
+                    
+                    if expected_hash and expected_hash.lower() != file_hash.lower():
+                        os.remove(save_path)
+                        self.download_error.emit(
+                            f"Integrity check failed! Expected {expected_hash[:16]}... got {file_hash[:16]}..."
+                        )
+                        return
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Could not verify checksum: {e}")
 
             self.download_complete.emit(save_path)
 
@@ -188,7 +227,7 @@ class UpdateManager(QObject):
 
                 try:
 
-                    subprocess.Popen([file_path], shell=True)
+                    subprocess.Popen([file_path])
 
                     self.install_complete.emit()
 

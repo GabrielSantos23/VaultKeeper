@@ -1,4 +1,5 @@
-const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+const browserAPI =
+  typeof browser !== "undefined" && browser.runtime ? browser : chrome;
 
 let currentCredentials = [];
 let selectedCredential = null;
@@ -45,7 +46,7 @@ const credPassword = document.getElementById("cred-password");
 const credNotes = document.getElementById("cred-notes");
 const credTotp = document.getElementById("cred-totp");
 const credBackup = document.getElementById("cred-backup");
-const strengthBadge = document.querySelector(".strength-badge");
+const strengthBadge = document.getElementById("strength-badge");
 const totpFieldGroup = document.getElementById("totp-field-group");
 const totpCodeElement = document.getElementById("detail-totp-code");
 const totpCountdownElement = document.getElementById("detail-totp-countdown");
@@ -72,10 +73,10 @@ function showView(viewId) {
     cardsView,
     notesView,
   ].forEach((v) => {
-    if (v) v.classList.add("hidden");
+    if (v) v.classList.add("!hidden");
   });
   const view = document.getElementById(viewId);
-  if (view) view.classList.remove("hidden");
+  if (view) view.classList.remove("!hidden");
 }
 
 function sendMessage(message) {
@@ -315,15 +316,15 @@ function getDomainDisplay(domain) {
 function selectCredential(cred) {
   selectedCredential = cred;
 
-  document.querySelectorAll(".credential-item").forEach((item) => {
+  document.querySelectorAll("[data-id]").forEach((item) => {
     item.classList.remove("selected");
     if (item.dataset.id == cred.id) {
       item.classList.add("selected");
     }
   });
 
-  emptyState.classList.add("hidden");
-  detailContent.classList.remove("hidden");
+  emptyState.classList.add("!hidden");
+  detailContent.classList.remove("!hidden");
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${cred.domain}&sz=64`;
   detailFavicon.innerHTML = "";
   const faviconImg = document.createElement("img");
@@ -344,7 +345,7 @@ function selectCredential(cred) {
   detailPassword.textContent = "••••••••••";
   const password = actualPasswords[cred.id] || "";
   updateStrengthBadge(password);
-  detailPassword.classList.add("password-masked");
+  detailPassword.classList.add("font-mono", "tracking-[2px]");
   detailPassword.dataset.visible = "false";
 
   let url = cred.domain;
@@ -354,22 +355,39 @@ function selectCredential(cred) {
   detailUrl.textContent = url;
   detailUrl.href = url;
   if (cred.totp_secret && totpFieldGroup) {
-    totpFieldGroup.classList.remove("hidden");
+    totpFieldGroup.classList.remove("!hidden");
     currentTotpCredentialId = cred.id;
     startTotpUpdates(cred.id);
   } else if (totpFieldGroup) {
-    totpFieldGroup.classList.add("hidden");
+    totpFieldGroup.classList.add("!hidden");
     stopTotpUpdates();
     currentTotpCredentialId = null;
   }
   if (cred.backup_codes && backupFieldGroup) {
-    backupFieldGroup.classList.remove("hidden");
+    backupFieldGroup.classList.remove("!hidden");
     backupCodesVisible = false;
     backupCodesElement.textContent = "••••••••••••••••";
-    backupCodesElement.classList.add("backup-codes-masked");
-    backupCodesElement.classList.remove("backup-codes-visible");
+    backupCodesElement.classList.add(
+      "font-mono",
+      "tracking-[4px]",
+      "leading-relaxed",
+      "break-all",
+      "select-none",
+      "text-[var(--vk-text-secondary)]",
+    );
+    backupCodesElement.classList.remove(
+      "font-mono",
+      "text-sm",
+      "tracking-widest",
+      "leading-relaxed",
+      "break-all",
+      "whitespace-pre-wrap",
+      "font-medium",
+      "select-all",
+      "text-[var(--vk-text-primary)]",
+    );
   } else if (backupFieldGroup) {
-    backupFieldGroup.classList.add("hidden");
+    backupFieldGroup.classList.add("!hidden");
   }
 }
 
@@ -380,11 +398,11 @@ function toggleDetailPassword() {
 
   if (isVisible) {
     detailPassword.textContent = "••••••••••";
-    detailPassword.classList.add("password-masked");
+    detailPassword.classList.add("font-mono", "tracking-[2px]");
     detailPassword.dataset.visible = "false";
   } else {
     detailPassword.textContent = actualPasswords[selectedCredential.id] || "";
-    detailPassword.classList.remove("password-masked");
+    detailPassword.classList.remove("font-mono", "tracking-[2px]");
     detailPassword.dataset.visible = "true";
   }
 }
@@ -564,12 +582,46 @@ function toggleBackupVisibility() {
   if (backupCodesVisible) {
     backupCodesElement.textContent =
       actualBackupCodes[selectedCredential.id] || "";
-    backupCodesElement.classList.remove("backup-codes-masked");
-    backupCodesElement.classList.add("backup-codes-visible");
+    backupCodesElement.classList.remove(
+      "font-mono",
+      "tracking-[4px]",
+      "leading-relaxed",
+      "break-all",
+      "select-none",
+      "text-[var(--vk-text-secondary)]",
+    );
+    backupCodesElement.classList.add(
+      "font-mono",
+      "text-sm",
+      "tracking-widest",
+      "leading-relaxed",
+      "break-all",
+      "whitespace-pre-wrap",
+      "font-medium",
+      "select-all",
+      "text-[var(--vk-text-primary)]",
+    );
   } else {
     backupCodesElement.textContent = "••••••••••••••••";
-    backupCodesElement.classList.add("backup-codes-masked");
-    backupCodesElement.classList.remove("backup-codes-visible");
+    backupCodesElement.classList.add(
+      "font-mono",
+      "tracking-[4px]",
+      "leading-relaxed",
+      "break-all",
+      "select-none",
+      "text-[var(--vk-text-secondary)]",
+    );
+    backupCodesElement.classList.remove(
+      "font-mono",
+      "text-sm",
+      "tracking-widest",
+      "leading-relaxed",
+      "break-all",
+      "whitespace-pre-wrap",
+      "font-medium",
+      "select-all",
+      "text-[var(--vk-text-primary)]",
+    );
   }
 }
 
@@ -587,11 +639,11 @@ function openAddModal() {
     }
   });
 
-  modal.classList.remove("hidden");
+  modal.classList.remove("!hidden");
 }
 
 function closeModal() {
-  modal.classList.add("hidden");
+  modal.classList.add("!hidden");
   credentialForm.reset();
   delete credentialForm.dataset.editId;
 }
@@ -632,7 +684,8 @@ async function saveCredential(e) {
 function updateStrengthBadge(password) {
   if (!password) {
     strengthBadge.textContent = "Empty";
-    strengthBadge.className = "strength-badge";
+    strengthBadge.className =
+      "text-[11px] px-2 py-1 rounded-[4px] font-medium tracking-wide";
     strengthBadge.style.backgroundColor = "#d1d5db";
     strengthBadge.style.color = "#374151";
     return;
@@ -641,7 +694,8 @@ function updateStrengthBadge(password) {
   const analysis = analyzePassword(password);
 
   strengthBadge.textContent = analysis.label;
-  strengthBadge.className = "strength-badge";
+  strengthBadge.className =
+    "text-[11px] px-2 py-1 rounded-[4px] font-medium tracking-wide";
   strengthBadge.style.backgroundColor = analysis.color;
   strengthBadge.style.color = "#fff";
   strengthBadge.classList.add(analysis.label.toLowerCase());
@@ -671,11 +725,11 @@ function toggleModalPassword() {
 
 function showError(message) {
   errorMessage.textContent = message;
-  errorMessage.classList.remove("hidden");
+  errorMessage.classList.remove("!hidden");
 }
 
 function hideError() {
-  errorMessage.classList.add("hidden");
+  errorMessage.classList.add("!hidden");
 }
 
 function escapeHtml(text) {
@@ -704,7 +758,7 @@ if (toggleBackupBtn) {
   toggleBackupBtn.addEventListener("click", toggleBackupVisibility);
 }
 
-document.querySelectorAll(".copy-btn").forEach((btn) => {
+document.querySelectorAll("[data-copy]").forEach((btn) => {
   btn.addEventListener("click", () => copyToClipboard(btn.dataset.copy));
 });
 
@@ -714,17 +768,18 @@ credentialForm.addEventListener("submit", saveCredential);
 generateBtn.addEventListener("click", generatePassword);
 toggleBtn.addEventListener("click", toggleModalPassword);
 
-modal.querySelector(".modal-backdrop").addEventListener("click", closeModal);
+document.getElementById("modal-backdrop").addEventListener("click", closeModal);
 const menuBtn = document.getElementById("menu-btn");
 let activeDropdown = null;
 
 function createDropdownMenu() {
-  const existing = document.querySelector(".vk-dropdown-menu");
+  const existing = document.getElementById("vk-dropdown-menu");
   if (existing) existing.remove();
 
   const dropdown = document.createElement("div");
-  dropdown.className = "vk-dropdown-menu";
-
+  dropdown.id = "vk-dropdown-menu";
+  dropdown.className =
+    "absolute top-full right-0 mt-1 bg-[var(--vk-bg-secondary)] border border-[var(--vk-border-color)] rounded-[var(--vk-radius-md)] shadow-lg min-w-[160px] z-[1000] overflow-hidden animate-[dropdown-fade-in_0.15s_ease-out]";
   const parser = new DOMParser();
   const html = `
         <button class="vk-dropdown-item" data-action="edit">
@@ -768,7 +823,7 @@ function showDropdownMenu(e) {
   dropdown.style.position = "fixed";
   dropdown.style.top = `${btnRect.bottom + 4}px`;
   dropdown.style.right = `${window.innerWidth - btnRect.right}px`;
-  dropdown.querySelectorAll(".vk-dropdown-item").forEach((item) => {
+  dropdown.querySelectorAll("button[data-action]").forEach((item) => {
     item.addEventListener("click", (e) => {
       e.stopPropagation();
       handleMenuAction(item.dataset.action);
@@ -815,7 +870,7 @@ function openEditModal(cred) {
   updateStrengthBadge(credPassword.value);
   credentialForm.dataset.editId = cred.id;
 
-  modal.classList.remove("hidden");
+  modal.classList.remove("!hidden");
 }
 
 async function toggleFavorite(id) {
@@ -836,13 +891,20 @@ async function toggleFavorite(id) {
   }
 }
 function showPopupNotification(message, type = "success") {
-  const existing = document.querySelector(".popup-notification");
+  const existing = document.getElementById("popup-notification");
   if (existing) existing.remove();
 
   const notification = document.createElement("div");
-  notification.className = `popup-notification ${type}`;
+  notification.id = "popup-notification";
+  let baseClasses =
+    "fixed bottom-5 left-1/2 -translate-x-1/2 text-white px-4 py-2.5 rounded-[var(--vk-radius-md)] flex items-center gap-2.5 text-[13px] font-medium shadow-lg z-[9999] animate-[notification-slide-up_0.3s_cubic-bezier(0.16,1,0.3,1)] pointer-events-none";
+  let typeClass =
+    type === "error"
+      ? "bg-[var(--vk-accent-red)]"
+      : "bg-[var(--vk-accent-green)]";
+  notification.className = `${baseClasses} ${typeClass}`;
   const iconSpan = document.createElement("span");
-  iconSpan.className = "popup-notification-icon";
+  iconSpan.className = "flex items-center justify-center shrink-0";
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -878,7 +940,9 @@ function showPopupNotification(message, type = "success") {
 
   document.body.appendChild(notification);
   setTimeout(() => {
-    notification.classList.add("fade-out");
+    notification.classList.add(
+      "animate-[notification-fade-out_0.2s_ease-in_forwards]",
+    );
     setTimeout(() => notification.remove(), 300);
   }, 2000);
 }
@@ -891,8 +955,8 @@ async function deleteCredential(id) {
     if (response.success) {
       showPopupNotification("Credential deleted", "success");
       selectedCredential = null;
-      emptyState.classList.remove("hidden");
-      detailContent.classList.add("hidden");
+      emptyState.classList.remove("!hidden");
+      detailContent.classList.add("!hidden");
       await loadCredentials();
     }
   } catch (error) {

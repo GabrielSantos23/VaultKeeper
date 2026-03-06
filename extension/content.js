@@ -1,4 +1,5 @@
-const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+const browserAPI =
+  typeof browser !== "undefined" && browser.runtime ? browser : chrome;
 
 let detectedFields = null;
 let currentDomain = window.location.hostname;
@@ -38,10 +39,15 @@ const PASSWORD_SELECTORS = [
 ];
 
 const TOTP_SELECTORS = [
-  'input[name="totp" i]', 'input[name="code" i]', 'input[name="otp" i]',
-  'input[name*="2fa" i]', 'input[id*="totp" i]', 'input[id*="otp" i]',
-  'input[autocomplete="one-time-code"]', 'input[placeholder*="code" i]',
-  'input[placeholder*="6-digit" i]'
+  'input[name="totp" i]',
+  'input[name="code" i]',
+  'input[name="otp" i]',
+  'input[name*="2fa" i]',
+  'input[id*="totp" i]',
+  'input[id*="otp" i]',
+  'input[autocomplete="one-time-code"]',
+  'input[placeholder*="code" i]',
+  'input[placeholder*="6-digit" i]',
 ];
 function escapeHtml(text) {
   if (text === null || text === undefined) return "";
@@ -175,21 +181,29 @@ function detectLoginFields() {
     for (const candidate of candidates) {
       if (!isVisible(candidate)) continue;
       if (candidate === fields.password) continue;
-      
+
       // Exclude obvious search/TOTP fields from being treated as username
-      const name = (candidate.name || '').toLowerCase();
-      const id = (candidate.id || '').toLowerCase();
-      const placeholder = (candidate.placeholder || '').toLowerCase();
-      
+      const name = (candidate.name || "").toLowerCase();
+      const id = (candidate.id || "").toLowerCase();
+      const placeholder = (candidate.placeholder || "").toLowerCase();
+
       if (
-          name.includes('search') || id.includes('search') || placeholder.includes('search') ||
-          name.includes('query') || id.includes('query') ||
-          name.includes('totp') || id.includes('totp') || 
-          name.includes('code') || id.includes('code') || placeholder.includes('code') ||
-          name.includes('otp') || id.includes('otp') ||
-          name.includes('2fa') || id.includes('2fa')
+        name.includes("search") ||
+        id.includes("search") ||
+        placeholder.includes("search") ||
+        name.includes("query") ||
+        id.includes("query") ||
+        name.includes("totp") ||
+        id.includes("totp") ||
+        name.includes("code") ||
+        id.includes("code") ||
+        placeholder.includes("code") ||
+        name.includes("otp") ||
+        id.includes("otp") ||
+        name.includes("2fa") ||
+        id.includes("2fa")
       ) {
-          continue;
+        continue;
       }
 
       if (fields.password) {
@@ -240,29 +254,34 @@ function fillCredentials(username, password, totpCode = null) {
   }
 
   let filled = false;
-  
+
   let totpField = null;
   if (totpCode) {
-      if (fillTOTP(totpCode)) {
-          filled = true;
-          // Try to find the filled TOTP field to avoid overwriting
-           const totpSelectors = [
-            'input[name="totp" i]', 'input[name="code" i]', 'input[name="otp" i]',
-            'input[name*="2fa" i]', 'input[id*="totp" i]', 'input[id*="otp" i]',
-            'input[autocomplete="one-time-code"]', 'input[placeholder*="code" i]',
-            'input[placeholder*="6-digit" i]'
-          ];
-          for (const selector of totpSelectors) {
-            const inputs = document.querySelectorAll(selector);
-            for (const input of inputs) {
-                if (isVisible(input) && input.value === totpCode) {
-                    totpField = input;
-                    break;
-                }
-            }
-            if (totpField) break;
+    if (fillTOTP(totpCode)) {
+      filled = true;
+      // Try to find the filled TOTP field to avoid overwriting
+      const totpSelectors = [
+        'input[name="totp" i]',
+        'input[name="code" i]',
+        'input[name="otp" i]',
+        'input[name*="2fa" i]',
+        'input[id*="totp" i]',
+        'input[id*="otp" i]',
+        'input[autocomplete="one-time-code"]',
+        'input[placeholder*="code" i]',
+        'input[placeholder*="6-digit" i]',
+      ];
+      for (const selector of totpSelectors) {
+        const inputs = document.querySelectorAll(selector);
+        for (const input of inputs) {
+          if (isVisible(input) && input.value === totpCode) {
+            totpField = input;
+            break;
           }
+        }
+        if (totpField) break;
       }
+    }
   }
 
   if (
@@ -285,11 +304,15 @@ function fillCredentials(username, password, totpCode = null) {
       filled = true;
     }
   } else {
-    if (detectedFields.username && username && detectedFields.username !== totpField) {
+    if (
+      detectedFields.username &&
+      username &&
+      detectedFields.username !== totpField
+    ) {
       setFieldValue(detectedFields.username, username);
       filled = true;
     }
-    
+
     // ... rest of function
 
     if (detectedFields.password && password) {
@@ -303,7 +326,7 @@ function fillCredentials(username, password, totpCode = null) {
 
 function fillTOTP(code) {
   if (!code) return false;
-  
+
   for (const selector of TOTP_SELECTORS) {
     const inputs = document.querySelectorAll(selector);
     for (const input of inputs) {
@@ -889,14 +912,14 @@ function showUnlockAndFillPrompt(targetField) {
       } else {
         // Fix for Issue 1: Double check status in case of false negative
         browserAPI.runtime.sendMessage({ action: "status" }, (statusResp) => {
-            if (statusResp && statusResp.success && statusResp.unlocked) {
-                 hidePrompt();
-                 requestCredentials(targetField);
-            } else {
-                 showUnlockError("Invalid master password");
-                 unlockBtn.disabled = false;
-                 unlockBtn.textContent = "Unlock & Fill";
-            }
+          if (statusResp && statusResp.success && statusResp.unlocked) {
+            hidePrompt();
+            requestCredentials(targetField);
+          } else {
+            showUnlockError("Invalid master password");
+            unlockBtn.disabled = false;
+            unlockBtn.textContent = "Unlock & Fill";
+          }
         });
       }
     } catch (error) {
@@ -1058,17 +1081,17 @@ function setupFormInterception() {
 // Positioning helper
 function updateIconPosition(field, icon) {
   if (!isVisible(field)) {
-    icon.style.display = 'none';
+    icon.style.display = "none";
     return;
   }
-  icon.style.display = 'flex';
+  icon.style.display = "flex";
   const rect = field.getBoundingClientRect();
   const scrollX = window.scrollX || window.pageXOffset;
   const scrollY = window.scrollY || window.pageYOffset;
 
   // Position: centered vertically in input, right aligned with padding
   // But wait, if we append to body, we need absolute coords.
-  const top = rect.top + scrollY + (rect.height / 2) - 10; // 10 is half icon height (20px)
+  const top = rect.top + scrollY + rect.height / 2 - 10; // 10 is half icon height (20px)
   const left = rect.right + scrollX - 30; // 30px from right edge (20px icon + 10px padding)
 
   icon.style.top = `${top}px`;
@@ -1110,7 +1133,7 @@ function addVaultKeeperIcon(field) {
     e.stopPropagation();
     requestCredentials(field);
   });
-  
+
   field.addEventListener("focus", () => {
     if (document.activeElement === field) {
       requestCredentials(field, true);
@@ -1119,30 +1142,30 @@ function addVaultKeeperIcon(field) {
 
   // Append to body to avoid positioning issues relative to parent
   document.body.appendChild(icon);
-  
+
   // Initial position
   updateIconPosition(field, icon);
 
   // Update position on events
   const updatePos = () => updateIconPosition(field, icon);
-  window.addEventListener('scroll', updatePos, true);
-  window.addEventListener('resize', updatePos);
-  
+  window.addEventListener("scroll", updatePos, true);
+  window.addEventListener("resize", updatePos);
+
   // Also update when field changes (e.g. dynamic resizing)
   const resizeObserver = new ResizeObserver(updatePos);
   resizeObserver.observe(field);
 
   // Clean up if field is removed
   const mutationObserver = new MutationObserver((mutations) => {
-     if (!document.contains(field)) {
-         icon.remove();
-         window.removeEventListener('scroll', updatePos, true);
-         window.removeEventListener('resize', updatePos);
-         resizeObserver.disconnect();
-         mutationObserver.disconnect();
-     } else {
-         updatePos();
-     }
+    if (!document.contains(field)) {
+      icon.remove();
+      window.removeEventListener("scroll", updatePos, true);
+      window.removeEventListener("resize", updatePos);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+    } else {
+      updatePos();
+    }
   });
   mutationObserver.observe(document.body, { childList: true, subtree: true });
 }
@@ -1191,22 +1214,25 @@ function showAutofillDropdown(credentials, targetField) {
       e.stopPropagation();
       dropdown.remove();
       activeAutofillDropdown = null;
-      
+
       const doFill = (code = null) => {
-         fillCredentials(cred.username, cred.password, code);
-         showNotification("Credentials filled!", "success");
+        fillCredentials(cred.username, cred.password, code);
+        showNotification("Credentials filled!", "success");
       };
 
-      if (cred.totp_secret || cred.id) { 
-          browserAPI.runtime.sendMessage({ action: "get_totp", id: cred.id }, (resp) => {
-               if(resp.success) {
-                   doFill(resp.code);
-               } else {
-                   doFill(null);
-               }
-          });
+      if (cred.totp_secret || cred.id) {
+        browserAPI.runtime.sendMessage(
+          { action: "get_totp", id: cred.id },
+          (resp) => {
+            if (resp.success) {
+              doFill(resp.code);
+            } else {
+              doFill(null);
+            }
+          },
+        );
       } else {
-          doFill(null);
+        doFill(null);
       }
     });
 
@@ -1250,37 +1276,47 @@ function requestCredentials(targetField = null, isFocus = false) {
           showAutofillDropdown(credentials, targetField);
         } else {
           const cred = credentials[0];
-          
-          const performFill = (totpCode = null) => {
-             const filled = fillCredentials(cred.username, cred.password, totpCode);
 
-             if (filled) {
-                if (detectedFields?.isMultiStep) {
-                  if (detectedFields.username && !detectedFields.password) {
-                    showNotification("Email/username filled!", "success");
-                  } else if (detectedFields.password && !detectedFields.username) {
-                    showNotification("Password filled!", "success");
-                  } else {
-                    showNotification("Credentials filled!", "success");
-                  }
+          const performFill = (totpCode = null) => {
+            const filled = fillCredentials(
+              cred.username,
+              cred.password,
+              totpCode,
+            );
+
+            if (filled) {
+              if (detectedFields?.isMultiStep) {
+                if (detectedFields.username && !detectedFields.password) {
+                  showNotification("Email/username filled!", "success");
+                } else if (
+                  detectedFields.password &&
+                  !detectedFields.username
+                ) {
+                  showNotification("Password filled!", "success");
                 } else {
                   showNotification("Credentials filled!", "success");
                 }
-             } else {
-               showNotification("Could not fill credentials", "error");
-             }
+              } else {
+                showNotification("Credentials filled!", "success");
+              }
+            } else {
+              showNotification("Could not fill credentials", "error");
+            }
           };
 
           if (cred.totp_secret || cred.id) {
-               browserAPI.runtime.sendMessage({ action: "get_totp", id: cred.id }, (resp) => {
-                   if(resp.success) {
-                        performFill(resp.code);
-                   } else {
-                        performFill(null);
-                   }
-               });
+            browserAPI.runtime.sendMessage(
+              { action: "get_totp", id: cred.id },
+              (resp) => {
+                if (resp.success) {
+                  performFill(resp.code);
+                } else {
+                  performFill(null);
+                }
+              },
+            );
           } else {
-               performFill(null);
+            performFill(null);
           }
         }
       } else if (response && response.locked) {
@@ -1329,14 +1365,14 @@ function init() {
 
     setupFormInterception();
   }
-  
+
   // Always search for TOTP fields regardless of login detection
   for (const selector of TOTP_SELECTORS) {
-      document.querySelectorAll(selector).forEach(field => {
-          if (isVisible(field)) {
-              addVaultKeeperIcon(field);
-          }
-      });
+    document.querySelectorAll(selector).forEach((field) => {
+      if (isVisible(field)) {
+        addVaultKeeperIcon(field);
+      }
+    });
   }
 }
 
@@ -1391,7 +1427,11 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.action) {
     case "fill":
       detectedFields = detectLoginFields();
-      const success = fillCredentials(request.username, request.password, request.totp);
+      const success = fillCredentials(
+        request.username,
+        request.password,
+        request.totp,
+      );
       sendResponse({
         success,
         isMultiStep: detectedFields?.isMultiStep || false,
@@ -1456,14 +1496,14 @@ const observer = new MutationObserver(() => {
       setupFormInterception();
     }
   }
-  
+
   // Independent TOTP check on mutation
   for (const selector of TOTP_SELECTORS) {
-      document.querySelectorAll(selector).forEach(field => {
-          if (isVisible(field)) {
-               addVaultKeeperIcon(field);
-          }
-      });
+    document.querySelectorAll(selector).forEach((field) => {
+      if (isVisible(field)) {
+        addVaultKeeperIcon(field);
+      }
+    });
   }
 });
 

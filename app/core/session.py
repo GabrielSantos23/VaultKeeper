@@ -29,9 +29,19 @@ def _get_machine_key() -> bytes:
 
     import getpass
 
+    # Combine predictable machine info with a persistent random secret
     unique_id = f"{getpass.getuser()}@{socket.gethostname()}"
 
-    key_material = hashlib.sha256(unique_id.encode()).digest()
+    # Load or generate a persistent random component
+    keyfile = Config.get_config_dir() / '.session_key'
+    if keyfile.exists():
+        random_component = keyfile.read_bytes()
+    else:
+        random_component = os.urandom(32)
+        keyfile.parent.mkdir(parents=True, exist_ok=True)
+        keyfile.write_bytes(random_component)
+
+    key_material = hashlib.sha256(unique_id.encode() + random_component).digest()
 
     return base64.urlsafe_b64encode(key_material)
 

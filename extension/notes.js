@@ -1,6 +1,7 @@
 (() => {
   const api =
-    window.browserAPI || (typeof browser !== "undefined" ? browser : chrome);
+    window.browserAPI ||
+    (typeof browser !== "undefined" && browser.runtime ? browser : chrome);
 
   let currentNotes = [];
   let selectedNote = null;
@@ -172,7 +173,8 @@
 
     currentNotes.forEach((note) => {
       const item = document.createElement("div");
-      item.className = "note-item";
+      item.className =
+        "flex flex-col p-3 mb-1 cursor-pointer rounded-[var(--vk-radius-md)] border border-transparent transition-all hover:bg-[var(--vk-bg-hover)] active:scale-[0.98]";
       item.dataset.id = note.id;
       if (selectedNote && selectedNote.id === note.id) {
         item.classList.add("selected");
@@ -209,16 +211,16 @@
     selectedNote = note;
     isEditingNote = false;
 
-    document.querySelectorAll(".note-item").forEach((item) => {
+    document.querySelectorAll("[data-id]").forEach((item) => {
       item.classList.remove("selected");
       if (item.dataset.id == note.id) {
         item.classList.add("selected");
       }
     });
 
-    if (noteEmptyState) noteEmptyState.classList.add("hidden");
-    if (noteEditor) noteEditor.classList.add("hidden");
-    if (noteDetailPanel) noteDetailPanel.classList.remove("hidden");
+    if (noteEmptyState) noteEmptyState.classList.add("!hidden");
+    if (noteEditor) noteEditor.classList.add("!hidden");
+    if (noteDetailPanel) noteDetailPanel.classList.remove("!hidden");
 
     document.getElementById("note-detail-title").textContent = note.title;
     const parser = new DOMParser();
@@ -254,9 +256,9 @@
     const noteEditorTitle = document.getElementById("note-editor-title");
     const noteEditorContent = document.getElementById("note-editor-content");
 
-    if (noteEmptyState) noteEmptyState.classList.add("hidden");
-    if (noteDetailPanel) noteDetailPanel.classList.add("hidden");
-    if (noteEditor) noteEditor.classList.remove("hidden");
+    if (noteEmptyState) noteEmptyState.classList.add("!hidden");
+    if (noteDetailPanel) noteDetailPanel.classList.add("!hidden");
+    if (noteEditor) noteEditor.classList.remove("!hidden");
 
     if (note) {
       if (noteEditorTitle) noteEditorTitle.value = note.title;
@@ -282,12 +284,12 @@
     const noteEmptyState = document.getElementById("note-empty-state");
     const noteDetailPanel = document.getElementById("note-detail-panel");
 
-    if (noteEditor) noteEditor.classList.add("hidden");
+    if (noteEditor) noteEditor.classList.add("!hidden");
 
     if (selectedNote) {
-      if (noteDetailPanel) noteDetailPanel.classList.remove("hidden");
+      if (noteDetailPanel) noteDetailPanel.classList.remove("!hidden");
     } else {
-      if (noteEmptyState) noteEmptyState.classList.remove("hidden");
+      if (noteEmptyState) noteEmptyState.classList.remove("!hidden");
     }
   }
 
@@ -343,8 +345,8 @@
       });
       if (response.success) {
         selectedNote = null;
-        if (noteEmptyState) noteEmptyState.classList.remove("hidden");
-        if (noteDetailPanel) noteDetailPanel.classList.add("hidden");
+        if (noteEmptyState) noteEmptyState.classList.remove("!hidden");
+        if (noteDetailPanel) noteDetailPanel.classList.add("!hidden");
         await loadNotes();
       }
     } catch (error) {
@@ -406,15 +408,15 @@
   }
 
   function openNotesView() {
-    document.getElementById("unlocked-view")?.classList.add("hidden");
-    document.getElementById("cards-view")?.classList.add("hidden");
-    document.getElementById("notes-view")?.classList.remove("hidden");
+    document.getElementById("unlocked-view")?.classList.add("!hidden");
+    document.getElementById("cards-view")?.classList.add("!hidden");
+    document.getElementById("notes-view")?.classList.remove("!hidden");
     loadNotes();
   }
 
   function closeNotesView() {
-    document.getElementById("notes-view")?.classList.add("hidden");
-    document.getElementById("unlocked-view")?.classList.remove("hidden");
+    document.getElementById("notes-view")?.classList.add("!hidden");
+    document.getElementById("unlocked-view")?.classList.remove("!hidden");
   }
 
   document.addEventListener("DOMContentLoaded", () => {

@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "VaultKeeper",
+  "version": "2.0.2",
+  "description": "Gerenciador de senhas seguro",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "vaultkeeper@example.com",
+      "strict_min_version": "112.0"
+    }
+  },
+  "key": "OQyMfXJHNCzYEA8vb3cNZdZw5Y4DUdiujk9urDQvwjG3sIcW6z/BKJa5YiMXdJQodzPCjui6U721a4gkV31T7MKKcKYcdRChzYkhbKFs/8rqSYdHfobbzLlwRvwuGDhOUdggxcPvgAU6iK45lt5Q6AGGWzaYZU6/UgCl+gk5uZ16HXsoK/gjQEHzVIfYbGafzL/g5z1+cyCtCnVwAyQedSIQqSR5jvhtQ/J88tBhMDHctdjS7xsyH86tN39iYeVH2F2O7H8m4jIZBy95VdD49m3NHlTCAceH6JLY+U9hl28dH6AdGfRQHSlfIyJ4zj1+FCnWoYVooHqHykOZ6qElBOozJW2HQ7Ijfb2RUOCaBJk1RIc7Nk+LkGuvaIf6gBov2I0WAapC",
+  "options_ui": {
+    "page": "src/pages/options/index.html"
+  },
+  "action": {
+    "default_popup": "src/pages/popup/index.html",
+    "default_icon": {
+      "32": "icon-32.png"
+    }
+  },
+  "icons": {
+    "128": "icon-128.png"
+  },
+  "permissions": ["activeTab", "nativeMessaging", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/pages/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*", "<all_urls>"],
+      "js": ["src/pages/content/index.tsx"],
+      "css": ["contentStyle.css"]
+    }
+  ],
+  "devtools_page": "src/pages/devtools/index.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["contentStyle.css", "icon-128.png", "icon-32.png"],
+      "matches": []
+    }
+  ]
+}

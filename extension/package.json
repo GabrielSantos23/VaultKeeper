@@ -1,0 +1,13 @@
+{
+  "name": "vaultkeeper-extension",
+  "version": "2.1.0",
+  "description": "Vanilla JS extension with Tailwind injected",
+  "scripts": {
+    "build:css": "npx @tailwindcss/cli -i ./input.css -o ./tailwind.css",
+    "watch:css": "npx @tailwindcss/cli -i ./input.css -o ./tailwind.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.1",
+    "tailwindcss": "^4.2.1"
+  }
+}

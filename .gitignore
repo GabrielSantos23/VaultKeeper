@@ -80,3 +80,15 @@ build/
 Thumbs.db
 
 .opencode
+
+# Undocumented binary build artifacts (should be in GitHub Releases)
+/base64
+/hashlib
+/sqlite3
+/vk_host
+
+# Auth/session files (contain sensitive data)
+auth.json
+.session
+.session_key
+gdrive_credentials.json

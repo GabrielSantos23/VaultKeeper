@@ -1,4 +1,5 @@
-const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+const browserAPI =
+  typeof browser !== "undefined" && browser.runtime ? browser : chrome;
 
 const NATIVE_HOST_NAME = "com.vaultkeeper.host";
 
@@ -73,7 +74,7 @@ async function sendNativeMessage(action, data = {}) {
         pendingRequests.delete(id);
         reject(new Error("Request timed out"));
       }
-    }, 30000);
+    }, 10000);
 
     try {
       nativePort.postMessage(message);
@@ -176,7 +177,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "toggle_favorite":
-          inMemoryCache.credentials = null; 
+          inMemoryCache.credentials = null;
           response = await sendNativeMessage("toggle_favorite", {
             id: request.id,
           });
@@ -274,7 +275,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "save_secure_note":
-          inMemoryCache.notes = null; 
+          inMemoryCache.notes = null;
           response = await sendNativeMessage("save_secure_note", {
             id: request.id,
             title: request.title,
@@ -283,7 +284,7 @@ browserAPI.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case "delete_secure_note":
-          inMemoryCache.notes = null; 
+          inMemoryCache.notes = null;
           response = await sendNativeMessage("delete_secure_note", {
             id: request.id,
           });

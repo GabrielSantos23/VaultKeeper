@@ -127,37 +127,8 @@ class VaultManager:
                 self.crypto.derive_key(master_password)
 
     def _trigger_auto_sync(self):
-        try:
-            from .gdrive import get_gdrive_manager
-            import logging
-            
-            logger = logging.getLogger(__name__)
-
-            gdrive = get_gdrive_manager()
-            auto_sync_enabled = True # forcing true as per requirement/defaults
-
-            logger.info(f"[Auto-Sync] FORCED ENABLED. Connected: {gdrive.is_connected()}")
-
-            if auto_sync_enabled and gdrive.is_connected():
-                def sync_in_background():
-                    try:
-                        logger.info("[Auto-Sync] Starting upload...")
-                        gdrive.upload_vault()
-                        logger.info("[Auto-Sync] Vault synced to Google Drive successfully!")
-                    except Exception as e:
-                        logger.error(f"[Auto-Sync] Failed to sync: {e}")
-                
-                thread = threading.Thread(target=sync_in_background, daemon=True)
-                thread.start()
-            else:
-                if not auto_sync_enabled:
-                    logger.debug("[Auto-Sync] Skipped - auto-sync is disabled")
-                if not gdrive.is_connected():
-                    logger.debug("[Auto-Sync] Skipped - not connected to Google Drive")
-
-        except Exception as e:
-            # Avoid printing here to keep stdout clean for Native Messaging
-            pass
+        # Cloud sync removed for security — sync is no longer supported.
+        pass
 
     def add_credential(self, domain: str, username: str, password: str,
                        notes: Optional[str] = None, totp_secret: Optional[str] = None,
@@ -390,19 +361,23 @@ class VaultManager:
         if row.get('notes'):
             try:
                 decrypted_notes = self.crypto.decrypt(row['notes'], master_password)
-            except:
+            except (ValueError, Exception) as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Could not decrypt notes for entry {row.get('id')}: {type(e).__name__}")
                 decrypted_notes = None
         decrypted_totp = None
         if row.get('totp_secret'):
             try:
                 decrypted_totp = self.crypto.decrypt(row['totp_secret'], master_password)
-            except:
+            except (ValueError, Exception) as e:
+                logging.getLogger(__name__).warning(f"Could not decrypt totp for entry {row.get('id')}: {type(e).__name__}")
                 decrypted_totp = None
         decrypted_backup = None
         if row.get('backup_codes'):
             try:
                 decrypted_backup = self.crypto.decrypt(row['backup_codes'], master_password)
-            except:
+            except (ValueError, Exception) as e:
+                logging.getLogger(__name__).warning(f"Could not decrypt backup codes for entry {row.get('id')}: {type(e).__name__}")
                 decrypted_backup = None
         return Credential(
             id=row['id'],
@@ -896,7 +871,9 @@ class VaultManager:
         if row.get('notes'):
             try:
                 decrypted_notes = self.crypto.decrypt(row['notes'], master_password)
-            except:
+            except (ValueError, Exception) as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Could not decrypt card notes for card {row.get('id')}: {type(e).__name__}")
                 decrypted_notes = None
         return CreditCard(
             id=row['id'],

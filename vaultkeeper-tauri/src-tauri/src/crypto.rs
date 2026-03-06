@@ -13,6 +13,12 @@ const SALT_SIZE: usize = 16;
 const NONCE_SIZE: usize = 12;
 const KEY_SIZE: usize = 32;
 
+// Scrypt parameters (stronger since v2.1)
+const SCRYPT_LOG_N: u8 = 17;      // N=131072 (new, stronger)
+const SCRYPT_R: u32 = 8;
+const SCRYPT_P: u32 = 1;
+const SCRYPT_LOG_N_LEGACY: u8 = 14; // N=16384 (old, kept for migration)
+
 // Global key cache: (password_hash + salt) -> derived_key
 lazy_static::lazy_static! {
     static ref KEY_CACHE: Mutex<HashMap<String, [u8; KEY_SIZE]>> = Mutex::new(HashMap::new());
@@ -28,17 +34,16 @@ pub fn clear_key_cache() {
     }
 }
 
-/// Derive a key from password using Scrypt with caching
+/// Derive a key from password using Scrypt with caching (uses STRONG params)
 pub fn derive_key_cached(
     password: &str,
     salt: &[u8],
 ) -> Result<[u8; KEY_SIZE], Box<dyn std::error::Error>> {
-    // Create cache key from password prefix + salt
-    let cache_key = format!(
-        "{}:{}",
-        &password[..password.len().min(8)],
-        general_purpose::STANDARD.encode(salt)
-    );
+    // Create cache key from a hash of the full password + salt (never store password chars)
+    let mut hasher = Sha256::new();
+    hasher.update(password.as_bytes());
+    hasher.update(salt);
+    let cache_key = format!("v2:{}", general_purpose::STANDARD.encode(hasher.finalize()));
 
     // Check cache first
     {
@@ -48,27 +53,18 @@ pub fn derive_key_cached(
         }
     }
 
-    // Derive key
+    // Derive key with STRONG params
     let mut key = [0u8; KEY_SIZE];
-    let params = Params::new(14, 8, 1, KEY_SIZE)?;
+    let params = Params::new(SCRYPT_LOG_N, SCRYPT_R, SCRYPT_P, KEY_SIZE)?;
     scrypt(password.as_bytes(), salt, &params, &mut key)?;
 
     // Cache the result
     {
         let mut cache = KEY_CACHE.lock().map_err(|e| e.to_string())?;
-        cache.insert(cache_key, key);
-        // Limit cache size to prevent unbounded growth
-        if cache.len() > 1000 {
+        if cache.len() >= 1000 {
             cache.clear();
-            cache.insert(
-                format!(
-                    "{}:{}",
-                    &password[..password.len().min(8)],
-                    general_purpose::STANDARD.encode(salt)
-                ),
-                key,
-            );
         }
+        cache.insert(cache_key, key);
     }
 
     Ok(key)
@@ -82,13 +78,24 @@ pub struct PasswordStrength {
     pub suggestions: Vec<String>,
 }
 
-/// Derive a key from password using Scrypt (same params as Python: N=16384, r=8, p=1)
+/// Derive a key from password using Scrypt (STRONG params: N=131072, r=8, p=1)
 pub fn derive_key(
     password: &str,
     salt: &[u8],
 ) -> Result<[u8; KEY_SIZE], Box<dyn std::error::Error>> {
     let mut key = [0u8; KEY_SIZE];
-    let params = Params::new(14, 8, 1, KEY_SIZE)?; // log2(N)=14 means N=16384
+    let params = Params::new(SCRYPT_LOG_N, SCRYPT_R, SCRYPT_P, KEY_SIZE)?;
+    scrypt(password.as_bytes(), salt, &params, &mut key)?;
+    Ok(key)
+}
+
+/// Derive a key using LEGACY Scrypt params (N=16384) — for backward compatibility only
+fn derive_key_legacy(
+    password: &str,
+    salt: &[u8],
+) -> Result<[u8; KEY_SIZE], Box<dyn std::error::Error>> {
+    let mut key = [0u8; KEY_SIZE];
+    let params = Params::new(SCRYPT_LOG_N_LEGACY, SCRYPT_R, SCRYPT_P, KEY_SIZE)?;
     scrypt(password.as_bytes(), salt, &params, &mut key)?;
     Ok(key)
 }
@@ -127,8 +134,8 @@ pub fn encrypt(plaintext: &str, password: &str) -> Result<String, Box<dyn std::e
     Ok(general_purpose::STANDARD.encode(&combined))
 }
 
-/// Decrypt data using AES-256-GCM
-/// Expected format: base64(salt + nonce + ciphertext)
+/// Decrypt data using AES-256-GCM with automatic parameter migration
+/// Tries strong params first, falls back to legacy params
 pub fn decrypt(encrypted_data: &str, password: &str) -> Result<String, Box<dyn std::error::Error>> {
     // Base64 decode
     let combined = general_purpose::STANDARD
@@ -143,14 +150,21 @@ pub fn decrypt(encrypted_data: &str, password: &str) -> Result<String, Box<dyn s
     let salt = &combined[0..SALT_SIZE];
     let nonce_bytes = &combined[SALT_SIZE..SALT_SIZE + NONCE_SIZE];
     let ciphertext = &combined[SALT_SIZE + NONCE_SIZE..];
+    let nonce = Nonce::from_slice(nonce_bytes);
 
-    // Derive key (with caching)
-    let key_bytes = derive_key_cached(password, salt)?;
+    // Try with STRONG params first (new encryption)
+    if let Ok(key_bytes) = derive_key_cached(password, salt) {
+        let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
+        let cipher = Aes256Gcm::new(key);
+        if let Ok(plaintext) = cipher.decrypt(nonce, ciphertext) {
+            return Ok(String::from_utf8(plaintext)?);
+        }
+    }
+
+    // Fallback to LEGACY params (old encryption)
+    let key_bytes = derive_key_legacy(password, salt)?;
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
     let cipher = Aes256Gcm::new(key);
-
-    // Decrypt
-    let nonce = Nonce::from_slice(nonce_bytes);
     let plaintext = cipher
         .decrypt(nonce, ciphertext)
         .map_err(|e| format!("Decryption failed: {:?}", e))?;

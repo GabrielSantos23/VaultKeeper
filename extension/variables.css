@@ -1,31 +1,38 @@
-
 :root {
+  /* Palette matched to VaultKeeper Tauri app (dark theme) */
 
-  --vk-bg-primary: #1c1f24;
-  --vk-bg-secondary: #2a2e35;
-  --vk-bg-tertiary: #252930;
-  --vk-bg-hover: #363a42;
-  --vk-bg-selected: #3b9eff;
+  /* Backgrounds — warm dark tones */
+  --vk-bg-primary: #1e1e1e;
+  --vk-bg-secondary: #262626;
+  --vk-bg-tertiary: #2e2e2e;
+  --vk-bg-hover: #3a3a3a;
+  --vk-bg-selected: #c4702a;
 
-  --vk-text-primary: #e5e7eb;
-  --vk-text-secondary: #9ca3af;
-  --vk-text-tertiary: #6b7280;
+  /* Text — warm off-whites and grays */
+  --vk-text-primary: #d4ccc0;
+  --vk-text-secondary: #a09888;
+  --vk-text-tertiary: #6b6560;
   --vk-text-white: #ffffff;
-  --vk-text-link: #3b9eff;
+  --vk-text-link: #d4872a;
 
-  --vk-border-color: #3a3f4b;
-  --vk-border-light: #2a2e35;
+  /* Borders — muted warm tones */
+  --vk-border-color: #3d3830;
+  --vk-border-light: #2e2a24;
 
-  --vk-accent-blue: #3b9eff;
+  /* Accent colors — amber/warm primary from globals.css */
+  --vk-accent-primary: #d4872a;
+  --vk-accent-blue: #d4872a;
   --vk-accent-green: #22c55e;
-  --vk-accent-red: #ef4444;
+  --vk-accent-red: #e05252;
   --vk-accent-orange: #f97316;
   --vk-accent-warning: #f59e0b;
 
-  --vk-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
-  --vk-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --vk-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.4);
+  /* Shadows */
+  --vk-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --vk-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --vk-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.45);
 
+  /* Radii */
   --vk-radius-sm: 6px;
   --vk-radius-md: 8px;
   --vk-radius-lg: 12px;
